@@ -2,19 +2,31 @@
 
 Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-## Incrément courant — `scene3d`
+## Incrément courant — `surface-motion`
+
+Une couche motion native et bornée améliore l’accueil, les tarifs et le tableau de bord sans changer la direction artistique : intro séquencée du hero et de l’aperçu produit, révélations une seule fois au scroll, header compact avec progression de lecture, micro-interactions et détails du bento. Les couleurs restent celles du design existant, aucune dépendance ni animation permanente n’est ajoutée. Les pictogrammes d’écrans qui dépendaient de glyphes absents sont désormais dessinés en CSS.
+
+`MotionSurface` conserve le HTML SSR lisible sans JavaScript, utilise `IntersectionObserver`, révèle immédiatement le contenu sous reduced motion et nettoie observers/listeners. Les zones en attente restent dans l’arbre d’accessibilité et apparaissent au focus clavier. Après chaque entrée, l’état `entered` supprime les transformations résiduelles afin que les modales `position: fixed` du dashboard restent réellement viewport et cliquables.
+
+- `npm run verify` : TypeScript, ESLint, build et **74/74 Vitest dans 14 fichiers** réussis.
+- `npx playwright test` : **37/37 Playwright** sur le build de production, incluant axe, clavier, modales, éditeur, publication et 3D.
+- Cinq scénarios motion ciblent le scroll, les ancres, reduced motion, le SSR sans JavaScript, le mobile à 390 px et les deux déclencheurs de modale du dashboard.
+- Captures réelles desktop/mobile, bento animé et SSR, carte de démonstration et dashboard inspectées ; aucun débordement horizontal constaté dans ces scénarios.
+- Aucune migration, réinitialisation de base, modification d’environnement sensible, nouvelle dépendance ou publication externe pour ce lot.
+- Validation limitée à Chromium et à des viewports émulés : Firefox, WebKit, appareils physiques, lecteur d’écran et mesure Core Web Vitals ne sont pas validés.
+
+## Incrément précédent — `scene3d`
 
 La capacité procédurale est intégrée au registre, à l’orchestrateur synchrone, à l’agent prévisualisable, à l’éditeur, à la persistance, au renderer public et à la démo Atelier Ligne. Three.js est différé, borné, suspendu hors viewport et remplacé par un fallback sous reduced motion ou indisponibilité WebGL. Voir [../WOOB_SCENE3D.md](../WOOB_SCENE3D.md) pour le contrat et les limites.
 
-- `npm run verify` : TypeScript, ESLint, build et **74/74 Vitest dans 14 fichiers** réussis.
-- `npm run test:e2e` : **32/32 Playwright** sur le build de production.
+- Au moment de sa livraison : **74/74 Vitest**, **32/32 Playwright**, TypeScript, ESLint et build réussis ; la suite courante est désormais de 37 scénarios Playwright.
 - Captures 3D réelles à 1440/390 px inspectées ; smoke HTTP et audit axe ciblé réussis.
 - `npm audit --omit=dev` : 0 vulnérabilité ; 4 alertes modérées de développement conservées sans correctif forcé.
 - Aucune migration, réinitialisation de base, modification d’environnement sensible ou publication externe pour ce lot.
 
 ## Résultats historiques du socle
 
-Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `scene3d` ci-dessus et des guides créatifs.
+Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `surface-motion` ci-dessus et des guides créatifs.
 
 | Vérification | Résultat constaté |
 | --- | --- |
@@ -36,6 +48,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 ## Développé et intégré
 
 - Site marketing, catalogue de tarifs sans prix payant inventé, inscription, connexion, déconnexion, récupération et vérification email.
+- Couche `surface-motion` partagée par l’accueil, les tarifs et le dashboard : entrées bornées, révélations one-shot, header de lecture, interactions clavier/survol, fallback SSR et reduced motion, sans transformations résiduelles sur les ancêtres de modales.
 - Sessions opaques hashées, cookies, CSRF double-submit, consommation atomique des jetons, RBAC serveur et isolation par workspace. Les réponses `/api/auth/me` sont limitées au profil utile et ne contiennent plus le hash du mot de passe.
 - Administration plateforme `/admin`, distincte du rôle `admin` d’un workspace : rôle persisté `users.platformRole` ou allowlist `PLATFORM_ADMIN_EMAILS`, sans promotion automatique. Statistiques SQL globales, activité sur 14 jours, utilisateurs, espaces, projets, offres, modération, attribution manuelle d’offre et journal `admin_audit_logs` transactionnel. Les valeurs de commandes restent ventilées par devise et statut, sans les assimiler à un chiffre d’affaires encaissé.
 - Espaces partagés : ajout de comptes existants, rôles owner/admin/editor/contributor/viewer, suspension/réactivation et sélecteur d’espace actif validé côté serveur.
@@ -71,6 +84,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 
 ## Comportements vérifiés par tests
 
+- Motion de surface : révélation et état final statique, progression/compactage du header, ancre non masquée, contenu SSR sans JavaScript, reduced motion, largeur mobile, liens accessibles avant révélation et modales fixes ouvertes depuis le header comme depuis l’état vide du dashboard.
 - Design system : compatibilité d’un ancien document, normalisation idempotente, héritage desktop/tablette/mobile, priorité des exceptions, états, copie/reset, références de presets, dégradés sûrs, variables expertes, entrées CSS/URL hostiles et contrastes.
 - Persistance du thème sur deux pages : exception locale et racine préservées, révision obsolète refusée, restauration avec thème actuel, preset et tokens retrouvés dans le snapshot publié.
 - Parcours navigateur de personnalisation : boutons stylés, preset partagé, copier/coller/reset, variable expert dans le padding, undo/redo, sauvegarde/rechargement, thème global, publication anonyme à 390 px et largeur mobile calculée.
@@ -120,4 +134,4 @@ La preview courante utilise `.woob-data-runtime-v2`, initialisée par les migrat
 
 ## Prochaine priorité
 
-Après l’incrément vertical `scene3d`, la priorité d’architecture reste une orchestration persistante et idempotente pour les tâches longues, puis des preuves navigateur produit et des corrections ciblées à cycles bornés. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.
+Après les incréments `scene3d` et `surface-motion`, la priorité d’architecture reste une orchestration persistante et idempotente pour les tâches longues, puis des preuves navigateur produit et des corrections ciblées à cycles bornés. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.

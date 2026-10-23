@@ -7,6 +7,7 @@ import './admin.css';
 import './catalog.css';
 import './responsive.css';
 import './editor-panels.css';
+import './motion.css';
 
 export const metadata: Metadata = {
   title: { default: 'Woob — Votre site, votre vision', template: '%s · Woob' },
