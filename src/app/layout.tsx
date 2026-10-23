@@ -9,6 +9,7 @@ import './responsive.css';
 import './editor-panels.css';
 import './motion.css';
 import './experience.css';
+import './immersive.css';
 import { RouteMotion } from '@/components/ui/RouteMotion';
 
 export const metadata: Metadata = {

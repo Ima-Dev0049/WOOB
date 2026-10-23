@@ -73,15 +73,28 @@ export function MotionSurface({ children, scrollHeader = false, motionKey = 'sur
 
   useEffect(() => {
     if (!scrollHeader) return;
-    const header = root.current?.querySelector<HTMLElement>('.marketing-header');
-    if (!header) return;
+    const container = root.current;
+    if (!container) return;
+    const header = container.querySelector<HTMLElement>('.marketing-header');
+    const scene = container.querySelector<HTMLElement>('[data-surface-scene]');
+    if (!header && !scene) return;
+    const sceneMedia = window.matchMedia('(min-width: 761px) and (prefers-reduced-motion: no-preference)');
     let frame = 0;
     const update = () => {
       frame = 0;
+      let sceneProgress = 0;
+      if (scene && sceneMedia.matches) {
+        const bounds = scene.getBoundingClientRect();
+        const travel = Math.max(1, Math.min(bounds.height, window.innerHeight));
+        sceneProgress = Math.min(1, Math.max(0, -bounds.top / travel));
+      }
       const top = Math.max(0, window.scrollY);
-      const available = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-      header.classList.toggle('is-scrolled', top > 32);
-      header.style.setProperty('--surface-progress', Math.min(1, top / available).toFixed(4));
+      if (header) {
+        const available = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+        header.classList.toggle('is-scrolled', top > 32);
+        header.style.setProperty('--surface-progress', Math.min(1, top / available).toFixed(4));
+      }
+      if (scene) scene.style.setProperty('--surface-scene-progress', sceneProgress.toFixed(4));
     };
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(update);
@@ -89,14 +102,19 @@ export function MotionSurface({ children, scrollHeader = false, motionKey = 'sur
     update();
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
+    sceneMedia.addEventListener('change', schedule);
     return () => {
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
-      header.classList.remove('is-scrolled');
-      header.style.removeProperty('--surface-progress');
+      sceneMedia.removeEventListener('change', schedule);
+      if (header) {
+        header.classList.remove('is-scrolled');
+        header.style.removeProperty('--surface-progress');
+      }
+      if (scene) scene.style.removeProperty('--surface-scene-progress');
     };
-  }, [scrollHeader]);
+  }, [scrollHeader, motionKey]);
 
   useEffect(() => {
     const container = root.current;

@@ -2,7 +2,19 @@
 
 Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-## Incrément courant — `publication-preflight`
+## Incrément courant — `immersive-minimal-ui`
+
+L’accueil adopte une direction plus moderne et minimaliste : hero encre sur toute la première scène, typographie resserrée, grille et halo statiques très discrets, mockup produit flottant, puis sections papier avec cartes blanches, contours fins et espacements plus réguliers. Le header devient clair et compact pendant la lecture. L’authentification reprend ce langage encre/papier ; le dashboard et les panneaux de projet utilisent des surfaces plus sobres sans modifier leurs données ni leurs parcours. Les tarifs, les documents publics et les thèmes utilisateurs ne reçoivent pas cette refonte globale.
+
+L’immersion principale réutilise `MotionSurface` : un wrapper `.hero-stage` applique une translation, une rotation et une échelle bornées au mockup à partir de `--surface-scene-progress`. Le même écouteur que le header calcule cette progression au maximum une fois par frame, uniquement à partir de 761 px et sans préférence de réduction des animations. Il n’existe aucune boucle permanente, aucun canvas et aucune nouvelle dépendance. La variable est supprimée au démontage ; mobile et `reduced-motion` conservent une scène statique. Le tilt existant, les entrées one-shot, le SSR sans JavaScript et les transitions natives restent réutilisés plutôt que dupliqués.
+
+- `npm run verify` : TypeScript strict, ESLint, build et **91/91 Vitest dans 16 fichiers** réussis.
+- `npx playwright test --workers=1` : **48/48 Playwright** sur build de production en Chromium, en **10,9 min**. Deux scénarios dédiés vérifient la progression réelle, l’absence d’animation infinie, le retour à zéro, l’isolation des tarifs, le mobile sans débordement et le changement dynamique de préférence motion.
+- Les audits axe de l’accueil, de la connexion, du dashboard et de l’éditeur passent dans la même suite. Les captures réelles à 1440/390 px, le header pendant le scroll, la connexion et le dashboard ont été inspectés.
+- Aucune nouvelle dépendance, migration, réinitialisation de base, modification d’environnement sensible ou publication externe. Les avertissements non bloquants de traçage filesystem et de configuration Vite persistent.
+- **Limites :** immersion native bornée au hero, pas une scène WebGL, une vidéo ou une timeline libre. Le mobile reste statique par choix. Validation limitée à Chromium et viewports émulés ; axe ne remplace ni une revue manuelle ni une mesure Core Web Vitals.
+
+## Incrément précédent — `publication-preflight`
 
 La publication dispose désormais d’un contrôle préalable déterministe, calculé depuis le `SiteSnapshot` validé et le diagnostic créatif existant. Le moteur `src/lib/publication/preflight.ts` ne duplique ni la validation structurelle ni les règles de contraste, SEO, responsive, brief ou motion. Il ajoute les références de médias managés absents ou supprimés et additionne les octets réellement enregistrés, avec une requête bornée au workspace, au projet, aux identifiants référencés et aux lignes non supprimées. Les images de produits sont attribuées aux pages qui contiennent un bloc catalogue ; leur portée globale de publication reste inchangée.
 
@@ -89,7 +101,7 @@ La capacité procédurale est intégrée au registre, à l’orchestrateur synch
 
 ## Résultats historiques du socle
 
-Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `publication-preflight` ci-dessus et des guides créatifs.
+Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `immersive-minimal-ui` ci-dessus et des guides créatifs.
 
 | Vérification | Résultat constaté |
 | --- | --- |
@@ -113,6 +125,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - Site marketing, catalogue de tarifs sans prix payant inventé, inscription, connexion, déconnexion, récupération et vérification email.
 - Couche `surface-motion` partagée par l’accueil, les tarifs et le dashboard : entrées bornées, révélations one-shot, header de lecture, interactions clavier/survol, fallback SSR et reduced motion, sans transformations résiduelles sur les ancêtres de modales.
 - Couche `experience-motion` globale : entrées de routes WAAPI, tilt borné du showcase, transitions des dialogues et contrôles, ouverture éditorialisée du hero public et viewport d’éditeur réellement interpolé. Les préférences reduced-motion, le SSR et les entrées créatives locales sont préservés.
+- Refonte `immersive-minimal-ui` : hero marketing encre avec profondeur de scroll bornée, header adaptatif, sections minimalistes, authentification et dashboard harmonisés. Le moteur de scroll est partagé, sans boucle permanente ; mobile et reduced-motion restent statiques.
 - Motion de document `scroll-motion` : parallaxe et presets de progression sur blocs compatibles, trois effets/page, inspecteur, IA `updateMotion` prévisualisable, historique, persistance et publication ; aucune boucle permanente, cible fragile ou activation automatique sur l’existant.
 - Sessions opaques hashées, cookies, CSRF double-submit, consommation atomique des jetons, RBAC serveur et isolation par workspace. Les réponses `/api/auth/me` sont limitées au profil utile et ne contiennent plus le hash du mot de passe.
 - Administration plateforme `/admin`, distincte du rôle `admin` d’un workspace : rôle persisté `users.platformRole` ou allowlist `PLATFORM_ADMIN_EMAILS`, sans promotion automatique. Statistiques SQL globales, activité sur 14 jours, utilisateurs, espaces, projets, offres, modération, attribution manuelle d’offre et journal `admin_audit_logs` transactionnel. Les valeurs de commandes restent ventilées par devise et statut, sans les assimiler à un chiffre d’affaires encaissé.
@@ -155,6 +168,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - Idempotence IA : replay d’une réponse terminée sans doublon, refus d’une autre consigne avec la même clé, doublon actif refusé, bail expiré repris avec `attempts=2`, révision de page modifiée refusée et interruption réseau navigateur suivie d’un replay HTTP 200 identique.
 - Motion de surface : révélation et état final statique, progression/compactage du header, ancre non masquée, contenu SSR sans JavaScript, reduced motion, largeur mobile, liens accessibles avant révélation et modales fixes ouvertes depuis le header comme depuis l’état vide du dashboard.
 - Motion d’expérience : appels WAAPI de navigation réellement observés, événements CSS de modale/hero/panneau, tilt sur pointeur fin et reset, `transitionrun` du canvas 1180 → 390 px, nettoyage final et absence de ces mouvements sous reduced-motion ; entrée créative locale du hero conservée.
+- UI immersive : progression du mockup réellement modifiée par le scroll, retour à zéro, aucune animation infinie, tarifs non concernés, scène mobile/reduced-motion statique, préférence réactivée dynamiquement et absence de débordement à 390 px.
 - Motion scroll de document : parallaxe IA annulée sans effet puis appliquée, undo/redo, amplitude conservée après rechargement, snapshot publié, progression réelle sans boucle, reduced-motion initial/dynamique et contenu SSR visible ; validation des cibles et du budget de trois effets.
 - Design system : compatibilité d’un ancien document, normalisation idempotente, héritage desktop/tablette/mobile, priorité des exceptions, états, copie/reset, références de presets, dégradés sûrs, variables expertes, entrées CSS/URL hostiles et contrastes.
 - Typographie : 50 familles et 500 styles uniques, dix graisses dans chaque plage réelle, signatures et licences des 50 assets, anciens thèmes sans requête, déduplication des `@font-face`, rejet d’URL injectée ; parcours Fraunces 600/Playfair Display 800 persisté et publié avec fontes réellement chargées.
@@ -209,4 +223,4 @@ La preview courante utilise `.woob-data-runtime-v2`, initialisée par les migrat
 
 ## Prochaine priorité
 
-Après les incréments `scene3d`, `surface-motion`, `scroll-motion`, `ai-idempotency`, `font-catalog-500`, `experience-motion` et `publication-preflight`, la priorité d’architecture est d’étendre la reprise idempotente à `project_create`, puis d’évaluer un worker durable si une exécution sans requête devient nécessaire. Les preuves navigateur produit et corrections ciblées à cycles bornés restent nécessaires. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.
+Après les incréments `scene3d`, `surface-motion`, `scroll-motion`, `ai-idempotency`, `font-catalog-500`, `experience-motion`, `publication-preflight` et `immersive-minimal-ui`, la priorité d’architecture est d’étendre la reprise idempotente à `project_create`, puis d’évaluer un worker durable si une exécution sans requête devient nécessaire. Les preuves navigateur produit et corrections ciblées à cycles bornés restent nécessaires. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.
