@@ -7,6 +7,7 @@ import { buildProjectDraft, buildProjectGenerationPrompt } from '@/lib/catalog/g
 import { generateProjectPreview } from '@/server/services/project-generation';
 import { createProject } from '@/server/services/projects';
 import { aiGenerations } from '@/server/db/schema';
+import { getPublishedSite, publishProject } from '@/server/services/publishing';
 
 let context: DatabaseContext;
 beforeAll(async () => { context = await testDatabase(); process.env.AI_PROVIDER = 'demo'; }, 60_000);
@@ -80,6 +81,8 @@ describe('génération et persistance du parcours catalogue', () => {
 
     const details = await createProject(account.user.id, account.workspace.id, { ...selection, generationId: preview.generationId }, context.db);
     expect(details.project.catalogSelection).toMatchObject({ siteTypeId: 'restaurant-classic', activityDomainId: 'food-agriculture', designStyleId: 'warm-artisanal' });
+    expect(details.project.creativeBrief).toEqual(preview.draft.brief);
+    expect(logged.output).toMatchObject({ brief: { sourceText: selection.brief }, source: { name: selection.name, brief: selection.brief } });
     expect(details.project.theme.primaryColor).toBe('#8B3A3A');
     expect(details.modules.map((module) => module.key).sort()).toEqual(['forms', 'reservations']);
     expect(details.pages.map((page) => page.path).sort()).toEqual(preview.draft.pages.map((page) => page.path).sort());
@@ -88,6 +91,9 @@ describe('génération et persistance du parcours catalogue', () => {
     expect(details.posts).toEqual([]);
     expect((await context.db.select().from(aiGenerations).where(eq(aiGenerations.id, preview.generationId)))[0]!.projectId).toBe(details.project.id);
     await expect(createProject(account.user.id, account.workspace.id, { ...selection, generationId: preview.generationId }, context.db)).rejects.toMatchObject({ status: 404 });
+    await publishProject(account.user.id, details.project.id, context.db);
+    const published = await getPublishedSite(details.project.slug, context.db);
+    expect(published?.creativeBrief).toEqual(preview.draft.brief);
   });
 
   it('persiste le concept choisi dans le thème et chaque page sans consommer la génération sur une erreur', async () => {
@@ -114,6 +120,8 @@ describe('génération et persistance du parcours catalogue', () => {
     const preview = await generateProjectPreview(account.user.id, account.workspace.id, selection, context.db);
     await expect(createProject(other.user.id, other.workspace.id, { ...selection, generationId: preview.generationId }, context.db)).rejects.toMatchObject({ status: 404 });
     await expect(createProject(account.user.id, account.workspace.id, { ...selection, designStyleId: 'editorial-modern', generationId: preview.generationId }, context.db)).rejects.toMatchObject({ status: 409, code: 'GENERATION_SELECTION_MISMATCH' });
+    await expect(createProject(account.user.id, account.workspace.id, { ...selection, brief: 'Brief remplacé après la prévisualisation', generationId: preview.generationId }, context.db)).rejects.toMatchObject({ status: 409, code: 'GENERATION_SELECTION_MISMATCH' });
+    await expect(createProject(account.user.id, account.workspace.id, { ...selection, name: 'Nom remplacé après la prévisualisation', generationId: preview.generationId }, context.db)).rejects.toMatchObject({ status: 409, code: 'GENERATION_SELECTION_MISMATCH' });
     const stillPending = (await context.db.select().from(aiGenerations).where(and(eq(aiGenerations.id, preview.generationId), eq(aiGenerations.workspaceId, account.workspace.id))))[0]!;
     expect(stillPending.projectId).toBeNull();
   });

@@ -2,7 +2,9 @@
 
 Date : 2026-10-23. Branche : `arena/639e32e6-woob`. Point de départ : `9f88f35`.
 
-L’implémentation du premier lot et ses vérifications sont décrites dans [WOOB_CREATIVE_ENGINE.md](./WOOB_CREATIVE_ENGINE.md).
+L’implémentation des lots livrés et leurs vérifications sont décrites dans [WOOB_CREATIVE_ENGINE.md](./WOOB_CREATIVE_ENGINE.md). La correspondance avec le cahier des charges 1.0 et les capacités encore absentes est tenue dans [WOOB_CREATIVE_ENGINE_ROADMAP.md](./WOOB_CREATIVE_ENGINE_ROADMAP.md).
+
+Mise à jour : le brief-engine local, sa migration additive et la vérification des exigences ont ensuite été implémentés. L’audit ci-dessous conserve le constat initial afin de ne pas réécrire l’historique.
 
 ## 1. Périmètre et méthode
 

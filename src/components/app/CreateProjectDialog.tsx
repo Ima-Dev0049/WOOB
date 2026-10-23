@@ -10,6 +10,7 @@ import { withCreativeConcept, type GeneratedProjectDraft } from '@/lib/catalog/g
 import { themeCssVariables, themeGlobalCss } from '@/lib/document/design-system';
 import type { SiteSnapshot } from '@/lib/document/types';
 import { DocumentRenderer } from '@/components/renderer/DocumentRenderer';
+import { ProjectBriefSummary } from '@/components/app/ProjectBriefSummary';
 import { useModalFocus } from '@/components/ui/useModalFocus';
 
 type PreviewResponse = { generationId: string; provider: string; model: string; demo: boolean; draft: GeneratedProjectDraft };
@@ -35,6 +36,7 @@ function DraftPreview({ draft, demo, model, path, onPathChange, onConceptChange,
       <span>{demo ? dictionary.localProvider : dictionary.remoteProvider(model)}</span>
       <strong>{draft.resolved.siteType ? localize(draft.resolved.siteType.name, locale) : dictionary.customType} · {localize(draft.resolved.style.name, locale)}</strong>
     </div>
+    <ProjectBriefSummary brief={draft.brief} locale={locale} compact />
     <section className="creative-directions" aria-labelledby="creative-directions-title">
       <header><div><span className="eyebrow">Creative Engine</span><h4 id="creative-directions-title">{dictionary.creativeTitle}</h4><p>{dictionary.creativeBody}</p></div><strong>{dictionary.diversity(draft.creative.diversity.score)}</strong></header>
       <div className="creative-concept-grid" role="radiogroup" aria-label={dictionary.creativeTitle}>{draft.creative.candidates.map((candidate) => {

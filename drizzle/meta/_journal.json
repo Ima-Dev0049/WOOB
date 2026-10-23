@@ -36,6 +36,13 @@
       "when": 1792753937271,
       "tag": "0005_universal_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792765771331,
+      "tag": "0006_creative_brief",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,9 @@
 import type { ProjectGenerationContext } from '@/lib/catalog/types';
 import { contrastRatio, getDesignSystem, normalizeThemeSettings, withDesignSystem } from '@/lib/document/design-system';
 import type { PageDocument, PageNode, ThemeSettings } from '@/lib/document/types';
+import { createLocalProjectBrief } from './brief';
 import { creativeDirectionResultSchema } from './schema';
-import type { CreativeDirection, CreativeDirectionResult, CreativeEvaluation, HeroLayout, MotionPreset } from './types';
+import type { CreativeDirection, CreativeDirectionResult, CreativeEvaluation, HeroLayout, MotionPreset, ProjectBrief } from './types';
 
 type PaletteRecipe = 'origin' | 'tinted' | 'nocturne';
 type Archetype = {
@@ -104,13 +105,11 @@ function paletteFor(recipe: PaletteRecipe, theme: ThemeSettings, locale: 'fr' | 
 
 function briefSignals(context: ProjectGenerationContext) {
   const brief = context.brief.replace(/\s+/g, ' ').trim();
-  const audienceMatch = /(?:pour|destin[ée]\s+[àa]|for)\s+([^.;]{2,100})/i.exec(brief);
-  const audience = audienceMatch?.[1]?.trim() || (context.activityDomain ? localized(context.locale, `Les publics intéressés par ${context.activityDomain.name.toLowerCase()}.`, `People interested in ${context.activityDomain.name.toLowerCase()}.`) : localized(context.locale, 'Les visiteurs qui veulent comprendre l’offre avant d’agir.', 'Visitors who want to understand the offer before acting.'));
   const emotional = /chaleur|chaleureu|accueil|warm|welcoming/i.test(brief) ? localized(context.locale, 'Chaleur et proximité', 'Warmth and closeness')
     : /luxe|premium|raffin|luxury/i.test(brief) ? localized(context.locale, 'Calme et distinction', 'Calm and distinction')
       : /audacieux|énergie|bold|energy/i.test(brief) ? localized(context.locale, 'Énergie et confiance', 'Energy and confidence')
         : localized(context.locale, 'Clarté et confiance', 'Clarity and confidence');
-  return { brief, audience: truncate(audience, 300), emotional };
+  return { brief, emotional };
 }
 
 function conversionFor(context: ProjectGenerationContext): CreativeDirection['conversion'] {
@@ -123,7 +122,7 @@ function conversionFor(context: ProjectGenerationContext): CreativeDirection['co
 export function measureCreativeDiversity(candidates: CreativeDirection[]) {
   const compositions = new Set(candidates.map((candidate) => [candidate.composition.heroLayout, candidate.composition.featuresLayout, candidate.composition.galleryLayout, candidate.composition.rhythm].join(':')));
   const palettes = new Set(candidates.map((candidate) => Object.values(candidate.palette).filter((value) => value.startsWith('#')).join(':')));
-  const motions = new Set(candidates.map((candidate) => `${candidate.motion.preset}:${candidate.motion.intensity}`));
+  const motions = new Set(candidates.map((candidate) => `${candidate.motion.preset}:${candidate.motion.intensity}:${candidate.motion.enabled !== false}`));
   const count = Math.max(1, candidates.length);
   const sharedDecisions: string[] = [];
   for (const [label, values] of [['typographie', candidates.map((candidate) => candidate.typography.headingFont)], ['rythme', candidates.map((candidate) => candidate.composition.rhythm)], ['médias', candidates.map((candidate) => candidate.imagery.treatment)]] as const) {
@@ -133,7 +132,8 @@ export function measureCreativeDiversity(candidates: CreativeDirection[]) {
 }
 
 /** Deterministic, transparent rules: no remote AI call and no claim of semantic understanding beyond these signals. */
-export function createLocalCreativeDirections(context: ProjectGenerationContext, baseTheme: ThemeSettings): CreativeDirectionResult {
+export function createLocalCreativeDirections(context: ProjectGenerationContext, baseTheme: ThemeSettings, briefInput?: ProjectBrief): CreativeDirectionResult {
+  const projectBrief = briefInput || createLocalProjectBrief(context);
   const preferredId = STYLE_ARCHETYPE[context.designStyle.id] || 'clear-conversation';
   const preferred = ARCHETYPES.find((candidate) => candidate.id === preferredId)!;
   const offset = hash(`${context.projectName}:${context.brief}`) % (ARCHETYPES.length - 1);
@@ -146,22 +146,22 @@ export function createLocalCreativeDirections(context: ProjectGenerationContext,
     const moduleFit = archetype.id === 'product-stage' && context.modules.some((module) => module.id === 'catalog');
     return {
       schemaVersion: '1.0.0', engine: 'local-rules-v1', conceptId: archetype.id, name: localized(context.locale, archetype.name.fr, archetype.name.en),
-      intent: signals.brief ? truncate(signals.brief, 500) : localized(context.locale, `Présenter ${context.projectName} et rendre la prochaine action évidente.`, `Present ${context.projectName} and make the next action obvious.`),
-      audience: signals.audience, emotion: signals.emotional, personality: [...(en ? archetype.personality.en : archetype.personality.fr)],
+      intent: truncate(projectBrief.objective, 500),
+      audience: projectBrief.audience[0]!, emotion: signals.emotional, personality: [...(en ? archetype.personality.en : archetype.personality.fr)],
       concept: localized(context.locale, archetype.concept.fr, archetype.concept.en),
       rationale: truncate(localized(context.locale, `Le style « ${context.designStyle.name} » fournit l’ancrage visuel ; le brief détermine le rythme et la priorité de conversion.`, `The “${context.designStyle.name}” style anchors the visuals; the brief guides rhythm and conversion priority.`), 700),
       palette: paletteFor(archetype.palette, baseTheme, context.locale),
       typography: { headingFont: archetype.headingFont, bodyFont: SYSTEM_FONT, scale: archetype.scale, rationale: archetype.scale === 'monumental' ? localized(context.locale, 'Un grand contraste typographique porte le manifeste ; le texte courant reste sobre.', 'Strong typographic contrast carries the manifesto while body copy stays quiet.') : localized(context.locale, 'La hiérarchie distingue titres et lecture courante sans multiplier les familles.', 'The hierarchy separates headings and reading without multiplying font families.') },
       composition: { heroLayout: archetype.heroLayout, featuresLayout: archetype.featuresLayout, galleryLayout: archetype.galleryLayout, rhythm: archetype.rhythm, rationale: localized(context.locale, archetype.concept.fr, archetype.concept.en) },
       imagery: { treatment: archetype.treatment, guidance: localized(context.locale, 'Utiliser des médias réels et décrits par un texte alternatif ; le traitement reste secondaire.', 'Use real media with alternative text; treatment remains secondary.') },
-      motion: { preset: archetype.motion, intensity: archetype.intensity, rationale: localized(context.locale, 'Une entrée sur le hero et au plus deux sections : la navigation, les formulaires et la lecture restent stables.', 'One hero entrance and at most two section entrances: navigation, forms and reading stay stable.') },
+      motion: { preset: archetype.motion, intensity: archetype.intensity, enabled: projectBrief.motionPreference !== 'disabled', rationale: projectBrief.motionPreference === 'disabled' ? localized(context.locale, 'Le brief interdit les animations automatiques : aucune entrée n’est ajoutée.', 'The brief forbids automatic animation: no entrance is added.') : localized(context.locale, 'Une entrée sur le hero et au plus deux sections : la navigation, les formulaires et la lecture restent stables.', 'One hero entrance and at most two section entrances: navigation, forms and reading stay stable.') },
       conversion: conversionFor(context),
       constraints: [
         localized(context.locale, 'Compositions responsives sans chevauchement de texte.', 'Responsive compositions without text overlap.'),
         localized(context.locale, 'Respect de prefers-reduced-motion et contenu visible sans JavaScript.', 'Respect prefers-reduced-motion and keep content visible without JavaScript.'),
         localized(context.locale, 'Aucun HTML arbitraire : chaque décision reste éditable dans le document.', 'No arbitrary HTML: every decision remains editable in the document.'),
         ...(moduleFit ? [localized(context.locale, 'La commande reste manuelle, sans paiement simulé.', 'Ordering remains manual, with no simulated payment.')] : []),
-        ...context.limitations.slice(0, 2),
+        ...projectBrief.constraints.slice(0, 2),
       ],
     };
   });
@@ -209,8 +209,8 @@ export function applyCreativeDirectionToTheme(themeInput: ThemeSettings, directi
   return withDesignSystem(theme, { ...design, ...(palette.mode === 'dark' ? { tokens: { ...design.tokens, colors: { ...design.tokens.colors, primary: theme.primaryColor, secondary: theme.secondaryColor, accent: theme.accentColor } } } : {}) });
 }
 
-function withCreativeNode(node: PageNode, direction: CreativeDirection, budget: { sections: number }): PageNode {
-  const next: PageNode = { ...node, props: { ...node.props }, ...(node.children ? { children: node.children.map((child) => withCreativeNode(child, direction, budget)) } : {}) };
+function withCreativeNode(node: PageNode, direction: CreativeDirection, budget: { sections: number }, brief?: ProjectBrief): PageNode {
+  const next: PageNode = { ...node, props: { ...node.props }, ...(node.children ? { children: node.children.map((child) => withCreativeNode(child, direction, budget, brief)) } : {}) };
   if (node.type === 'hero') {
     next.props.layout ??= direction.composition.heroLayout;
     next.props.visualTreatment ??= direction.imagery.treatment;
@@ -218,7 +218,7 @@ function withCreativeNode(node: PageNode, direction: CreativeDirection, budget: 
   if (node.type === 'features') next.props.layout ??= direction.composition.featuresLayout;
   if (node.type === 'gallery') next.props.layout ??= direction.composition.galleryLayout;
   const eligible = node.type === 'hero' || (['features', 'gallery', 'stats', 'products', 'blog'].includes(node.type) && budget.sections < 2);
-  if (eligible && !next.motion) {
+  if (eligible && !next.motion && direction.motion.enabled !== false && brief?.motionPreference !== 'disabled') {
     if (node.type !== 'hero') budget.sections += 1;
     const sequence = node.type === 'hero' ? 0 : budget.sections;
     next.motion = { preset: direction.motion.preset, trigger: 'in-view', duration: direction.motion.intensity === 'expressive' ? 620 : 460, delay: sequence * 90, distance: direction.motion.preset === 'rise' ? 24 : direction.motion.preset === 'reveal' ? 12 : 0 };
@@ -227,10 +227,10 @@ function withCreativeNode(node: PageNode, direction: CreativeDirection, budget: 
 }
 
 /** Fills semantic composition gaps and preserves local/responsive styles, existing props and manual motion. */
-export function applyCreativeDirection(document: PageDocument, direction: CreativeDirection): PageDocument {
+export function applyCreativeDirection(document: PageDocument, direction: CreativeDirection, brief?: ProjectBrief): PageDocument {
   return {
     ...document,
     theme: { ...applyCreativeDirectionToTheme(document.theme, direction), creativeDirection: structuredClone(direction) },
-    root: withCreativeNode(document.root, direction, { sections: 0 }),
+    root: withCreativeNode(document.root, direction, { sections: 0 }, brief),
   };
 }

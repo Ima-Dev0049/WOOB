@@ -91,6 +91,16 @@ const fr = {
       remoteProvider: (model: string) => `Textes générés avec ${model}.`,
     },
   },
+  creativeBrief: {
+    title: 'Brief structuré',
+    subtitle: 'Exigences, hypothèses et informations manquantes restent distinctes. Les champs non essentiels ne bloquent pas la création.',
+    engine: 'Extraction par règles locales',
+    objective: 'Objectif', valueProposition: 'Proposition de valeur', audience: 'Audience retenue',
+    pages: (count: number) => `${count} page${count > 1 ? 's' : ''} requise${count > 1 ? 's' : ''}`,
+    features: (count: number) => `${count} fonctionnalité${count > 1 ? 's' : ''} requise${count > 1 ? 's' : ''}`,
+    assumptions: 'Hypothèses à confirmer', missing: 'Informations manquantes · non bloquantes', contradictions: 'Contradiction à arbitrer',
+    success: 'Critères de réussite', noAssumptions: 'Aucune hypothèse supplémentaire.',
+  },
   settings: {
     eyebrow: 'Votre compte',
     title: 'Paramètres',
@@ -254,6 +264,16 @@ const en: Dictionary = {
       localProvider: 'Copy produced locally in demo mode — no remote model called.',
       remoteProvider: (model: string) => `Copy generated with ${model}.`,
     },
+  },
+  creativeBrief: {
+    title: 'Structured brief',
+    subtitle: 'Requirements, assumptions and missing information remain distinct. Non-essential gaps do not block creation.',
+    engine: 'Local rule-based extraction',
+    objective: 'Objective', valueProposition: 'Value proposition', audience: 'Selected audience',
+    pages: (count: number) => `${count} required page${count === 1 ? '' : 's'}`,
+    features: (count: number) => `${count} required feature${count === 1 ? '' : 's'}`,
+    assumptions: 'Assumptions to confirm', missing: 'Missing information · non-blocking', contradictions: 'Contradiction requiring arbitration',
+    success: 'Success criteria', noAssumptions: 'No additional assumptions.',
   },
   settings: {
     eyebrow: 'Your account',

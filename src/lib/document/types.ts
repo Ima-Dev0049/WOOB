@@ -1,4 +1,4 @@
-import type { CreativeDirection, MotionPreset } from '@/lib/creative/types';
+import type { CreativeDirection, MotionPreset, ProjectBrief } from '@/lib/creative/types';
 
 export const COMPONENT_TYPES = [
   'page', 'section', 'heading', 'text', 'button', 'image',
@@ -170,6 +170,8 @@ export interface SiteSnapshot {
   slug: string;
   defaultLocale: string;
   theme: ThemeSettings;
+  /** Present for Creative Engine projects; legacy snapshots remain valid without it. */
+  creativeBrief?: ProjectBrief | undefined;
   pages: { id: string; path: string; name: string; seoTitle: string; seoDescription: string; document: PageDocument }[];
   navigation: { label: string; path: string }[];
   modules: string[];

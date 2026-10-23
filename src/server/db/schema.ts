@@ -15,6 +15,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { PageDocument, SiteSnapshot, ThemeSettings } from '@/lib/document/types';
 import type { CatalogSelectionSnapshot } from '@/lib/catalog/types';
+import type { ProjectBrief } from '@/lib/creative/types';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey(),
@@ -128,6 +129,7 @@ export const projects = pgTable('projects', {
   theme: jsonb('theme').$type<ThemeSettings>().notNull(),
   defaultLocale: text('default_locale').notNull().default('fr'),
   catalogSelection: jsonb('catalog_selection').$type<CatalogSelectionSnapshot | null>(),
+  creativeBrief: jsonb('creative_brief').$type<ProjectBrief | null>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),

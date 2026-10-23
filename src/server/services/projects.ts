@@ -71,9 +71,9 @@ export async function createProject(userId: string, workspaceId: string, input: 
     }
     if (data.creativeConceptId && !data.generationId) throw new ApiError(422, 'GENERATION_REQUIRED', 'Générez une prévisualisation avant de choisir un concept.');
     const generated = data.generationId
-      ? await readProjectGeneration(userId, workspaceId, data.generationId, createCatalogSnapshot(resolved), database, data.creativeConceptId)
+      ? await readProjectGeneration(userId, workspaceId, data.generationId, createCatalogSnapshot(resolved), database, data.creativeConceptId, { name: selection.name, brief: selection.brief || '' })
       : undefined;
-    draft = buildProjectDraft(selection, generated?.content, resolved, generated?.creative);
+    draft = buildProjectDraft(selection, generated?.content, resolved, generated?.creative, generated?.brief || undefined);
     template = getTemplate(draft.resolved.templateId);
   }
   if (!template) throw new ApiError(422, 'TEMPLATE_NOT_FOUND', 'Ce modèle n’existe pas.');
@@ -93,7 +93,7 @@ export async function createProject(userId: string, workspaceId: string, input: 
     await tx.insert(projects).values({
       id: projectId, workspaceId, name: data.name, slug,
       description: data.description || draft?.selection.brief?.slice(0, 500) || '', theme,
-      defaultLocale: draft?.resolved.locale || 'fr', catalogSelection: draft?.snapshot || null,
+      defaultLocale: draft?.resolved.locale || 'fr', catalogSelection: draft?.snapshot || null, creativeBrief: draft?.brief || null,
     });
     for (const page of projectPages) {
       assertValidPageDocument(page.document);

@@ -31,6 +31,7 @@ export async function buildProjectSnapshot(project: Project, publicationId: stri
     slug: project.slug,
     defaultLocale: project.defaultLocale,
     theme: cloneDocument(project.theme),
+    ...(project.creativeBrief ? { creativeBrief: cloneDocument(project.creativeBrief) } : {}),
     pages: projectPages.map((page) => ({ id: page.id, path: page.path, name: page.name, seoTitle: page.seoTitle, seoDescription: page.seoDescription, document: cloneDocument(page.draftDocument) })),
     navigation: projectPages.map((page) => ({ label: page.path === '/' ? 'Accueil' : page.name, path: page.path })),
     modules: modules.map((module) => module.key),

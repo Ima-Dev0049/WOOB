@@ -2,10 +2,11 @@
 
 Date : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-Ce document décrit **le premier incrément fonctionnel** du Creative Engine. Il ne présente pas les phases P2 à P4 de l’[audit](./WOOB_CREATIVE_ENGINE_AUDIT.md) comme terminées.
+Ce document décrit **les incréments fonctionnels livrés** du Creative Engine : concepts/compositions/motion, puis brief structuré et traçabilité des exigences. Il ne présente pas les phases restantes de l’[audit](./WOOB_CREATIVE_ENGINE_AUDIT.md) ou de la [feuille de route](./WOOB_CREATIVE_ENGINE_ROADMAP.md) comme terminées.
 
 ## 1. Capacités livrées
 
+- Un `ProjectBrief` structuré et versionné : objectif, audience, proposition de valeur, pages et fonctionnalités requises, contraintes, préférences, références, hypothèses, informations manquantes, contradictions et critères de réussite.
 - Un plan `CreativeDirection` structuré et versionné avant la construction des pages : intention, public, émotion, personnalité, concept, palette et typographie justifiées, composition, médias, motion, conversion et contraintes.
 - Trois concepts évalués par génération, un score de diversité et un choix explicite dans l’aperçu.
 - Cinq familles de hero, trois compositions de fonctionnalités, trois compositions de galerie et six traitements de visuel, tous représentés par des props validées.
@@ -13,6 +14,8 @@ Ce document décrit **le premier incrément fonctionnel** du Creative Engine. Il
 - Des entrées natives au viewport, bornées au hero et à deux sections par page lors de la génération, modifiables dans l’éditeur et compatibles avec undo/redo, copier/coller, reset, sauvegarde et publication.
 - Un rapport de qualité **structurel**, clairement séparé d’une inspection visuelle.
 - Un aperçu non interactif qui utilise le renderer public sans les contours de sélection de l’éditeur ni de vrais formulaires actifs.
+- Une persistance additive du brief dans `projects.creative_brief` et les snapshots, avec vérification que le nom et le brief n’ont pas changé depuis la prévisualisation.
+- Le respect effectif d’une contrainte explicite « sans animation » et le signalement d’une contradiction lorsque le même brief exige aussi des animations.
 
 ## 2. Chemin brief → concept → site
 
@@ -20,6 +23,7 @@ Ce document décrit **le premier incrément fonctionnel** du Creative Engine. Il
 CreateProjectDialog
   → POST project-preview (session + CSRF + quota + membership + rate limit)
   → contenu local ou OpenAI existant
+  → createLocalProjectBrief (règles lexicales locales, hypothèses explicites)
   → createLocalCreativeDirections (règles locales, aucun appel distant)
   → CreativeDirectionResult { 3 candidats, évaluations, diversité, selectedId }
   → buildProjectDraft + applyCreativeDirection
@@ -28,12 +32,23 @@ CreateProjectDialog
   → création : generationId + creativeConceptId
   → readProjectGeneration revérifie workspace, utilisateur, snapshot et concept
   → reconstruction serveur du même concept, usage unique du generationId
-  → pages/projet/thème JSONB → éditeur → snapshots → site publié
+  → pages/projet/brief/thème JSONB → éditeur → snapshots → site publié
 ```
 
 Le fournisseur de textes et le moteur de direction sont deux décisions distinctes. Dans ce lot, même si le fournisseur de textes OpenAI est configuré, les directions restent produites par `local-rules-v1`. Aucune direction distante n’est simulée ou déclarée.
 
 ## 3. Contrats
+
+### `ProjectBrief`
+
+Défini dans `src/lib/creative/types.ts`, construit dans `brief.ts` et validé par `projectBriefSchema` avec `schemaVersion: '1.0.0'`. Le moteur `local-brief-rules-v1` utilise les choix du catalogue et des règles lexicales bornées ; il ne prétend pas analyser sémantiquement des documents ou des images.
+
+- Les pages et modules sélectionnés deviennent des exigences avec critères d’acceptation.
+- Le style est une préference ; les limitations fonctionnelles et l’interdiction explicite d’animation sont des contraintes.
+- Les audiences ou tons déduits sont accompagnés d’hypothèses visibles.
+- Les informations absentes sont non bloquantes. Une contradiction motion est visible et la génération choisit la contrainte la plus restrictive.
+- Les références ont un contrat HTTPS/asset strict, mais aucun ingestion de références n’est encore branchée : le lot produit toujours `references: []`.
+- Le brief est consultable dans l’aperçu et sur le projet. Son édition structurée après création reste une extension ; les champs source du wizard conservent les autres choix lors d’une nouvelle prévisualisation.
 
 ### `CreativeDirection`
 
@@ -119,6 +134,8 @@ L’aperçu du wizard emploie `mode: 'preview'` avec `interactive: false` : lien
 4. `prefers-reduced-motion`, le réglage de réduction du thème ou l’absence d’`IntersectionObserver` révèle immédiatement le contenu.
 5. Les propriétés individuelles `translate` et `scale` composent avec un `transform` local au lieu de l’écraser.
 
+Lorsque `ProjectBrief.motionPreference` vaut `disabled`, les directions portent `motion.enabled: false` et aucune entrée automatique n’est ajoutée. Une exception manuelle déjà présente dans un ancien document n’est pas effacée par une direction globale.
+
 Les formulaires, la navigation, le footer et la lecture courante ne reçoivent pas d’animation automatique. Le motion est une entrée, pas une animation permanente ou une scène WebGL.
 
 ### Commandes dans l’éditeur
@@ -138,21 +155,23 @@ Le changement de concept complet se fait pendant la création. Après création,
 - contrastes texte/fond, texte secondaire, surface, liens, bouton principal et CTA ;
 - descriptions SEO non vides ;
 - cohérence des breakpoints ;
+- présence des pages et sections obligatoires du `ProjectBrief` ;
+- contradictions encore à arbitrer, signalées sans transformer les informations manquantes en erreurs ;
 - budget de nœuds animés ;
 - diversité des concepts et signatures répétées.
 
 `visualInspection` est toujours `false` dans ce rapport. Le score ne constitue ni un audit WCAG complet, ni une mesure esthétique, ni une preuve de performance.
 
-Une inspection visuelle manuelle a néanmoins été réalisée séparément sur six captures réelles (trois concepts × desktop/mobile). Elle a permis de corriger le texte des CTA masqué par la cascade des liens, les contours d’éditeur dans l’aperçu et la navigation mobile masquée. Axe a ensuite détecté et permis de corriger un contraste d’`eyebrow` dans le CTA. Ces corrections sont couvertes par les parcours Playwright ; les captures temporaires ne sont pas versionnées.
+Une inspection visuelle manuelle a néanmoins été réalisée séparément sur six captures réelles (trois concepts × desktop/mobile). Elle a permis de corriger le texte des CTA masqué par la cascade des liens, les contours d’éditeur dans l’aperçu et la navigation mobile masquée. Axe a ensuite détecté et permis de corriger un contraste d’`eyebrow` dans le CTA. Pour le brief-engine, cinq captures supplémentaires ont été examinées : wizard desktop/mobile, contradiction et projet desktop/mobile. Aucun débordement n’a été observé à 390 px. Ces inspections restent ciblées ; les captures temporaires ne sont pas versionnées.
 
 ## 9. Persistance et sécurité
 
-- Le résultat `ai_generations.output` contient `content`, `snapshot` et `creative` validés.
+- Le résultat `ai_generations.output` contient `content`, `snapshot`, `creative`, `brief` et la source nom/brief validés. La source reste facultative uniquement pour lire les générations antérieures à ce lot.
 - Le client envoie seulement `creativeConceptId` à la création, pas une direction arbitraire à faire confiance.
-- Le serveur retrouve les candidats journalisés, vérifie le concept et reconstruit les documents.
-- Une erreur de concept ne consomme pas la génération ; une création réussie conserve le mécanisme transactionnel d’usage unique.
-- Le thème du projet et chaque page conservent la direction, puis les snapshots de publication la transportent sans chemin de rendu parallèle.
-- Aucun schéma de base n’a été supprimé ou réinitialisé et aucune migration n’est nécessaire pour ces champs JSONB.
+- Le serveur retrouve les candidats journalisés, vérifie le concept, le catalogue, le nom et le brief, puis reconstruit les documents.
+- Une erreur de concept ou de source ne consomme pas la génération ; une création réussie conserve le mécanisme transactionnel d’usage unique.
+- Le thème du projet et chaque page conservent la direction. `projects.creative_brief` conserve le brief et les snapshots le transportent sans chemin de rendu parallèle.
+- La migration versionnée `0006_creative_brief` ajoute seulement une colonne JSONB nullable. Sur la base locale de test, 42 projets ont été comptés avant et après son application ; aucune base n’a été réinitialisée.
 - Les contrôles existants de workspace, RBAC, session, CSRF, quota, rate-limit, CSS et URL restent en place.
 
 ## 10. Vérification reproductible
@@ -160,7 +179,7 @@ Une inspection visuelle manuelle a néanmoins été réalisée séparément sur 
 ```bash
 npm ci
 npm run verify
-npx vitest run tests/creative-engine.test.ts tests/catalog.test.ts
+npx vitest run tests/brief-engine.test.ts tests/creative-engine.test.ts tests/catalog.test.ts
 npx playwright test tests/e2e/creative-engine.spec.ts
 npm run test:e2e
 ```
@@ -180,9 +199,10 @@ Résultats du 2026-10-23 sur ce lot :
 
 - TypeScript strict : réussi ;
 - ESLint : réussi ;
-- Vitest : **56/56 tests dans 11 fichiers** ;
+- Vitest : **61/61 tests dans 12 fichiers** ;
 - build Next.js de production : réussi, avec les deux avertissements de traçage filesystem déjà connus dans `storage.ts` ;
 - Playwright contre le build de production : **23/23 parcours** ;
+- migration additive sur la base existante : **42 projets avant/après**, colonne `creative_brief` présente ;
 - six briefs/styles comparés dans les tests de répétition et six captures réelles examinées sur trois concepts et deux viewports ;
 - scans axe ciblés et existants sans violation dans les portées testées, sans certification WCAG globale.
 
@@ -193,7 +213,9 @@ Résultats du 2026-10-23 sur ce lot :
 ### Limites actuelles
 
 - Cinq archétypes et trois candidats par génération ; pas encore un système ouvert illimité.
-- Heuristiques locales, pas de direction artistique distante ni de compréhension sémantique garantie.
+- Brief et directions par heuristiques locales, pas de compréhension sémantique garantie ni de direction artistique distante.
+- Le brief structuré est consultable mais pas encore éditable après création ; seules les contradictions motion explicites sont détectées, sans analyse générale de documents ou d’images.
+- Pas encore d’orchestrateur de tâches longues avec annulation/reprise ni d’ingestion de références créatives.
 - Le visuel abstrait de secours reste partagé : de vrais assets sont nécessaires pour des identités riches. Aucun pipeline d’images génératives n’est branché.
 - Pas de pipeline automatique de screenshots, diff visuel, Lighthouse/INP/LCP, scènes au scroll, WebGL ou transitions de pages.
 - Pas de nouvelle commande conversationnelle spécialisée en direction artistique ; l’IA structurée d’édition existante est conservée.

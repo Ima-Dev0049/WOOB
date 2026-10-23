@@ -1,6 +1,6 @@
 import { auditThemeContrast, contrastRatio, getDesignSystem } from '@/lib/document/design-system';
 import type { PageDocument, PageNode } from '@/lib/document/types';
-import type { CreativeDirectionResult, CreativeQualityIssue, CreativeQualityReport } from './types';
+import type { CreativeDirectionResult, CreativeQualityIssue, CreativeQualityReport, ProjectBrief } from './types';
 
 function visit(node: PageNode, callback: (node: PageNode) => void): void {
   callback(node);
@@ -8,7 +8,7 @@ function visit(node: PageNode, callback: (node: PageNode) => void): void {
 }
 
 /** Structural signals only. This function never claims screenshot, browser or human visual inspection. */
-export function evaluateCreativeQuality(documents: PageDocument[], directions?: CreativeDirectionResult): CreativeQualityReport {
+export function evaluateCreativeQuality(documents: PageDocument[], directions?: CreativeDirectionResult, brief?: ProjectBrief): CreativeQualityReport {
   const issues: CreativeQualityIssue[] = [];
   const contrasts = documents.flatMap((document) => {
     const design = getDesignSystem(document.theme);
@@ -38,6 +38,26 @@ export function evaluateCreativeQuality(documents: PageDocument[], directions?: 
     return breakpoints.mobile < breakpoints.tablet;
   });
   if (!responsiveRules) issues.push({ id: 'responsive-breakpoints', severity: 'error', message: 'Les points de rupture responsive sont incohérents.' });
+  let briefRequirements: boolean | null = null;
+  if (brief) {
+    briefRequirements = true;
+    for (const required of brief.requiredPages) {
+      const document = documents.find((candidate) => candidate.metadata.path === required.slug);
+      if (!document) {
+        briefRequirements = false;
+        issues.push({ id: `brief-page-${required.slug}`, severity: 'error', message: `La page obligatoire ${required.slug} est absente du document.` });
+        continue;
+      }
+      const sectionTypes = new Set<string>(document.root.children?.map((node) => node.type));
+      for (const section of required.requiredSections) {
+        if (!sectionTypes.has(section)) {
+          briefRequirements = false;
+          issues.push({ id: `brief-section-${required.slug}-${section}`, severity: 'error', message: `La section obligatoire ${section} est absente de ${required.slug}.` });
+        }
+      }
+    }
+    for (const contradiction of brief.contradictions.filter((item) => item.status === 'needs-input')) issues.push({ id: `brief-contradiction-${contradiction.id}`, severity: 'warning', message: contradiction.resolution });
+  }
   const genericPatterns: string[] = [];
   if (directions) {
     if (directions.diversity.uniqueCompositions < directions.candidates.length) genericPatterns.push('compositions-dupliquees');
@@ -48,7 +68,7 @@ export function evaluateCreativeQuality(documents: PageDocument[], directions?: 
   const score = Math.max(0, 100 - issues.reduce((total, issue) => total + (issue.severity === 'error' ? 25 : issue.severity === 'warning' ? 8 : 0), 0));
   return {
     scope: 'document-model', score, visualInspection: false,
-    metrics: { minimumContrast, motionNodes, responsiveRules, creativeDiversity: directions?.diversity.score ?? null, pageCount: documents.length, heroLayout, genericPatterns },
+    metrics: { minimumContrast, motionNodes, responsiveRules, briefRequirements, creativeDiversity: directions?.diversity.score ?? null, pageCount: documents.length, heroLayout, genericPatterns },
     issues,
   };
 }

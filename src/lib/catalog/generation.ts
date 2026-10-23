@@ -3,10 +3,11 @@ import { createPageDocument, makeNode } from '@/lib/document/factory';
 import type { PageDocument, PageNode } from '@/lib/document/types';
 import { assertValidPageDocument, cloneDocument } from '@/lib/document/validation';
 import { createId } from '@/lib/id';
+import { createLocalProjectBrief } from '@/lib/creative/brief';
 import { applyCreativeDirection, createLocalCreativeDirections, directionFromResult } from '@/lib/creative/engine';
-import { creativeDirectionResultSchema } from '@/lib/creative/schema';
+import { creativeDirectionResultSchema, projectBriefSchema } from '@/lib/creative/schema';
 import { evaluateCreativeQuality } from '@/lib/creative/quality';
-import type { CreativeDirectionResult, CreativeQualityReport } from '@/lib/creative/types';
+import type { CreativeDirectionResult, CreativeQualityReport, ProjectBrief } from '@/lib/creative/types';
 import { getTemplate, type TemplatePost, type TemplateProduct } from '@/lib/templates';
 import { assertCatalogValid, getFunctionalModule, localize, resolveProjectCreation } from './index';
 import { CatalogError, functionalModuleIds, type CatalogSelectionSnapshot, type CreationSelection, type ProjectContent, type ProjectGenerationContext, type ResolvedCreation } from './types';
@@ -43,6 +44,7 @@ export type GeneratedProjectDraft = {
   context: ProjectGenerationContext;
   snapshot: CatalogSelectionSnapshot;
   content: ProjectContent;
+  brief: ProjectBrief;
   creative: CreativeDirectionResult;
   quality: CreativeQualityReport;
   pages: GeneratedProjectPage[];
@@ -114,12 +116,13 @@ function sourceNode(templateId: string, pagePath: string, type: string) {
 }
 
 
-export function buildProjectDraft(selection: CreationSelection, contentInput?: ProjectContent, resolvedInput?: ResolvedCreation, creativeInput?: CreativeDirectionResult): GeneratedProjectDraft {
+export function buildProjectDraft(selection: CreationSelection, contentInput?: ProjectContent, resolvedInput?: ResolvedCreation, creativeInput?: CreativeDirectionResult, briefInput?: ProjectBrief): GeneratedProjectDraft {
   assertCatalogValid();
   const resolved = resolvedInput || resolveProjectCreation(selection);
   const context = createProjectGenerationContext(selection, resolved);
   const content = projectContentSchema.parse(contentInput || createLocalProjectContent(context));
-  const creative = creativeInput ? creativeDirectionResultSchema.parse(creativeInput) : createLocalCreativeDirections(context, resolved.style.theme);
+  const brief = briefInput ? projectBriefSchema.parse(briefInput) : createLocalProjectBrief(context);
+  const creative = creativeInput ? creativeDirectionResultSchema.parse(creativeInput) : createLocalCreativeDirections(context, resolved.style.theme, brief);
   const direction = directionFromResult(creative);
   const template = getTemplate(resolved.templateId);
   if (!template) throw new CatalogError('TEMPLATE_NOT_FOUND', 'Le modèle technique associé est introuvable.');
@@ -165,7 +168,7 @@ export function buildProjectDraft(selection: CreationSelection, contentInput?: P
     const name = localize(recipe.name, locale);
     const baseDocument = createPageDocument({ pageId, name, path: recipe.path, theme: resolved.style.theme, nodes });
     baseDocument.metadata.description = content.seoDescription;
-    const document = applyCreativeDirection(baseDocument, direction);
+    const document = applyCreativeDirection(baseDocument, direction, brief);
     assertValidPageDocument(document);
     return {
       id: pageId,
@@ -182,8 +185,9 @@ export function buildProjectDraft(selection: CreationSelection, contentInput?: P
     context,
     snapshot: createCatalogSnapshot(resolved),
     content,
+    brief,
     creative,
-    quality: evaluateCreativeQuality(pages.map((page) => page.document), creative),
+    quality: evaluateCreativeQuality(pages.map((page) => page.document), creative, brief),
     pages,
     products: resolved.selectedModuleIds.includes('catalog') ? cloneDocument(template.products) : [],
     posts: resolved.selectedModuleIds.includes('blog') ? cloneDocument(template.posts) : [],
@@ -191,7 +195,7 @@ export function buildProjectDraft(selection: CreationSelection, contentInput?: P
 }
 
 export function withCreativeConcept(draft: GeneratedProjectDraft, conceptId: string): GeneratedProjectDraft {
-  return buildProjectDraft(draft.selection, draft.content, draft.resolved, { ...draft.creative, selectedId: conceptId });
+  return buildProjectDraft(draft.selection, draft.content, draft.resolved, { ...draft.creative, selectedId: conceptId }, draft.brief);
 }
 
 export function sameCatalogSnapshot(left: CatalogSelectionSnapshot, right: CatalogSelectionSnapshot): boolean {

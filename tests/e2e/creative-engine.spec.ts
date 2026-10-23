@@ -32,10 +32,13 @@ test('le concept choisi, le motion édité et le responsive survivent jusqu’au
   await page.getByRole('button', { name: 'Générer l’aperçu →' }).click();
   await previewResponse;
   await expect(page.getByTestId('catalog-preview')).toBeVisible();
+  await expect(page.getByTestId('project-brief')).toBeVisible();
+  await expect(page.getByTestId('project-brief')).toContainText('Brief structuré');
+  await expect(page.getByTestId('project-brief')).toContainText('Hypothèses à confirmer');
   await expect(page.locator('.creative-concept')).toHaveCount(3);
   await expect(page.getByTestId('creative-quality')).toContainText('Aucune inspection visuelle automatique');
   await expect(page.locator('.catalog-preview-canvas .editor-node')).toHaveCount(0);
-  const accessibility = await new AxeBuilder({ page }).include('.creative-directions').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  const accessibility = await new AxeBuilder({ page }).include('.project-brief').include('.creative-directions').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(accessibility.violations).toEqual([]);
 
   const alternative = page.locator('.creative-concept:not(.selected)').first();
@@ -48,6 +51,8 @@ test('le concept choisi, le motion édité et le responsive survivent jusqu’au
   await page.getByRole('button', { name: 'Créer le projet →' }).click();
   await createResponse;
   await expect(page).toHaveURL(/\/dashboard\/projects\/[a-f0-9-]+$/);
+  await expect(page.getByTestId('project-brief')).toBeVisible();
+  await expect(page.getByTestId('project-brief')).toContainText('Un studio de céramique');
   const projectId = page.url().split('/').pop()!;
   await page.getByRole('link', { name: 'Ouvrir l’éditeur →' }).click();
   await expect(page).toHaveURL(/\/editor\/[a-f0-9-]+$/);

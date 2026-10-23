@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { creativeDirectionSchema } from '@/lib/creative/schema';
+import { creativeDirectionSchema, projectBriefSchema } from '@/lib/creative/schema';
 import { COMPONENT_TYPES, STYLE_PROPERTIES } from './types';
 import type { DesignSystem, PageDocument, PageNode, SharedStyle, SiteSnapshot, StyleProperty } from './types';
 import { componentRegistry } from './registry';
@@ -273,6 +273,10 @@ export function validateSiteSnapshot(snapshot: SiteSnapshot): DocumentIssue[] {
   const themeResult = themeSchema.safeParse(snapshot.theme);
   if (!themeResult.success) issues.push(...themeResult.error.issues.map((issue) => ({ path: `theme.${issue.path.join('.')}`, message: issue.message })));
   else snapshot.theme = normalizeThemeSettings(themeResult.data);
+  if (snapshot.creativeBrief) {
+    const briefResult = projectBriefSchema.safeParse(snapshot.creativeBrief);
+    if (!briefResult.success) issues.push(...briefResult.error.issues.map((issue) => ({ path: `creativeBrief.${issue.path.join('.')}`, message: issue.message })));
+  }
   const paths = new Set<string>();
   if (!snapshot.pages.length) issues.push({ path: 'pages', message: 'Au moins une page est requise.' });
   if (!snapshot.pages.some((page) => page.path === '/')) issues.push({ path: 'pages', message: 'Une page d’accueil / est requise.' });
