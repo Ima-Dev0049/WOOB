@@ -1,7 +1,9 @@
-import { and, asc, desc, eq, isNull, max, sql } from 'drizzle-orm';
+import { isDeepStrictEqual } from 'node:util';
+import { and, asc, desc, eq, isNull, max, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { createId } from '@/lib/id';
 import { normalizePagePath, slugify } from '@/lib/utils';
+import { getDesignSystem, normalizeThemeSettings, withDesignSystem } from '@/lib/document/design-system';
 import { createPageDocument } from '@/lib/document/factory';
 import { cloneDocument, validatePageDocument, assertValidPageDocument, themeSchema } from '@/lib/document/validation';
 import type { ThemeSettings } from '@/lib/document/types';
@@ -73,7 +75,7 @@ export async function createProject(userId: string, workspaceId: string, input: 
     template = getTemplate(draft.resolved.templateId);
   }
   if (!template) throw new ApiError(422, 'TEMPLATE_NOT_FOUND', 'Ce modèle n’existe pas.');
-  const theme = draft?.resolved.style.theme || template.theme;
+  const theme = normalizeThemeSettings(draft?.resolved.style.theme || template.theme);
   const projectPages = draft?.pages || template.pages.map((templatePage) => {
     const pageId = createId('page');
     const document = createPageDocument({ pageId, name: templatePage.name, path: templatePage.path, theme, nodes: cloneDocument(templatePage.nodes) });
@@ -131,13 +133,28 @@ export async function updateProjectSettings(userId: string, projectId: string, i
   const data = z.object({ name: z.string().trim().min(2).max(120), description: z.string().max(500), defaultLocale: z.enum(['fr', 'en']), theme: z.unknown().optional() }).parse(input);
   const database = db ?? await getDb();
   const project = await requireProject(userId, projectId, 'edit', database);
+  let theme: ThemeSettings | undefined;
   if (data.theme) {
     const themeResult = themeSchema.safeParse(data.theme);
     if (!themeResult.success) throw new ApiError(422, 'THEME_INVALID', 'Le thème est invalide.', themeResult.error.issues);
+    theme = normalizeThemeSettings(themeResult.data);
+    const currentDesign = getDesignSystem(project.theme);
+    const nextDesign = getDesignSystem(theme);
+    const retained = currentDesign.styles.filter((style) => !nextDesign.styles.some((candidate) => candidate.id === style.id));
+    if (retained.length) theme = withDesignSystem(theme, { ...nextDesign, styles: [...nextDesign.styles, ...retained] });
   }
-  const updated = (await database.update(projects).set({ name: data.name, description: data.description, defaultLocale: data.defaultLocale, ...(data.theme ? { theme: data.theme as ThemeSettings } : {}), draftRevision: project.draftRevision + 1, updatedAt: new Date() }).where(and(eq(projects.id, projectId), eq(projects.workspaceId, project.workspaceId), eq(projects.draftRevision, project.draftRevision))).returning())[0];
-  if (!updated) throw new ApiError(409, 'REVISION_CONFLICT', 'Le projet a été modifié ailleurs.');
-  return updated;
+  return database.transaction(async (tx) => {
+    const updated = (await tx.update(projects).set({ name: data.name, description: data.description, defaultLocale: data.defaultLocale, ...(theme ? { theme } : {}), draftRevision: project.draftRevision + 1, updatedAt: new Date() }).where(and(eq(projects.id, projectId), eq(projects.workspaceId, project.workspaceId), eq(projects.draftRevision, project.draftRevision))).returning())[0];
+    if (!updated) throw new ApiError(409, 'REVISION_CONFLICT', 'Le projet a été modifié ailleurs.');
+    if (theme) {
+      const serializedTheme = JSON.stringify(theme);
+      await tx.update(pages).set({
+        draftDocument: sql`jsonb_set(jsonb_set(${pages.draftDocument}, '{theme}', ${serializedTheme}::jsonb, true), '{revision}', to_jsonb(${pages.draftRevision} + 1), true)`,
+        draftRevision: sql`${pages.draftRevision} + 1`, updatedAt: new Date(),
+      }).where(and(eq(pages.projectId, projectId), eq(pages.workspaceId, project.workspaceId)));
+    }
+    return updated;
+  });
 }
 
 export async function deleteProject(userId: string, projectId: string, db?: Db) {
@@ -153,7 +170,7 @@ export async function createPage(userId: string, projectId: string, input: unkno
   await assertPageQuota(project.workspaceId, projectId, database);
   const path = data.path ? normalizePagePath(data.path) : normalizePagePath(data.name);
   const pageId = createId('page');
-  const document = createPageDocument({ pageId, name: data.name, path, theme: project.theme });
+  const document = createPageDocument({ pageId, name: data.name, path, theme: normalizeThemeSettings(project.theme) });
   const created = await database.insert(pages).values({ id: pageId, workspaceId: project.workspaceId, projectId, name: data.name, path, draftDocument: document, seoTitle: data.name }).returning();
   return created[0];
 }
@@ -170,11 +187,31 @@ export async function savePageDocument(userId: string, pageId: string, input: un
   if (document.pageId !== pageId || document.metadata.path !== existing.path) {
     throw new ApiError(422, 'DOCUMENT_IDENTITY_MISMATCH', 'Le document ne correspond pas à cette page ou à son chemin.');
   }
+  // A theme proposal cannot orphan a reusable style still referenced by another page.
+  const previousDesign = getDesignSystem(project.theme);
+  const nextDesign = getDesignSystem(document.theme);
+  const retainedStyles = previousDesign.styles.filter((style) => !nextDesign.styles.some((candidate) => candidate.id === style.id));
+  if (retainedStyles.length) document.theme = withDesignSystem(document.theme, { ...nextDesign, styles: [...nextDesign.styles, ...retainedStyles] });
+  const themeChanged = !isDeepStrictEqual(normalizeThemeSettings(project.theme), document.theme);
   document.revision = existing.draftRevision + 1;
   return database.transaction(async (tx) => {
     const updated = (await tx.update(pages).set({ draftDocument: document, draftRevision: document.revision, updatedAt: new Date() }).where(and(eq(pages.id, pageId), eq(pages.workspaceId, project.workspaceId), eq(pages.projectId, project.id), eq(pages.draftRevision, data.baseRevision))).returning())[0];
     if (!updated) throw new ApiError(409, 'REVISION_CONFLICT', 'Cette page a changé dans un autre onglet.', { currentRevision: existing.draftRevision });
-    await tx.update(projects).set({ draftRevision: project.draftRevision + 1, updatedAt: new Date() }).where(and(eq(projects.id, project.id), eq(projects.workspaceId, project.workspaceId)));
+    const projectUpdate = await tx.update(projects).set({
+      ...(themeChanged ? { theme: document.theme } : {}),
+      draftRevision: project.draftRevision + 1,
+      updatedAt: new Date(),
+    }).where(and(eq(projects.id, project.id), eq(projects.workspaceId, project.workspaceId), eq(projects.draftRevision, project.draftRevision))).returning();
+    if (!projectUpdate.length) throw new ApiError(409, 'REVISION_CONFLICT', 'Le projet a été modifié ailleurs. Rechargez avant de continuer.');
+    if (themeChanged) {
+      const serializedTheme = JSON.stringify(document.theme);
+      // JSONB updates preserve each page's current root and local exceptions in the database.
+      await tx.update(pages).set({
+        draftDocument: sql`jsonb_set(jsonb_set(${pages.draftDocument}, '{theme}', ${serializedTheme}::jsonb, true), '{revision}', to_jsonb(${pages.draftRevision} + 1), true)`,
+        draftRevision: sql`${pages.draftRevision} + 1`,
+        updatedAt: new Date(),
+      }).where(and(eq(pages.projectId, project.id), eq(pages.workspaceId, project.workspaceId), ne(pages.id, pageId)));
+    }
     return updated;
   });
 }
@@ -277,8 +314,11 @@ export async function restorePageVersion(userId: string, pageId: string, version
   const project = await requireProject(userId, existing.projectId, 'edit', database);
   const version = (await database.select().from(pageVersions).where(and(eq(pageVersions.id, versionId), eq(pageVersions.pageId, existing.id), eq(pageVersions.workspaceId, project.workspaceId), eq(pageVersions.projectId, project.id))).limit(1))[0];
   if (!version) throw new ApiError(404, 'VERSION_NOT_FOUND', 'Version introuvable.');
-  const validation = validatePageDocument(version.document);
-  if (!validation.success) throw new ApiError(422, 'VERSION_INVALID', 'Cette version ne peut pas être restaurée.', validation.issues);
+  // A page restore must not silently roll back the site-wide design system on this page only.
+  const restorableDocument = cloneDocument(version.document);
+  restorableDocument.theme = normalizeThemeSettings(project.theme);
+  const validation = validatePageDocument(restorableDocument);
+  if (!validation.success) throw new ApiError(422, 'VERSION_INVALID', 'Cette version ne peut pas être restaurée avec le thème global actuel.', validation.issues);
   const document = cloneDocument(validation.data);
   document.pageId = existing.id;
   document.metadata = { ...document.metadata, title: existing.seoTitle || existing.name, description: existing.seoDescription, path: existing.path };

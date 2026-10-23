@@ -4,9 +4,9 @@
   "private": true,
   "description": "Woob — Imagine. Create. Launch. Plateforme de création de sites assistée par IA.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/next.cjs dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/next.cjs start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit --incremental false",
     "test": "vitest run",

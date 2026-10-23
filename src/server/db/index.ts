@@ -14,7 +14,11 @@ export type DatabaseContext = {
   close: () => Promise<void>;
 };
 
-const globalDb = globalThis as typeof globalThis & { __woobDbPromise?: Promise<DatabaseContext> | undefined };
+const globalDb = globalThis as typeof globalThis & {
+  __woobDbPromise?: Promise<DatabaseContext> | undefined;
+  __woobDbShutdownRegistered?: boolean | undefined;
+  __woobDbShutdownPromise?: Promise<void> | undefined;
+};
 
 export async function createDatabaseContext(options: { memory?: boolean } = {}): Promise<DatabaseContext> {
   const databaseUrl = process.env.DATABASE_URL?.trim();
@@ -33,7 +37,38 @@ export async function createDatabaseContext(options: { memory?: boolean } = {}):
   return { db, engine: 'pglite', close: () => client.close() };
 }
 
+export async function closeDatabaseContext(): Promise<void> {
+  const pending = globalDb.__woobDbPromise;
+  globalDb.__woobDbPromise = undefined;
+  if (!pending) return;
+  const context = await pending;
+  await context.close();
+}
+
+function registerDatabaseShutdown(): void {
+  if (globalDb.__woobDbShutdownRegistered) return;
+  globalDb.__woobDbShutdownRegistered = true;
+
+  const shutdown = (signal: 'SIGINT' | 'SIGTERM') => {
+    if (globalDb.__woobDbShutdownPromise) return;
+    globalDb.__woobDbShutdownPromise = (async () => {
+      let exitCode = signal === 'SIGINT' ? 130 : 143;
+      try {
+        await closeDatabaseContext();
+      } catch (error) {
+        exitCode = 1;
+        console.error('Échec de fermeture de la base locale', error);
+      }
+      process.exit(exitCode);
+    })();
+  };
+
+  process.once('SIGINT', () => shutdown('SIGINT'));
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+}
+
 export function getDatabaseContext(): Promise<DatabaseContext> {
+  registerDatabaseShutdown();
   if (!globalDb.__woobDbPromise) {
     globalDb.__woobDbPromise = createDatabaseContext().catch((error) => {
       globalDb.__woobDbPromise = undefined;
@@ -48,9 +83,5 @@ export async function getDb(): Promise<Db> {
 }
 
 export async function resetDatabaseContextForTests(): Promise<void> {
-  if (globalDb.__woobDbPromise) {
-    const context = await globalDb.__woobDbPromise;
-    await context.close();
-    globalDb.__woobDbPromise = undefined;
-  }
+  await closeDatabaseContext();
 }

@@ -3,7 +3,8 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { createId } from '@/lib/id';
 import { aiProposalSchema, applyAiProposal, type AiProposal } from '@/lib/document/ai';
-import { findNode } from '@/lib/document/validation';
+import { designSystemSchema, findNode, nodeStyleSchema } from '@/lib/document/validation';
+import { getDesignSystem } from '@/lib/document/design-system';
 import { getDb, type Db } from '@/server/db';
 import { aiGenerations, pages } from '@/server/db/schema';
 import { ApiError } from '@/server/http';
@@ -16,6 +17,32 @@ type AiRequest = z.infer<typeof requestSchema>;
 function demoProposal(page: typeof pages.$inferSelect, request: AiRequest): AiProposal {
   const subject = request.instruction.replace(/[<>]/g, '').slice(0, 180);
   const selected = request.selectedNodeId ? findNode(page.draftDocument.root, request.selectedNodeId) : undefined;
+  if (/(?:th[èe]me|palette|couleur|sombre|dark mode)/i.test(request.instruction)) {
+    const designSystem = structuredClone(getDesignSystem(page.draftDocument.theme));
+    const direction = /luxe|premium/i.test(request.instruction) ? 'luxe' : /nature|durable|bio/i.test(request.instruction) ? 'nature' : /tech|digital|logiciel/i.test(request.instruction) ? 'technologie' : 'personnalisée';
+    const palettes = {
+      luxe: { primary: '#76552B', secondary: '#24201D', accent: '#C59A52' },
+      nature: { primary: '#2F6B4F', secondary: '#19382C', accent: '#8FAF72' },
+      technologie: { primary: '#365CF5', secondary: '#111B3C', accent: '#36C5F0' },
+      personnalisée: { primary: designSystem.tokens.colors.primary, secondary: designSystem.tokens.colors.secondary, accent: designSystem.tokens.colors.accent },
+    } as const;
+    Object.assign(designSystem.tokens.colors, palettes[direction]);
+    designSystem.tokens.colors.link = designSystem.tokens.colors.primary;
+    designSystem.tokens.colors.focus = designSystem.tokens.colors.primary;
+    designSystem.tokens.darkColors.primary = designSystem.tokens.colors.primary;
+    designSystem.tokens.darkColors.link = designSystem.tokens.colors.primary;
+    designSystem.colorMode = /automatique|auto/i.test(request.instruction) ? 'auto' : /sombre|dark/i.test(request.instruction) ? 'dark' : 'light';
+    designSystem.name = `Palette ${direction}`;
+    return { summary: `Proposition locale d’un thème complet ${direction}, sans appel distant.`, operations: [{ kind: 'updateTheme', designSystem }] };
+  }
+  if (selected && /(?:arrondi|ombre|survol)/i.test(request.instruction)) {
+    const styles = {
+      ...(/arrondi/i.test(request.instruction) ? { borderRadius: '24px' } : {}),
+      ...(/ombre/i.test(request.instruction) ? { boxShadow: '0 16px 40px rgb(15 23 42 / 18%)' } : {}),
+      ...(/survol/i.test(request.instruction) ? { transform: 'translateY(-2px)' } : {}),
+    };
+    return { summary: 'Proposition locale de style structuré sur le composant sélectionné.', operations: [{ kind: 'updateStyle', nodeId: selected.id, viewport: /mobile/i.test(request.instruction) ? 'mobile' : /tablette/i.test(request.instruction) ? 'tablet' : 'desktop', ...(/survol/i.test(request.instruction) ? { state: 'hover' as const } : {}), styles }] };
+  }
   if (selected && ['heading', 'hero', 'text', 'cta'].includes(selected.type)) {
     if (selected.type === 'heading') return { summary: 'Proposition locale de reformulation du titre sélectionné.', operations: [{ kind: 'updateProps', nodeId: selected.id, props: { text: `${subject} : une approche claire et utile` } }] };
     if (selected.type === 'hero') return { summary: 'Proposition locale pour le hero, sans appel à un modèle distant.', operations: [{ kind: 'updateProps', nodeId: selected.id, props: { eyebrow: 'Une nouvelle perspective', title: subject, description: 'Une présentation concise de votre valeur, avec une invitation simple à découvrir votre univers et à passer à l’action.' } }] };
@@ -26,6 +53,8 @@ function demoProposal(page: typeof pages.$inferSelect, request: AiRequest): AiPr
 }
 
 function jsonSchema() {
+  const designSystem = z.toJSONSchema(designSystemSchema, { io: 'input' });
+  const nodeStyle = z.toJSONSchema(nodeStyleSchema, { io: 'input' });
   return {
     type: 'object',
     additionalProperties: false,
@@ -39,6 +68,8 @@ function jsonSchema() {
           anyOf: [
             { type: 'object', additionalProperties: false, required: ['kind', 'nodeId', 'props'], properties: { kind: { const: 'updateProps' }, nodeId: { type: 'string' }, props: { type: 'object', additionalProperties: true } } },
             { type: 'object', additionalProperties: false, required: ['kind', 'targetId', 'position', 'component', 'props'], properties: { kind: { const: 'insertComponent' }, targetId: { type: 'string' }, position: { enum: ['before', 'after', 'inside'] }, component: { type: 'string' }, props: { type: 'object', additionalProperties: true } } },
+            { type: 'object', additionalProperties: false, required: ['kind', 'designSystem'], properties: { kind: { const: 'updateTheme' }, designSystem } },
+            { type: 'object', additionalProperties: false, required: ['kind', 'nodeId', 'viewport', 'styles'], properties: { kind: { const: 'updateStyle' }, nodeId: { type: 'string' }, viewport: { enum: ['desktop', 'tablet', 'mobile'] }, state: { enum: ['hover', 'focus-visible', 'active', 'disabled'] }, styles: nodeStyle } },
           ],
         },
       },

@@ -4,7 +4,7 @@ Woob est un **monolithe modulaire Next.js/React/TypeScript**. Les Server Compone
 
 ## Carte du dépôt
 
-- `src/lib/document` : contrat canonique, registre, validation, opérations pures, fabriques et propositions IA.
+- `src/lib/document` : contrat canonique, registre, validation, opérations pures, fabriques et propositions IA ; `design-system.ts` contient la normalisation, la cascade, les variables et le diagnostic de contraste.
 - `src/lib/templates.ts` : six modèles techniques historiques, conservés pour la compatibilité `templateId`.
 - `src/lib/catalog` : types de sites, catégories, domaines/sous-domaines, modules réels, styles, recettes, recherche, validation et génération de documents.
 - `src/components/renderer` : renderer commun au public, à l’aperçu, à l’éditeur et à l’aperçu IA.
@@ -16,13 +16,22 @@ Woob est un **monolithe modulaire Next.js/React/TypeScript**. Les Server Compone
 - `src/server/db` : schéma Drizzle, connexion PostgreSQL/PGlite, migrations et seed des plans.
 - `src/server/storage.ts`, `src/server/mailer.ts` : adaptateurs fichier/S3 et fichier/SMTP.
 - `drizzle/` : migrations SQL versionnées (`0001` à `0005`).
+- `scripts/next.cjs` : lanceur des commandes dev/start qui laisse la fermeture PGlite se terminer avant la sortie sur `SIGINT`/`SIGTERM`.
 - `tests/` : tests de persistance et parcours Playwright.
 
 ## Document et rendu
 
 Une page possède un `PageDocument` et une révision. Le document est un arbre typé ; le HTML n’est pas le format de stockage. La validation inspecte l’entrée brute avant Zod pour refuser les clés de prototype, les profondeurs/volumes abusifs et les URL non autorisées. Chaque nœud est ensuite validé contre le schéma strict de son composant.
 
-Le renderer utilise les éléments React et les composants connus. Il n’emploie pas `dangerouslySetInnerHTML`. Une proposition IA ne contient que des opérations `updateProps` ou `insertComponent`, validées puis appliquées à une copie pour l’aperçu. Elle ne peut ni injecter un type inconnu ni exécuter du code.
+Le renderer utilise les éléments React et les composants connus. Il n’emploie pas `dangerouslySetInnerHTML`. Une proposition IA contient seulement des opérations `updateProps`, `insertComponent`, `updateTheme` ou `updateStyle`, validées puis appliquées à une copie pour l’aperçu. Elle ne peut ni injecter un type inconnu, ni fournir une valeur CSS refusée, ni exécuter du code.
+
+## Design system et cascade
+
+`ThemeSettings` conserve les champs plats historiques et peut contenir un `DesignSystem` structuré `1.0.0`. À la validation, un ancien thème reçoit des tokens dérivés de ses valeurs ; un thème structuré resynchronise les champs plats. Cette compatibilité évite une migration destructive et permet de lire les anciens snapshots.
+
+La résolution suit deux cascades ordonnées : d’abord base → tablette → mobile du preset réutilisable, puis base → tablette → mobile des exceptions locales. Une exception locale reste donc prioritaire sur tous les appareils tant qu’elle n’est pas explicitement réinitialisée. Les états suivent la même règle. Le renderer calcule une fois le design du document et le transmet à ses nœuds ; les variables expertes `--woob-*` restent des propriétés personnalisées validées, jamais du CSS libre.
+
+Les variables globales et le CSS contrôlé sont partagés par `SitePage`, le canevas et l’aperçu IA. Les règles responsives publiques surchargent la base inline au bon breakpoint ; dans le canevas, seules les règles d’état du viewport sélectionné sont nécessaires. Boutons et images répartissent les propriétés entre le wrapper de structure et leur élément interne. La réduction des animations est appliquée sans boucle de rendu ni canvas animé.
 
 ## Catalogue et création guidée
 
@@ -34,14 +43,18 @@ La recherche normalise les accents et applique tous les termes. `resolveProjectC
 
 `POST /api/workspaces/[workspaceId]/project-preview` exige session, permission d’édition, CSRF, quota et rate limit. La génération `project_create` est journalisée avec `projectId` nullable. La création vérifie auteur, workspace, résultat et instantané de sélection, puis rattache la génération au projet dans la transaction ; une mise à jour conditionnelle `projectId IS NULL` en empêche la consommation concurrente ou répétée. `projects.catalog_selection` conserve l’instantané typé sans remplacer la table `project_modules`. Les appels historiques par `templateId` suivent toujours l’ancien chemin de création.
 
+## Cycle de vie de la base locale
+
+`getDatabaseContext` partage une seule initialisation et enregistre une fermeture idempotente pour `SIGINT`/`SIGTERM`. Le lanceur Next désactive sa sortie concurrente sur les commandes dev/start ; en développement, le parent laisse au worker un délai borné pour synchroniser PGlite. `closeDatabaseContext` détache la promesse globale puis ferme le client. Une base PostgreSQL configurée utilise le même chemin de fermeture avec `Pool.end()`. Ce mécanisme ne prétend pas couvrir `SIGKILL`, les pannes système ou plusieurs processus sur un même répertoire PGlite.
+
 ## Sauvegarde et publication
 
 1. La sauvegarde exige `baseRevision` et vérifie l’identité page/document/chemin.
-2. Une mise à jour conditionnelle rejette une révision obsolète. Les lectures de pages placent toujours `/` en premier, puis utilisent date, chemin et ID pour éviter un ordre ambigu lors d’insertions dans la même milliseconde.
+2. Une mise à jour conditionnelle rejette une révision obsolète. Si le thème structuré change réellement (comparaison profonde, pas ordre des clés JSONB), la même transaction met à jour projet et pages avec `jsonb_set`, conserve chaque racine et incrémente les autres révisions. Les lectures de pages placent toujours `/` en premier, puis utilisent date, chemin et ID pour éviter un ordre ambigu lors d’insertions dans la même milliseconde.
 3. La publication fige pages, navigation, modules, produits actifs et articles publiés dans un `SiteSnapshot` validé.
 4. La transaction verrouille le projet, crée les versions de pages, déplace le pointeur actif et ajuste la visibilité des médias.
 5. La route publique lit uniquement le snapshot actif, jamais le brouillon.
-6. Un rollback clone un ancien snapshot dans une nouvelle publication ; il ne réécrit pas l’historique.
+6. Un rollback clone un ancien snapshot dans une nouvelle publication ; il ne réécrit pas l’historique. La restauration d’un brouillon de page conserve au contraire le thème global actuel, afin de ne pas créer une divergence entre pages.
 
 ## Tenancy, auth et permissions
 

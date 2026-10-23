@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { COMPONENT_TYPES, STYLE_PROPERTIES } from './types';
-import type { DesignSystem, NodeStyle, PageDocument, PageNode, SharedStyle, SiteSnapshot, StyleProperty } from './types';
+import type { DesignSystem, PageDocument, PageNode, SharedStyle, SiteSnapshot, StyleProperty } from './types';
 import { componentRegistry } from './registry';
 import { normalizeThemeSettings } from './design-system';
 
@@ -67,7 +67,7 @@ export function safeCss(property: string, value: string | number): boolean {
   return true;
 }
 
-function safeCssVariable(value: string | number): boolean {
+export function safeCssVariable(value: string | number): boolean {
   return typeof value === 'number' ? Number.isFinite(value) && Math.abs(value) <= 100000 : safeCssText(value);
 }
 

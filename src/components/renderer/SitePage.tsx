@@ -1,23 +1,14 @@
 import type { SiteSnapshot } from '@/lib/document/types';
+import { themeCssVariables, themeGlobalCss } from '@/lib/document/design-system';
 import { DocumentRenderer, type RenderMode } from './DocumentRenderer';
 
 export function SitePage({ site, path, mode = 'public' }: { site: SiteSnapshot; path: string; mode?: RenderMode }) {
   const page = site.pages.find((candidate) => candidate.path === path);
   if (!page) return null;
-  const theme = site.theme;
-  const variables = {
-    '--site-primary': theme.primaryColor,
-    '--site-secondary': theme.secondaryColor,
-    '--site-accent': theme.accentColor,
-    '--site-bg': theme.backgroundColor,
-    '--site-surface': theme.surfaceColor,
-    '--site-text': theme.textColor,
-    '--site-muted': theme.mutedTextColor,
-    '--site-font': theme.fontFamily,
-    '--site-heading-font': theme.headingFontFamily,
-    '--site-radius': `${theme.radius}px`,
-    '--site-container': `${theme.containerWidth}px`,
-    '--site-section-spacing': `${theme.sectionSpacing}px`,
-  } as React.CSSProperties;
-  return <main className="published-site" style={variables} lang={site.defaultLocale}><DocumentRenderer document={page.document} context={{ mode, site, projectId: site.projectId, slug: site.slug }} /></main>;
+  // Page themes are synchronized globally at save time; using the validated page copy also keeps old snapshots renderable.
+  const theme = page.document.theme;
+  return <main className="published-site woob-theme" style={themeCssVariables(theme) as React.CSSProperties} lang={site.defaultLocale}>
+    <style>{themeGlobalCss(theme)}</style>
+    <DocumentRenderer document={page.document} context={{ mode, site, projectId: site.projectId, slug: site.slug }} />
+  </main>;
 }

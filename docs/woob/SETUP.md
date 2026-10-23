@@ -112,7 +112,7 @@ npm run verify
 
 Les tests Vitest utilisent PGlite en mémoire. Les E2E écrivent de vrais comptes/projets dans la base du serveur local : **ne jamais les pointer vers une production**. Playwright réutilise le serveur du port 3000 ou en démarre un avec `TRUST_PROXY=true` pour isoler les buckets de test. Ses scénarios admin utilisent l’allowlist de test `platform-admin-e2e@example.com` ; un serveur réutilisé doit avoir la même valeur de test, jamais une valeur reprise en production.
 
-Dernier résultat local daté du 2026-10-23 : `npm run verify` réussi avec 34/34 tests, puis 19/19 E2E ; migrations `0001` à `0005` et attribution admin par CLI également exécutées. Les détails et avertissements sont consignés dans `TESTING.md` et `IMPLEMENTATION_STATUS.md`.
+Dernier résultat local daté du 2026-10-23 : `npm run verify` réussi avec 49/49 tests dans 10 fichiers, puis 22/22 E2E sur le build de production ; migrations `0001` à `0005` et attribution admin par CLI également exécutées. Les détails et avertissements sont consignés dans `TESTING.md` et `IMPLEMENTATION_STATUS.md`.
 
 Pour utiliser un Chromium système :
 

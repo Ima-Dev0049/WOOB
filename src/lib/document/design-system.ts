@@ -175,7 +175,7 @@ export function themeCssVariables(theme: ThemeSettings, forcedMode?: 'light' | '
     '--site-nav-gap': `${design.navigation.linkGap}px`,
     '--site-motion-duration': `${design.motion.reducedMotion === 'reduce' ? 0 : design.motion.duration}ms`,
     '--site-motion-easing': design.motion.easing,
-    'color-scheme': design.colorMode === 'auto' && !forcedMode ? 'light dark' : mode === 'dark' ? 'dark' : 'light',
+    colorScheme: design.colorMode === 'auto' && !forcedMode ? 'light dark' : mode === 'dark' ? 'dark' : 'light',
   };
 }
 
@@ -229,17 +229,24 @@ function sharedStyle(node: PageNode, design: DesignSystem) {
 /** Desktop → tablet → mobile; local exceptions win at every tier. */
 export function resolveNodeStyle(node: PageNode, viewport: Viewport, design: DesignSystem): NodeStyle {
   const shared = sharedStyle(node, design);
-  const resolved: NodeStyle = { ...shared?.styles, ...node.styles };
-  if (viewport !== 'desktop') Object.assign(resolved, shared?.responsive?.tablet, node.responsive?.tablet);
-  if (viewport === 'mobile') Object.assign(resolved, shared?.responsive?.mobile, node.responsive?.mobile);
+  // Resolve the reusable cascade first, then the local cascade: a deliberate local exception is never lost on another device.
+  const resolved: NodeStyle = { ...shared?.styles };
+  if (viewport !== 'desktop') Object.assign(resolved, shared?.responsive?.tablet);
+  if (viewport === 'mobile') Object.assign(resolved, shared?.responsive?.mobile);
+  Object.assign(resolved, node.styles);
+  if (viewport !== 'desktop') Object.assign(resolved, node.responsive?.tablet);
+  if (viewport === 'mobile') Object.assign(resolved, node.responsive?.mobile);
   return resolved;
 }
 
 export function resolveNodeStateStyle(node: PageNode, viewport: Viewport, state: StyleState, design: DesignSystem): NodeStyle {
   const shared = sharedStyle(node, design);
-  const resolved: NodeStyle = { ...shared?.states?.[state], ...node.states?.[state] };
-  if (viewport !== 'desktop') Object.assign(resolved, shared?.responsiveStates?.tablet?.[state], node.responsiveStates?.tablet?.[state]);
-  if (viewport === 'mobile') Object.assign(resolved, shared?.responsiveStates?.mobile?.[state], node.responsiveStates?.mobile?.[state]);
+  const resolved: NodeStyle = { ...shared?.states?.[state] };
+  if (viewport !== 'desktop') Object.assign(resolved, shared?.responsiveStates?.tablet?.[state]);
+  if (viewport === 'mobile') Object.assign(resolved, shared?.responsiveStates?.mobile?.[state]);
+  Object.assign(resolved, node.states?.[state]);
+  if (viewport !== 'desktop') Object.assign(resolved, node.responsiveStates?.tablet?.[state]);
+  if (viewport === 'mobile') Object.assign(resolved, node.responsiveStates?.mobile?.[state]);
   return resolved;
 }
 

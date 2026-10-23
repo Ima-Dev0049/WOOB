@@ -8,8 +8,8 @@ Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 | --- | --- |
 | TypeScript strict | `npm run typecheck` : réussi dans le dernier `npm run verify` |
 | ESLint | `npm run lint` : réussi dans le dernier `npm run verify` |
-| Vitest / PGlite migré | **34/34 tests réussis**, 8 fichiers |
-| Playwright / Chromium | **19/19 scénarios réussis** lors de la dernière suite complète |
+| Vitest / PGlite migré | **49/49 tests réussis**, 10 fichiers |
+| Playwright / Chromium | **22/22 scénarios réussis** sur le build de production après arrêt/redémarrage |
 | Build Next.js | `npm run build` : réussi ; 2 avertissements de traçage du stockage fichier |
 | Migrations | `npm run db:migrate` réussi ; `0001` à `0005` appliquées à la base PGlite de prévisualisation |
 | Attribution admin | `npm run admin:grant -- platform-admin-e2e@example.com` réussi sur un compte local existant |
@@ -43,8 +43,25 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - i18n : dictionnaires typés français/anglais sur shell, dashboard, création de projet, paramètres/membres, authentification et console admin, avec préférence persistée et langue de connexion conservée après déconnexion.
 - Accessibilité clavier : focus initial, boucle Tab/Shift+Tab, Échap et restitution au déclencheur pour les dialogues projet, IA, historique et médias ; icônes décoratives retirées des noms accessibles concernés.
 
+## Lot personnalisation intégré
+
+- **Design system `1.0.0` compatible avec les documents existants** : tokens de couleurs claires/sombres, typographie et échelle, espacements, rayons, ombres, largeurs, breakpoints, boutons, cartes, formulaires, navigation et mouvement. Les anciens champs plats sont conservés et synchronisés ; aucune migration destructive ni nouveau numéro de document n’a été nécessaire (`src/lib/document/types.ts`, `design-system.ts`, `validation.ts`).
+- **Cascade unique et déterministe** : valeurs par défaut → tokens globaux → style réutilisable → exceptions locales → adaptations tablette/mobile → états. La cascade du preset est résolue avant celle locale afin qu’une exception volontaire ne soit pas perdue sur un autre écran. Les états `hover`, `focus-visible`, `active` et `disabled` sont rendus par le même moteur.
+- **Trois modes réels dans l’éditeur** : simple pour les réglages courants, avancé pour dimensions/layout/bordures/animation/états/presets, expert pour effets et variables `--woob-*`. Les groupes avancés sont repliés ; aucun HTML, sélecteur libre ou script n’est exposé.
+- **Gestes de style reliés au document** : copier/coller, réinitialisation complète ou par propriété, création et affectation de presets, application d’un preset aux blocs du même type sans effacer leurs exceptions locales. Les actions passent par l’historique undo/redo et la sauvegarde ordinaire.
+- **Persistance globale transactionnelle** : un changement de thème met à jour le projet et les thèmes JSONB des pages sans réécrire leurs racines. Les révisions des autres pages augmentent pour empêcher un onglet obsolète d’écraser le nouveau thème. La comparaison est structurelle et ne dépend pas de l’ordre des clés JSONB. Les presets encore référencés sont conservés.
+- **Redémarrage local contrôlé** : `scripts/next.cjs` coordonne les signaux Next avec la fermeture PGlite. Un test ferme puis rouvre une base sur disque et retrouve le compte écrit ; le serveur de production a aussi été arrêté/redémarré avec un site publié, son thème, sa variable experte et sa règle mobile retrouvés. Cela ne couvre pas `SIGKILL` ni une coupure système.
+- **Versions cohérentes** : restaurer une page restaure son contenu et ses styles locaux avec le thème global actuel, au lieu de réintroduire un ancien thème sur une seule page. Un snapshot publié restauré reste, lui, un snapshot complet immuable.
+- **Renderer commun réel** : variables CSS et règles responsives/état sont appliqués dans le canevas, l’aperçu privé, l’aperçu IA et le site publié. Les styles d’un bouton ou d’une image ciblent aussi l’élément interne pertinent. Les préférences de réduction des animations sont respectées et un mode de réduction forcée est disponible.
+- **Contrôles et diagnostic** : propriétés/valeurs CSS allowlistées, dégradés sans `url()`, variables expertes restreintes, références de presets vérifiées, ratios de contraste des paires principales affichés en mode expert. Le diagnostic ne prétend pas analyser les contrastes sur images ou dégradés.
+- **IA visuelle structurée** : `updateTheme` et `updateStyle` rejoignent les opérations existantes, avec les mêmes schémas que l’éditeur, application sur une copie, aperçu avec le nouveau thème, annulation avant application puis undo/redo après application. Le mode démo produit localement des palettes et styles déterministes ; aucun appel distant n’est simulé.
+
 ## Comportements vérifiés par tests
 
+- Design system : compatibilité d’un ancien document, normalisation idempotente, héritage desktop/tablette/mobile, priorité des exceptions, états, copie/reset, références de presets, dégradés sûrs, variables expertes, entrées CSS/URL hostiles et contrastes.
+- Persistance du thème sur deux pages : exception locale et racine préservées, révision obsolète refusée, restauration avec thème actuel, preset et tokens retrouvés dans le snapshot publié.
+- Parcours navigateur de personnalisation : boutons stylés, preset partagé, copier/coller/reset, variable expert dans le padding, undo/redo, sauvegarde/rechargement, thème global, publication anonyme à 390 px et largeur mobile calculée.
+- IA de thème : aperçu local sans mutation, annulation sans effet, application, undo/redo, sauvegarde/rechargement et mode sombre retrouvé. Scan axe sur toutes les sections avancées/expert et la palette automatique ouvertes.
 - Parcours obligatoire : sélection d’un titre Hero, modification, sauvegarde, actualisation et texte retrouvé ; publication et lecture anonyme.
 - Double refus d’accès croisé `404` entre comptes, refus `viewer`, conflit de révision et isolation des snapshots.
 - Publication, dépublication et rollback ; les modifications du brouillon ne changent pas le snapshot actif.
@@ -80,8 +97,14 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - La collaboration ajoute seulement des comptes déjà inscrits ; il n’y a pas d’invitation email pour un nouvel utilisateur.
 - Réservations sans moteur de disponibilité complet ; commandes sans encaissement, taxes, expédition ou logistique. Ces modules ne remplacent pas un ERP, LMS ou une marketplace.
 - Les variantes du catalogue nommées marketplace, SaaS, LMS, portail patient, billetterie, dons ou paiement produisent seulement l’architecture éditoriale et les modules affichés comme disponibles. Leurs limites sont présentées dans le wizard ; aucun backend de ce type n’est simulé.
+- Le lot personnalisation ne comprend pas encore le chargement de fichiers de polices, les images/vidéos de fond, le parallaxe, les animations libres au scroll, le recadrage média, les carrousels/lightbox, le CSS arbitraire ou les scripts tiers. Les presets sont enregistrés par projet ; il n’existe pas encore de bibliothèque partagée entre projets ni de gestion visuelle complète de leur cycle de vie. L’application multiple cible les blocs d’un même type, pas une sélection arbitraire multiple.
+- Le diagnostic de contraste couvre quatre paires par palette active, en hexadécimal. Il ne vérifie pas tous les états, images, dégradés ou composants et ne remplace pas un audit manuel.
 - Le build PDF de la documentation de référence n’est pas livré ; les neuf SVG déjà produits restent des documents de référence, pas des tests applicatifs.
+
+## État local de la preview
+
+La preview courante utilise `.woob-data-runtime-v2`, initialisée par les migrations puis les parcours de test. L’ancienne `.woob-data-runtime`, devenue illisible après un arrêt brutal avec un WAL sans checkpoint valide, est conservée ainsi que `.woob-data-runtime-before-production-diagnostic`. Aucune réparation destructive ni restauration de ces anciennes données n’est déclarée ; le changement de répertoire est local à cette preview et ne fait pas partie du schéma applicatif.
 
 ## Prochaine priorité
 
-En local, ajouter pagination et recherche SQL aux annuaires admin, puis étendre les dictionnaires à l’éditeur, au reste du back-office et au marketing, puis réaliser une revue avec lecteur d’écran sans présumer son résultat. Avec autorisation et comptes externes, créer ensuite un staging PostgreSQL/SMTP/S3 pour tester sauvegardes et restauration, puis valider séparément Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.
+Poursuivre la personnalisation par un lot P2 limité : modification/suppression sûre des presets avec analyse d’usage, variantes de boutons et hiérarchie typographique complète, import/export validé d’un thème et extension du diagnostic aux états. Ensuite, traiter les médias de fond et les polices avec le pipeline d’assets réel, sans contournement `url()` ni chargement distant implicite. Les travaux déjà recensés restent également ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.

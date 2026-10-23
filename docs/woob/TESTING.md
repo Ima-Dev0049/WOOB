@@ -12,12 +12,12 @@ npm run build
 npm run verify
 ```
 
-Les tests Vitest créent des bases PGlite migrées en mémoire. Ils utilisent les vrais services et la persistance SQL, pas de faux repository. Les E2E écrivent dans la base du serveur local et ne doivent jamais cibler une production.
+Les tests Vitest créent des bases PGlite migrées, principalement en mémoire ; le test de redémarrage utilise un répertoire temporaire sur disque. Ils utilisent les vrais services et la persistance SQL, pas de faux repository. Les E2E écrivent dans la base du serveur local et ne doivent jamais cibler une production.
 
 ## Résultats effectivement exécutés le 2026-10-23
 
-- `npm run verify` : typecheck et lint réussis, **8 fichiers et 34/34 tests Vitest réussis**, build Next.js réussi.
-- `npm run test:e2e` : **19/19 scénarios Playwright réussis** avec Chromium, un worker.
+- `npm run verify` : typecheck et lint réussis, **10 fichiers et 49/49 tests Vitest réussis**, build Next.js réussi.
+- `npm run test:e2e` : **22/22 scénarios Playwright réussis** avec Chromium, un worker, contre `next start` après arrêt/redémarrage du serveur et de PGlite.
 - `npm run db:migrate` : migrations `0001` à `0005` appliquées à la base PGlite de prévisualisation.
 - `npm run admin:grant -- platform-admin-e2e@example.com` : rôle plateforme persisté avec succès sur ce compte local existant.
 - `npm audit --omit=dev` : **0 vulnérabilité** dans les dépendances de production.
@@ -29,10 +29,14 @@ Ces résultats sont des observations datées, pas une garantie sur un autre envi
 ## Couverture unitaire et intégration
 
 - contrats des documents, six modèles techniques, opérations d’arbre, clés de prototype et URL dangereuses ;
+- design system : normalisation des anciens documents, tokens et CSS global, contraste, cascade preset/local/responsive/états, copie/reset, références de styles, variables expertes, dégradés sûrs et refus de valeurs CSS hostiles ;
+- propagation transactionnelle du thème entre deux pages, préservation des racines/exceptions, conflit de révision, restauration avec thème actuel et publication des tokens/presets ;
+- opérations IA `updateTheme`/`updateStyle` appliquées à une copie et rendu interne des boutons avec règles responsive/état ;
 - catalogue : 20 catégories, 212 variantes, 30 domaines et 150 sous-domaines, unicité, parents, relations, recherche accent-insensible, filtres, modules compatibles, création libre, contexte de génération, persistance et isolation du brouillon ;
 - inscription/connexion, jetons à usage unique, isolation workspace, rôles et conflits de révision ;
 - sauvegarde/relecture, snapshots, publication, dépublication, rollback et restauration de brouillon ;
 - uploads locaux, signature binaire, isolation de lecture et protection des médias utilisés ;
+- fermeture/réouverture PGlite sur disque avec compte retrouvé ; arrêt/redémarrage réel du build de production avec page publiée, thème et règles responsives conservés ;
 - formulaires, réservations, commandes au prix serveur, stock et transitions ;
 - IA démo, validation de propositions et refus d’URL `javascript:` ;
 - quotas de domaines, DTO sans hash, IDN, conflits, admin/viewer, isolation et état DNS désactivé ;
@@ -42,11 +46,13 @@ Ces résultats sont des observations datées, pas une garantie sur un autre envi
 
 ## Couverture navigateur
 
-Les 19 scénarios couvrent notamment :
+Les 22 scénarios couvrent notamment :
 
 - marketing et tarification anonymes ;
 - création catalogue en six étapes : recherche, type restaurant, domaine alimentation, réservations, style artisanal, brief, aperçu réel, limites visibles, création et texte retrouvé dans l’éditeur ; les autres parcours utilisent aussi le raccourci vers la description et la prévisualisation obligatoire ;
 - édition → sauvegarde → actualisation → texte retrouvé, publication et accès croisé refusé ;
+- personnalisation : styles calculés sur deux boutons, preset partagé, copier/coller/reset, variable expert utilisée, undo/redo, distinction ordinateur/mobile, rechargement, thème global et publication anonyme à 390 px ;
+- proposition IA de thème sombre : aperçu sans mutation, annulation, application, undo/redo et persistance ; scan axe avec toutes les sections avancées/expert et la palette automatique ouvertes ;
 - produit, article, activation de module et partage d’espace entre deux sessions ;
 - IA démo : prévisualisation, application, persistance, puis erreurs honnêtes de domaine/paiement non configurés ;
 - restauration d’un point de brouillon après rechargement ;

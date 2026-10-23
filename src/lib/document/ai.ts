@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { COMPONENT_TYPES } from './types';
+import { COMPONENT_TYPES, type StyleProperty } from './types';
 import type { PageDocument } from './types';
-import { cloneDocument, findNode, validatePageDocument } from './validation';
+import { cloneDocument, designSystemSchema, findNode, nodeStyleSchema, validatePageDocument } from './validation';
 import { createNode } from './registry';
 import { insertNode } from './operations';
+import { setNodeStyle, withDesignSystem } from './design-system';
 import { createId } from '@/lib/id';
 
 export const aiProposalSchema = z.object({
@@ -11,6 +12,8 @@ export const aiProposalSchema = z.object({
   operations: z.array(z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('updateProps'), nodeId: z.string().min(1).max(160), props: z.record(z.string(), z.unknown()) }).strict(),
     z.object({ kind: z.literal('insertComponent'), targetId: z.string().min(1).max(160), position: z.enum(['before', 'after', 'inside']), component: z.enum(COMPONENT_TYPES.filter((type) => type !== 'page')), props: z.record(z.string(), z.unknown()) }).strict(),
+    z.object({ kind: z.literal('updateTheme'), designSystem: designSystemSchema }).strict(),
+    z.object({ kind: z.literal('updateStyle'), nodeId: z.string().min(1).max(160), viewport: z.enum(['desktop', 'tablet', 'mobile']).default('desktop'), state: z.enum(['hover', 'focus-visible', 'active', 'disabled']).optional(), styles: nodeStyleSchema }).strict(),
   ])).min(1).max(10),
 }).strict();
 export type AiProposal = z.infer<typeof aiProposalSchema>;
@@ -23,10 +26,18 @@ export function applyAiProposal(document: PageDocument, input: unknown): PageDoc
       const node = findNode(next.root, operation.nodeId);
       if (!node || node.type === 'page') throw new Error('Le composant à modifier est introuvable.');
       node.props = { ...node.props, ...operation.props };
-    } else {
+    } else if (operation.kind === 'insertComponent') {
       const node = createNode(operation.component, createId('node'));
       node.props = { ...node.props, ...operation.props };
       if (!insertNode(next.root, node, operation.targetId, operation.position)) throw new Error('Le point d’insertion proposé est invalide.');
+    } else if (operation.kind === 'updateTheme') {
+      next.theme = withDesignSystem(next.theme, operation.designSystem);
+    } else {
+      const node = findNode(next.root, operation.nodeId);
+      if (!node) throw new Error('Le composant à styliser est introuvable.');
+      for (const [property, value] of Object.entries(operation.styles)) {
+        if (value !== undefined) setNodeStyle(node, property as StyleProperty, value, operation.viewport, operation.state);
+      }
     }
   }
   const validation = validatePageDocument(next);

@@ -33,3 +33,9 @@ Date de l’audit : 2026-10-23. Ce document distingue les faits constatés dans 
 - **P4** : animations orchestrées accessibles, règles conditionnelles métier, extensions et scripts tiers isolés après politique de sécurité explicite, marketplace de thèmes et parcours utilisateurs avancés.
 
 Restent volontairement hors de ce lot : CSS/HTML arbitraire, exécution de code généré, scripts tiers dans le contexte principal, moteur d’animation libre, effets visuels non nécessaires et prétention à couvrir l’ensemble des systèmes avancés de la demande.
+
+## État de livraison du premier lot
+
+Le lot P0–P1 est implémenté et vérifié sur son périmètre : modèle compatible, cascade, trois modes, presets, copier/coller/reset, variables expertes, propagation transactionnelle, restauration cohérente, rendu publié et opérations IA de thème/style. Les corrections issues des tests portent notamment sur la priorité des exceptions locales, la comparaison structurelle des thèmes JSONB et la cascade entre styles inline et media queries.
+
+Preuves du 2026-10-23 : `npm run verify` réussi avec **49/49 tests Vitest dans 10 fichiers**, typecheck, ESLint et build ; `npm run test:e2e` réussi avec **22/22 scénarios sur le build de production après arrêt/redémarrage**, dont trois scénarios de personnalisation et un scan axe des panneaux expert ouverts. Les limites et le lot P2 sont tenus dans `IMPLEMENTATION_STATUS.md` ; ce plan ne déclare pas les autres catégories du cahier des charges terminées.

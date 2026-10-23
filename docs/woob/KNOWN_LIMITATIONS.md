@@ -1,6 +1,7 @@
 # Limites connues
 
 - Aucun hébergement, PostgreSQL externe, SMTP, S3, Stripe, fournisseur IA, DNS public ou certificat TLS externe n’est vérifié depuis cet environnement.
+- PGlite reste un mode local mono-processus. Les arrêts `SIGINT`/`SIGTERM` sont synchronisés, mais `SIGKILL`, une coupure système et les accès concurrents ne sont pas une stratégie de production ; utiliser PostgreSQL et des sauvegardes réelles.
 - Le stockage et l’email fichiers sont des pilotes locaux ; la boîte fichier n’envoie pas de messages.
 - Le mode IA démo est un gabarit local et ne doit pas être présenté comme une réponse d’un modèle distant.
 - `dns_verified` atteste seulement le TXT lu par le resolver configuré ; il ne signifie ni hôte routé ni certificat émis. Les transitions sont testées avec un resolver simulé, pas avec un domaine public.
@@ -17,3 +18,5 @@
 - Les modules actuels ne remplacent pas un ERP, une marketplace, un LMS ou un e-commerce avec paiement/logistique complexes. Les variantes correspondantes du catalogue créent des sites éditoriaux et des formulaires/modules disponibles, jamais ces backends.
 - Les libellés du wizard sont traduits, mais de nombreuses variantes et entrées sectorielles restent en français de fallback.
 - La collaboration ajoute des comptes existants ; aucune invitation email pour un nouvel utilisateur n’est encore implémentée.
+- Le design system couvre les tokens, presets et styles listés dans `IMPLEMENTATION_STATUS.md`, mais pas encore les fichiers de polices, images/vidéos de fond, parallaxe, recadrage, carrousels/lightbox, animations libres au scroll, CSS arbitraire ou scripts tiers. Les presets restent propres à un projet et l’application multiple se fait par type de bloc.
+- Le diagnostic de contraste est limité à des paires hexadécimales ; il ne prouve pas le contraste sur image/dégradé ni la conformité de tous les états.

@@ -1,48 +1,90 @@
 /* eslint-disable @next/next/no-img-element -- les images externes arbitraires ne peuvent pas utiliser une allowlist next/image fixe. */
 import type { CSSProperties, ReactNode } from 'react';
-import type { PageDocument, PageNode, SiteSnapshot, Viewport } from '@/lib/document/types';
-import { safeHref } from '@/lib/document/validation';
+import type { DesignSystem, NodeStyle, PageDocument, PageNode, SiteSnapshot, StyleState, Viewport } from '@/lib/document/types';
+import { safeCss, safeCssVariable, safeHref } from '@/lib/document/validation';
+import { createDefaultDesignSystem, getDesignSystem, resolveNodeStateStyle, resolveNodeStyle } from '@/lib/document/design-system';
 import { PublicContactForm, PublicOrderButton, PublicReservationForm } from './PublicForms';
 
 export type RenderMode = 'public' | 'preview' | 'editor';
-export type RenderContext = { mode: RenderMode; site?: SiteSnapshot; projectId?: string; slug?: string; selectedNodeId?: string | null; onSelect?: (id: string) => void; viewport?: Viewport };
+export type RenderContext = { mode: RenderMode; site?: SiteSnapshot; projectId?: string; slug?: string; selectedNodeId?: string | null; onSelect?: (id: string) => void; viewport?: Viewport; designSystem?: DesignSystem };
 
-const cssKeys: Record<string, string> = { color: 'color', backgroundColor: 'background-color', fontFamily: 'font-family', fontSize: 'font-size', fontWeight: 'font-weight', lineHeight: 'line-height', letterSpacing: 'letter-spacing', textAlign: 'text-align', paddingTop: 'padding-top', paddingRight: 'padding-right', paddingBottom: 'padding-bottom', paddingLeft: 'padding-left', marginTop: 'margin-top', marginRight: 'margin-right', marginBottom: 'margin-bottom', marginLeft: 'margin-left', gap: 'gap', width: 'width', maxWidth: 'max-width', minHeight: 'min-height', borderRadius: 'border-radius', borderColor: 'border-color', borderWidth: 'border-width', borderStyle: 'border-style', boxShadow: 'box-shadow', opacity: 'opacity' };
+const UNITLESS = new Set(['fontWeight', 'lineHeight', 'opacity', 'zIndex', 'order', 'flexGrow', 'flexShrink', 'aspectRatio', 'animationIterationCount']);
+const TIME_PROPERTIES = new Set(['transitionDuration', 'transitionDelay', 'animationDuration', 'animationDelay']);
+const WRAPPER_ONLY = new Set(['position', 'top', 'right', 'bottom', 'left', 'margin', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'transform', 'transformOrigin', 'zIndex']);
+const STATE_SELECTORS: Record<StyleState, string> = { hover: ':hover', 'focus-visible': ':focus-within', active: ':active', disabled: ':has([disabled],[aria-disabled="true"])' };
 
-function safeCssValue(value: string | number): string | null {
-  const text = String(value);
-  if (text.length > 300 || /[<>;{}\\]|url\s*\(|expression\s*\(|@import|javascript:/i.test(text)) return null;
-  return text;
+function cssKey(property: string): string { return property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`); }
+function cssValue(property: string, value: string | number): string {
+  if (typeof value === 'string') return value;
+  if (UNITLESS.has(property)) return String(value);
+  return `${value}${TIME_PROPERTIES.has(property) ? 'ms' : 'px'}`;
 }
-
-function inlineStyle(node: PageNode, viewport: Viewport = 'desktop'): CSSProperties {
-  const source = { ...node.styles, ...(viewport !== 'desktop' ? node.responsive?.[viewport] : {}) };
-  const style: Record<string, string | number> = {};
-  for (const [key, value] of Object.entries(source)) {
-    if (!cssKeys[key] || (typeof value !== 'string' && typeof value !== 'number')) continue;
-    const safe = safeCssValue(value);
-    if (safe !== null) style[key] = typeof value === 'number' && !['fontWeight', 'lineHeight', 'opacity'].includes(key) ? `${value}px` : value;
+function styleToCss(style: NodeStyle): CSSProperties {
+  const result: Record<string, string | number> = {};
+  for (const [property, value] of Object.entries(style)) {
+    if ((typeof value === 'string' || typeof value === 'number') && safeCss(property, value)) result[property] = cssValue(property, value);
   }
-  return style as CSSProperties;
+  return result as CSSProperties;
+}
+function declarations(style: NodeStyle, important = false): string {
+  return Object.entries(style).flatMap(([property, value]) => {
+    if ((typeof value !== 'string' && typeof value !== 'number') || !safeCss(property, value)) return [];
+    return [`${cssKey(property)}:${cssValue(property, value)}${important ? '!important' : ''}`];
+  }).join(';');
+}
+function variablesToCss(node: PageNode): CSSProperties {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(node.cssVariables ?? {})) {
+    if (/^--woob-[a-z0-9-]{1,80}$/.test(key) && safeCssVariable(value)) result[key] = String(value);
+  }
+  return result as CSSProperties;
+}
+function targetsContent(node: PageNode): boolean { return node.type === 'button' || node.type === 'image'; }
+function contentSelector(node: PageNode): string { return node.type === 'button' ? ' > a.button' : node.type === 'image' ? ' > .wb-image > img' : ''; }
+function splitStyles(node: PageNode, style: NodeStyle): { wrapper: NodeStyle; content: NodeStyle } {
+  if (!targetsContent(node)) return { wrapper: style, content: {} };
+  const wrapper: NodeStyle = {}; const content: NodeStyle = {};
+  for (const [property, value] of Object.entries(style)) {
+    if (value === undefined) continue;
+    if (WRAPPER_ONLY.has(property)) (wrapper as Record<string, string | number>)[property] = value;
+    else (content as Record<string, string | number>)[property] = value;
+  }
+  return { wrapper, content };
+}
+function inlineStyles(node: PageNode, viewport: Viewport, design: DesignSystem): { wrapper: CSSProperties; content: CSSProperties | undefined } {
+  const split = splitStyles(node, resolveNodeStyle(node, viewport, design));
+  return { wrapper: { ...styleToCss(split.wrapper), ...variablesToCss(node) }, content: targetsContent(node) ? styleToCss(split.content) : undefined };
 }
 
-function responsiveCss(node: PageNode): string {
+function responsiveCss(node: PageNode, design: DesignSystem, mode: RenderMode, editorViewport: Viewport): string {
   const id = node.id.replace(/[^a-zA-Z0-9_-]/g, '');
-  if (!id || !node.responsive) return '';
-  return (['tablet', 'mobile'] as const).map((viewport) => {
-    const styles = node.responsive?.[viewport];
-    if (!styles) return '';
-    const declarations = Object.entries(styles).flatMap(([key, value]) => {
-      const cssKey = cssKeys[key];
-      const safe = typeof value === 'string' || typeof value === 'number' ? safeCssValue(value) : null;
-      if (!cssKey || safe === null) return [];
-      const normalized = typeof value === 'number' && !['fontWeight', 'lineHeight', 'opacity'].includes(key) ? `${value}px` : safe;
-      return [`${cssKey}:${normalized}`];
-    }).join(';');
-    if (!declarations) return '';
-    const width = viewport === 'tablet' ? '1024px' : '640px';
-    return `@media(max-width:${width}){[data-node-id="${id}"]{${declarations}}}`;
-  }).join('');
+  if (!id) return '';
+  const selector = `[data-node-id="${id}"]`;
+  const rules: string[] = [];
+  if (mode !== 'editor') {
+    for (const viewport of ['tablet', 'mobile'] as const) {
+      const split = splitStyles(node, resolveNodeStyle(node, viewport, design));
+      const width = design.tokens.breakpoints[viewport];
+      const wrapper = declarations(split.wrapper, true); const content = declarations(split.content, true);
+      if (wrapper) rules.push(`@media(max-width:${width}px){${selector}{${wrapper}}}`);
+      if (content) rules.push(`@media(max-width:${width}px){${selector}${contentSelector(node)}{${content}}}`);
+    }
+  }
+  const stateViewports = mode === 'editor' ? [editorViewport] : ['desktop', 'tablet', 'mobile'] as const;
+  for (const viewport of stateViewports) {
+    for (const state of ['hover', 'focus-visible', 'active', 'disabled'] as const) {
+      const style = resolveNodeStateStyle(node, viewport, state, design);
+      const body = declarations(style, true);
+      if (!body) continue;
+      const suffix = contentSelector(node);
+      const stateSelector = state === 'focus-visible' && suffix
+        ? `${selector}${suffix}:focus-visible`
+        : `${selector}${STATE_SELECTORS[state]}${suffix}`;
+      const rule = `${stateSelector}{${body}}`;
+      rules.push(mode === 'editor' || viewport === 'desktop' ? rule : `@media(max-width:${design.tokens.breakpoints[viewport]}px){${rule}}`);
+    }
+  }
+  return rules.join('');
 }
 
 function text(value: unknown, fallback = ''): string { return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback; }
@@ -70,7 +112,7 @@ function money(cents: number, currency: string): string {
 }
 function SectionTitle({ title, eyebrow }: { title: string; eyebrow?: string }) { return <div className="section-heading">{eyebrow && <span className="eyebrow">{eyebrow}</span>}<h2>{title}</h2></div>; }
 
-function NodeContent({ node, context }: { node: PageNode; context: RenderContext }): ReactNode {
+function NodeContent({ node, context, componentStyle }: { node: PageNode; context: RenderContext; componentStyle: CSSProperties | undefined }): ReactNode {
   const p = node.props;
   const interactive = context.mode !== 'editor';
   switch (node.type) {
@@ -89,9 +131,9 @@ function NodeContent({ node, context }: { node: PageNode; context: RenderContext
     case 'text': return <p className={`wb-text ${bool(p.muted) ? 'muted' : ''}`}>{text(p.text)}</p>;
     case 'image': {
       const src = assetUrl(p.assetId, p.src);
-      return <figure className="wb-image">{src ? <img src={src} alt={text(p.alt)} loading="lazy" /> : <div className="image-placeholder">Ajoutez une image</div>}{text(p.caption) && <figcaption>{text(p.caption)}</figcaption>}</figure>;
+      return <figure className="wb-image">{src ? <img src={src} alt={text(p.alt)} loading="lazy" style={componentStyle} /> : <div className="image-placeholder">Ajoutez une image</div>}{text(p.caption) && <figcaption>{text(p.caption)}</figcaption>}</figure>;
     }
-    case 'button': return <a className={`button ${text(p.variant, 'primary')}`} href={link(p.href, context)}>{text(p.label)}</a>;
+    case 'button': return <a className={`button ${text(p.variant, 'primary')}`} href={link(p.href, context)} style={componentStyle}>{text(p.label)}</a>;
     case 'features': return <section className="wb-section"><SectionTitle title={text(p.title)} /><div className="card-grid three">{list<{ title?: string; description?: string; icon?: string }>(p.items).map((item, index) => <article className="feature-card" key={index}><span className="feature-icon" aria-hidden="true">{text(item.icon, '✦').slice(0, 2)}</span><h3>{text(item.title)}</h3><p>{text(item.description)}</p></article>)}</div></section>;
     case 'gallery': return <section className="wb-section"><SectionTitle title={text(p.title)} /><div className="gallery-grid">{list<{ assetId?: string; src?: string; alt?: string }>(p.images).map((image, index) => { const src = assetUrl(image.assetId, image.src); return src ? <img key={index} src={src} alt={text(image.alt)} loading="lazy" /> : <div className="image-placeholder" key={index}>Image {index + 1}</div>; })}</div></section>;
     case 'testimonials': return <section className="wb-section tinted"><SectionTitle title={text(p.title)} /><div className="card-grid two">{list<{ quote?: string; author?: string; role?: string }>(p.items).map((item, index) => <blockquote key={index}><p>« {text(item.quote)} »</p><footer><strong>{text(item.author)}</strong><span>{text(item.role)}</span></footer></blockquote>)}</div></section>;
@@ -112,13 +154,16 @@ function NodeContent({ node, context }: { node: PageNode; context: RenderContext
 
 function NodeRenderer({ node, context }: { node: PageNode; context: RenderContext }) {
   const selected = context.selectedNodeId === node.id;
-  const css = responsiveCss(node);
+  const design = context.designSystem ?? createDefaultDesignSystem();
+  const css = responsiveCss(node, design, context.mode, context.viewport ?? 'desktop');
+  const styles = inlineStyles(node, context.viewport ?? 'desktop', design);
   const className = `wb-node wb-node-${node.type} ${context.mode === 'editor' ? 'editor-node' : ''} ${selected ? 'selected' : ''}`;
-  return <div className={className} data-node-id={node.id} data-node-type={node.type} style={inlineStyle(node, context.viewport)} onClick={context.mode === 'editor' ? (event) => { event.stopPropagation(); context.onSelect?.(node.id); } : undefined}>
-    {css && <style>{css}</style>}<NodeContent node={node} context={context} />
+  return <div className={className} data-node-id={node.id} data-node-type={node.type} style={styles.wrapper} onClick={context.mode === 'editor' ? (event) => { event.stopPropagation(); context.onSelect?.(node.id); } : undefined}>
+    {css && <style>{css}</style>}<NodeContent node={node} context={context} componentStyle={styles.content} />
   </div>;
 }
 
 export function DocumentRenderer({ document, context = { mode: 'public' } }: { document: PageDocument; context?: RenderContext }) {
-  return <div className={`wb-page wb-mode-${context.mode}`} data-testid="document-renderer"><NodeRenderer node={document.root} context={context} /></div>;
+  const renderContext: RenderContext = { ...context, designSystem: getDesignSystem(document.theme) };
+  return <div className={`wb-page wb-mode-${context.mode}`} data-testid="document-renderer"><NodeRenderer node={document.root} context={renderContext} /></div>;
 }
