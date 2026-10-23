@@ -25,7 +25,7 @@ function FieldControl({ field, value, onChange, projectId, idPrefix }: { field: 
   const [uploading, setUploading] = useState(false); const [error, setError] = useState(''); const [libraryOpen, setLibraryOpen] = useState(false);
   const common = { id: `${idPrefix ? `${idPrefix}-` : 'field-'}${field.key}`, 'data-testid': `field-${field.key}` };
   if (field.kind === 'boolean') return <label className="switch-field" htmlFor={common.id}><span>{field.label}</span><input {...common} type="checkbox" checked={value === true} onChange={(event) => onChange(event.target.checked)} /></label>;
-  if (field.kind === 'select') return <label htmlFor={common.id}>{field.label}<select {...common} value={String(value ?? '')} onChange={(event) => onChange(field.key === 'level' ? Number(event.target.value) : event.target.value)}>{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
+  if (field.kind === 'select') return <label htmlFor={common.id}>{field.label}<select {...common} value={String(value ?? field.options?.[0]?.value ?? '')} onChange={(event) => onChange(field.key === 'level' ? Number(event.target.value) : event.target.value)}>{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
   if (field.kind === 'number') return <label htmlFor={common.id}>{field.label}<input {...common} type="number" value={Number(value ?? 0)} onChange={(event) => onChange(Number(event.target.value))} /></label>;
   if (field.kind === 'textarea') return <label htmlFor={common.id}>{field.label}<textarea {...common} rows={4} value={String(value ?? '')} onChange={(event) => onChange(event.target.value)} /></label>;
   if (field.kind === 'asset') {

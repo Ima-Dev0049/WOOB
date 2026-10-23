@@ -4,6 +4,7 @@ import {
   type DesignSystem,
   type NodeStateStyles,
   type NodeStyle,
+  type NodeMotion,
   type PageNode,
   type ResponsiveStateStyles,
   type ResponsiveStyles,
@@ -197,14 +198,15 @@ export function themeGlobalCss(theme: ThemeSettings): string {
     ? '.woob-theme .wb-node-header{position:sticky;top:0;z-index:30;background:var(--site-bg)}'
     : '';
   const entrance = design.motion.entrance === 'none' ? '' : `.woob-theme .wb-node{animation:woob-${design.motion.entrance} var(--site-motion-duration) var(--site-motion-easing) both}`;
-  const reduced = '.woob-theme *,.woob-theme *::before,.woob-theme *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0ms!important}';
+  const reduced = '.woob-theme *,.woob-theme *::before,.woob-theme *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0ms!important}.woob-theme [data-motion-preset]{animation:none!important;clip-path:none!important;scale:none!important;translate:none!important}.woob-theme [data-motion-state="pending"]{opacity:1!important}';
   return `
     .woob-theme{color-scheme:light dark}
     .woob-theme .wb-page{padding-left:var(--site-gutter);padding-right:var(--site-gutter)}
     .woob-theme .published-site,.woob-theme.canvas-document{font-size:var(--site-base-font-size);line-height:var(--site-body-line-height)}
     .woob-theme h1,.woob-theme h2,.woob-theme h3{color:var(--site-heading);line-height:var(--site-heading-line-height);letter-spacing:var(--site-heading-letter-spacing)}
     .woob-theme h1{font-size:var(--site-font-size-h1)}.woob-theme h2{font-size:var(--site-font-size-h2)}.woob-theme h3{font-size:var(--site-font-size-h3)}
-    .woob-theme a{color:var(--site-link)}
+    .woob-theme a{color:var(--site-link)}.woob-theme .eyebrow{color:var(--site-primary)}.woob-theme .muted{color:var(--site-muted)}
+    .woob-theme .button.primary{color:#fff}.woob-theme .button.light{color:#17231f}.woob-theme .creative-mode-dark .button.primary{color:var(--site-bg)}.woob-theme .wb-cta .eyebrow{color:#fff}
     .woob-theme .wb-text{line-height:var(--site-body-line-height);max-width:var(--site-paragraph-width)}
     .woob-theme .button{border-radius:var(--site-button-radius);padding:var(--site-button-padding-y) var(--site-button-padding-x);min-height:var(--site-button-min-height);font-weight:var(--site-button-font-weight);box-shadow:var(--site-button-shadow);text-transform:var(--site-button-transform);transition:transform var(--site-motion-duration) var(--site-motion-easing),box-shadow var(--site-motion-duration) var(--site-motion-easing)}
     .woob-theme .button:hover{transform:translateY(calc(-1 * var(--site-button-hover-lift)))}
@@ -215,8 +217,8 @@ export function themeGlobalCss(theme: ThemeSettings): string {
     .woob-theme .order-popover{box-shadow:var(--site-overlay-shadow)}
     ${navigation}${entrance}${dark}
     @keyframes woob-fade{from{opacity:0}to{opacity:1}}@keyframes woob-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-    @media (max-width:${design.tokens.breakpoints.tablet}px){.woob-theme .wb-hero{grid-template-columns:1fr;min-height:0}.woob-theme .card-grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    @media (max-width:${design.tokens.breakpoints.mobile}px){.woob-theme .wb-page{padding-left:calc(var(--site-gutter) * .65);padding-right:calc(var(--site-gutter) * .65)}.woob-theme :is(.card-grid.three,.card-grid.two,.gallery-grid,.stats-grid){grid-template-columns:1fr}.woob-theme .wb-header{align-items:flex-start;flex-direction:column}.woob-theme .wb-cta,.woob-theme .wb-section.tinted{padding:calc(var(--site-card-padding) * 1.25)}}
+    @media (max-width:${design.tokens.breakpoints.tablet}px){.woob-theme .wb-hero{grid-template-columns:1fr;min-height:0}.woob-theme .wb-hero :is(.hero-copy,.hero-visual){grid-area:auto;margin:0;max-width:none;width:100%}.woob-theme .wb-hero .hero-copy{padding-bottom:0}.woob-theme .wb-hero-monumental .hero-copy>p{margin-left:0}.woob-theme .wb-hero-immersive :is(.hero-image,.hero-art),.woob-theme .wb-hero-immersive .hero-visual{min-height:420px}.woob-theme .card-grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}.woob-theme .features-editorial{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (max-width:${design.tokens.breakpoints.mobile}px){.woob-theme .wb-page{padding-left:calc(var(--site-gutter) * .65);padding-right:calc(var(--site-gutter) * .65)}.woob-theme :is(.card-grid.three,.card-grid.two,.gallery-grid,.stats-grid){grid-template-columns:1fr}.woob-theme .gallery-filmstrip{grid-template-columns:none;grid-auto-columns:82%}.woob-theme .features-editorial .feature-card:first-child,.woob-theme .gallery-editorial>:first-child{grid-row:auto;min-height:0}.woob-theme .wb-hero-monumental .hero-copy h1{font-size:clamp(46px,15vw,72px)}.woob-theme .wb-hero-immersive :is(.hero-image,.hero-art),.woob-theme .wb-hero-immersive .hero-visual{min-height:340px}.woob-theme .treatment-orbital::after{right:0}.woob-theme .wb-header{align-items:flex-start;flex-direction:column}.woob-theme .wb-cta,.woob-theme .wb-section.tinted{padding:calc(var(--site-card-padding) * 1.25)}}
     @media (prefers-reduced-motion:reduce){${reduced}}
     ${design.motion.reducedMotion === 'reduce' ? reduced : ''}
   `;
@@ -278,6 +280,7 @@ export interface NodeStyleSnapshot {
   states?: NodeStateStyles;
   responsiveStates?: ResponsiveStateStyles;
   cssVariables?: Record<string, string | number>;
+  motion?: NodeMotion;
 }
 
 export function copyNodeStyle(node: PageNode): NodeStyleSnapshot {
@@ -288,6 +291,7 @@ export function copyNodeStyle(node: PageNode): NodeStyleSnapshot {
     ...(node.states ? { states: node.states } : {}),
     ...(node.responsiveStates ? { responsiveStates: node.responsiveStates } : {}),
     ...(node.cssVariables ? { cssVariables: node.cssVariables } : {}),
+    ...(node.motion ? { motion: node.motion } : {}),
   });
 }
 
@@ -300,6 +304,7 @@ export function pasteNodeStyle(node: PageNode, snapshot: NodeStyleSnapshot): voi
   if (copy.states) node.states = copy.states; else delete node.states;
   if (copy.responsiveStates) node.responsiveStates = copy.responsiveStates; else delete node.responsiveStates;
   if (copy.cssVariables) node.cssVariables = copy.cssVariables; else delete node.cssVariables;
+  if (copy.motion) node.motion = copy.motion; else delete node.motion;
 }
 
 export function resetNodeStyle(node: PageNode): void {
@@ -309,6 +314,7 @@ export function resetNodeStyle(node: PageNode): void {
   delete node.states;
   delete node.responsiveStates;
   delete node.cssVariables;
+  delete node.motion;
 }
 
 function luminance(hex: string): number | null {

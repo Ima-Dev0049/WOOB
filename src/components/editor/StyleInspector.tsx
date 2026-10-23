@@ -1,12 +1,14 @@
 'use client';
 
 import { useId, useState } from 'react';
-import type { EditorMode, PageNode, StyleProperty, StyleState, ThemeSettings, Viewport } from '@/lib/document/types';
+import type { EditorMode, NodeMotion, PageNode, StyleProperty, StyleState, ThemeSettings, Viewport } from '@/lib/document/types';
+import type { MotionPreset } from '@/lib/creative/types';
 import { getDesignSystem, resolveNodeStateStyle, resolveNodeStyle } from '@/lib/document/design-system';
 import { safeCss, safeCssVariable } from '@/lib/document/validation';
 
 export type StyleActions = {
   onChange: (property: StyleProperty, value: string | number | null, state?: StyleState) => void;
+  onMotionChange: (motion: NodeMotion | undefined) => void;
   onCopy: () => void;
   onPaste: () => void;
   canPaste: boolean;
@@ -58,6 +60,24 @@ function CssVariables({ node, onChange }: { node: PageNode; onChange: StyleActio
   return <details className="inspector-section style-disclosure"><summary>Variables CSS expertes</summary><div className="inspector-section-body"><p className="field-hint">Uniquement des propriétés personnalisées `--woob-*`. Elles sont héritées par le bloc et utilisables avec `var()`.</p>{Object.entries(node.cssVariables ?? {}).map(([name, current]) => <div className="css-variable-row" key={name}><code>{name}</code><input aria-label={`Valeur de ${name}`} value={String(current)} onChange={(event) => { if (safeCssVariable(event.target.value)) onChange(name, event.target.value); }} /><button type="button" onClick={() => onChange(name, null)} aria-label={`Supprimer ${name}`}>×</button></div>)}<div className="css-variable-add"><input aria-label="Nouvelle variable CSS" value={key} onChange={(event) => setKey(event.target.value)} /><input aria-label="Valeur de la nouvelle variable" value={value} onChange={(event) => setValue(event.target.value)} placeholder="16px ou #76552B" /><button type="button" className="button secondary small" onClick={add}>Ajouter</button></div>{error && <small className="field-error" role="alert">{error}</small>}<p className="field-hint">Aucun sélecteur, déclaration libre, script ou chargement `url()` n’est accepté.</p></div></details>;
 }
 
+function MotionInspector({ node, mode, onChange }: { node: PageNode; mode: EditorMode; onChange: StyleActions['onMotionChange'] }) {
+  const motion = node.motion;
+  const update = (patch: Partial<NodeMotion>) => { if (motion) onChange({ ...motion, ...patch }); };
+  return <section className="inspector-section motion-inspector">
+    <h3>Entrée au viewport</h3>
+    <label>Animation<select aria-label="Entrée au viewport" value={motion ? 'in-view' : 'none'} onChange={(event) => onChange(event.target.value === 'none' ? undefined : { preset: 'rise', trigger: 'in-view', duration: 460, delay: 0, distance: 24 })}><option value="none">Aucune</option><option value="in-view">À l’entrée dans le viewport</option></select></label>
+    {motion && <>
+      <label>Style<select aria-label="Style d’entrée" value={motion.preset} onChange={(event) => update({ preset: event.target.value as MotionPreset })}><option value="fade">Fondu</option><option value="rise">Montée</option><option value="reveal">Révélation</option><option value="scale">Échelle douce</option></select></label>
+      {mode !== 'simple' && <div className="motion-fields">
+        <label>Durée (ms)<input type="number" min={100} max={1600} step={20} value={motion.duration} onChange={(event) => update({ duration: Math.min(1600, Math.max(100, Number(event.target.value) || 100)) })} /></label>
+        <label>Délai (ms)<input type="number" min={0} max={1200} step={30} value={motion.delay} onChange={(event) => update({ delay: Math.min(1200, Math.max(0, Number(event.target.value) || 0)) })} /></label>
+        {['rise', 'reveal'].includes(motion.preset) && <label>Distance (px)<input type="number" min={0} max={96} value={motion.distance} onChange={(event) => update({ distance: Math.min(96, Math.max(0, Number(event.target.value) || 0)) })} /></label>}
+      </div>}
+    </>}
+    <p className="field-hint">Une seule entrée, déclenchée nativement. La réduction de motion du système est toujours respectée ; le contenu reste visible sans JavaScript.</p>
+  </section>;
+}
+
 export function StyleInspector({ node, viewport, mode, theme, actions }: Props) {
   const [state, setState] = useState<StyleState | undefined>(); const [presetName, setPresetName] = useState('');
   const design = getDesignSystem(theme);
@@ -72,6 +92,7 @@ export function StyleInspector({ node, viewport, mode, theme, actions }: Props) 
   const presets = design.styles.filter((style) => !style.componentType || style.componentType === node.type);
   return <>
     <section className="inspector-section style-toolbar-section"><h3>Style {viewport !== 'desktop' && <span>{viewport === 'mobile' ? 'Mobile' : 'Tablette'}</span>}</h3>{mode !== 'simple' && <label>État à modifier<select aria-label="État du style" value={state ?? ''} onChange={(event) => setState((event.target.value || undefined) as StyleState | undefined)}><option value="">Normal</option><option value="hover">Survol</option><option value="focus-visible">Focus clavier</option><option value="active">Actif / clic</option><option value="disabled">Désactivé</option></select></label>}<p className="field-hint">Valeurs effectives héritées. Une modification crée seulement une surcharge {viewport === 'desktop' ? 'ordinateur' : viewport === 'mobile' ? 'mobile' : 'tablette'}{state ? ` pour l’état ${state}` : ''}.</p>{essentials.map((field) => <Field key={field.property} config={field} value={values[field.property]} onChange={(value) => change(field.property, value)} showReset={mode !== 'simple'} />)}</section>
+    <MotionInspector node={node} mode={mode} onChange={actions.onMotionChange} />
     {mode !== 'simple' && <>
       <Group title="Dimensions et espacements" fields={[{ property: 'width', label: 'Largeur' }, { property: 'minWidth', label: 'Largeur minimale' }, { property: 'maxWidth', label: 'Largeur maximale' }, { property: 'height', label: 'Hauteur' }, { property: 'minHeight', label: 'Hauteur minimale' }, { property: 'maxHeight', label: 'Hauteur maximale' }, { property: 'margin', label: 'Marges extérieures' }, { property: 'padding', label: 'Marges intérieures' }, { property: 'gap', label: 'Espacement des enfants' }, { property: 'aspectRatio', label: 'Rapport largeur / hauteur' }]} values={values} onChange={change} mode={mode} />
       <Group title="Grille, flexbox et position" fields={[{ property: 'display', label: 'Affichage', options: OPTIONS.display }, { property: 'flexDirection', label: 'Direction flex', options: [['', 'Hérité'], ['row', 'Ligne'], ['column', 'Colonne'], ['row-reverse', 'Ligne inverse'], ['column-reverse', 'Colonne inverse']] }, { property: 'flexWrap', label: 'Retour flex', options: [['', 'Hérité'], ['nowrap', 'Aucun'], ['wrap', 'Wrap'], ['wrap-reverse', 'Wrap inverse']] }, { property: 'justifyContent', label: 'Alignement horizontal', placeholder: 'center, space-between…' }, { property: 'alignItems', label: 'Alignement vertical', placeholder: 'center, stretch…' }, { property: 'gridTemplateColumns', label: 'Colonnes de grille', placeholder: 'repeat(3, 1fr)' }, { property: 'gridColumn', label: 'Placement en colonne' }, { property: 'order', label: 'Ordre' }, { property: 'position', label: 'Position', options: OPTIONS.position }, { property: 'zIndex', label: 'Niveau de couche' }, { property: 'overflow', label: 'Débordement', options: OPTIONS.overflow }]} values={values} onChange={change} mode={mode} />

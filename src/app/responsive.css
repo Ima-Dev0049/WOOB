@@ -101,7 +101,7 @@
     .canvas-toolbar > div:last-child button:first-child, .canvas-toolbar > span { display: none; }
     .editor-statusbar span:last-child { display: none; }
     .wb-page { padding: 0 20px; }
-    .wb-header nav { display: none; }
+    .wb-header nav { display: flex; gap: 16px; }
     .wb-hero { grid-template-columns: 1fr; min-height: 0; }
     .hero-art, .hero-image { max-height: 450px; }
     .card-grid.three, .card-grid.two { grid-template-columns: 1fr; }

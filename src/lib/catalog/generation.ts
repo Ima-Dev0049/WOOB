@@ -3,6 +3,10 @@ import { createPageDocument, makeNode } from '@/lib/document/factory';
 import type { PageDocument, PageNode } from '@/lib/document/types';
 import { assertValidPageDocument, cloneDocument } from '@/lib/document/validation';
 import { createId } from '@/lib/id';
+import { applyCreativeDirection, createLocalCreativeDirections, directionFromResult } from '@/lib/creative/engine';
+import { creativeDirectionResultSchema } from '@/lib/creative/schema';
+import { evaluateCreativeQuality } from '@/lib/creative/quality';
+import type { CreativeDirectionResult, CreativeQualityReport } from '@/lib/creative/types';
 import { getTemplate, type TemplatePost, type TemplateProduct } from '@/lib/templates';
 import { assertCatalogValid, getFunctionalModule, localize, resolveProjectCreation } from './index';
 import { CatalogError, functionalModuleIds, type CatalogSelectionSnapshot, type CreationSelection, type ProjectContent, type ProjectGenerationContext, type ResolvedCreation } from './types';
@@ -39,6 +43,8 @@ export type GeneratedProjectDraft = {
   context: ProjectGenerationContext;
   snapshot: CatalogSelectionSnapshot;
   content: ProjectContent;
+  creative: CreativeDirectionResult;
+  quality: CreativeQualityReport;
   pages: GeneratedProjectPage[];
   products: TemplateProduct[];
   posts: TemplatePost[];
@@ -108,11 +114,13 @@ function sourceNode(templateId: string, pagePath: string, type: string) {
 }
 
 
-export function buildProjectDraft(selection: CreationSelection, contentInput?: ProjectContent, resolvedInput?: ResolvedCreation): GeneratedProjectDraft {
+export function buildProjectDraft(selection: CreationSelection, contentInput?: ProjectContent, resolvedInput?: ResolvedCreation, creativeInput?: CreativeDirectionResult): GeneratedProjectDraft {
   assertCatalogValid();
   const resolved = resolvedInput || resolveProjectCreation(selection);
   const context = createProjectGenerationContext(selection, resolved);
   const content = projectContentSchema.parse(contentInput || createLocalProjectContent(context));
+  const creative = creativeInput ? creativeDirectionResultSchema.parse(creativeInput) : createLocalCreativeDirections(context, resolved.style.theme);
+  const direction = directionFromResult(creative);
   const template = getTemplate(resolved.templateId);
   if (!template) throw new CatalogError('TEMPLATE_NOT_FOUND', 'Le modèle technique associé est introuvable.');
   const locale = resolved.locale;
@@ -155,8 +163,9 @@ export function buildProjectDraft(selection: CreationSelection, contentInput?: P
       return node;
     });
     const name = localize(recipe.name, locale);
-    const document = createPageDocument({ pageId, name, path: recipe.path, theme: resolved.style.theme, nodes });
-    document.metadata.description = content.seoDescription;
+    const baseDocument = createPageDocument({ pageId, name, path: recipe.path, theme: resolved.style.theme, nodes });
+    baseDocument.metadata.description = content.seoDescription;
+    const document = applyCreativeDirection(baseDocument, direction);
     assertValidPageDocument(document);
     return {
       id: pageId,
@@ -173,10 +182,16 @@ export function buildProjectDraft(selection: CreationSelection, contentInput?: P
     context,
     snapshot: createCatalogSnapshot(resolved),
     content,
+    creative,
+    quality: evaluateCreativeQuality(pages.map((page) => page.document), creative),
     pages,
     products: resolved.selectedModuleIds.includes('catalog') ? cloneDocument(template.products) : [],
     posts: resolved.selectedModuleIds.includes('blog') ? cloneDocument(template.posts) : [],
   };
+}
+
+export function withCreativeConcept(draft: GeneratedProjectDraft, conceptId: string): GeneratedProjectDraft {
+  return buildProjectDraft(draft.selection, draft.content, draft.resolved, { ...draft.creative, selectedId: conceptId });
 }
 
 export function sameCatalogSnapshot(left: CatalogSelectionSnapshot, right: CatalogSelectionSnapshot): boolean {

@@ -187,6 +187,7 @@ export function EditorWorkspace({ project, pages, initialPage, initialSite }: { 
         onStyleChange={(property, value, state) => updateSelected((node) => { setNodeStyle(node, property, value, viewport, state); })}
         onThemeChange={(theme) => commit((draft) => { draft.theme = theme; })}
         styleActions={{
+          onMotionChange: (motion) => updateSelected((node) => { if (motion) node.motion = motion; else delete node.motion; }),
           onCopy: () => { if (selectedNode) { setStyleClipboard(copyNodeStyle(selectedNode)); setNotice('Style copié. Vous pouvez le coller sur un autre bloc.'); } },
           onPaste: () => { if (styleClipboard) updateSelected((node) => { pasteNodeStyle(node, styleClipboard); }); },
           canPaste: Boolean(styleClipboard),

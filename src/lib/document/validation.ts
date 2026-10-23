@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { creativeDirectionSchema } from '@/lib/creative/schema';
 import { COMPONENT_TYPES, STYLE_PROPERTIES } from './types';
 import type { DesignSystem, PageDocument, PageNode, SharedStyle, SiteSnapshot, StyleProperty } from './types';
 import { componentRegistry } from './registry';
@@ -135,6 +136,11 @@ export const designSystemSchema: z.ZodType<DesignSystem> = z.object({
   }
 }) as z.ZodType<DesignSystem>;
 
+export const nodeMotionSchema = z.object({
+  preset: z.enum(['fade', 'rise', 'reveal', 'scale']), trigger: z.literal('in-view'),
+  duration: z.number().int().min(100).max(1600), delay: z.number().int().min(0).max(1200), distance: z.number().int().min(0).max(96),
+}).strict();
+
 const nodeBase = z.object({
   id: safeKey,
   type: z.enum(COMPONENT_TYPES),
@@ -147,6 +153,7 @@ const nodeBase = z.object({
   states: stateSchema.optional(),
   responsiveStates: responsiveStateSchema.optional(),
   cssVariables: cssVariablesSchema.optional(),
+  motion: nodeMotionSchema.optional(),
 });
 
 export const pageNodeSchema: z.ZodType<PageNode> = nodeBase.extend({
@@ -168,6 +175,7 @@ export const themeSchema = z.object({
   radius: numberIn(0, 80),
   sectionSpacing: numberIn(16, 240),
   designSystem: designSystemSchema.optional(),
+  creativeDirection: creativeDirectionSchema.optional(),
 }).strict();
 
 export const pageDocumentSchema = z.object({

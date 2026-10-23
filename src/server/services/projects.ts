@@ -28,6 +28,7 @@ export const projectInputSchema = z.object({
   moduleIds: z.array(z.enum(functionalModuleIds)).max(functionalModuleIds.length).optional(),
   locale: z.enum(['fr', 'en']).optional(),
   generationId: z.string().uuid().optional(),
+  creativeConceptId: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(80).optional(),
 });
 
 async function availableProjectSlug(name: string, db: Db): Promise<string> {
@@ -52,7 +53,7 @@ export async function createProject(userId: string, workspaceId: string, input: 
   await requireMembership(userId, workspaceId, 'edit', database);
   await assertProjectQuota(workspaceId, database);
   const catalogRequested = data.brief !== undefined || data.siteTypeId !== undefined || data.activityDomainId !== undefined
-    || data.designStyleId !== undefined || data.moduleIds !== undefined || data.locale !== undefined || data.generationId !== undefined;
+    || data.designStyleId !== undefined || data.moduleIds !== undefined || data.locale !== undefined || data.generationId !== undefined || data.creativeConceptId !== undefined;
   let draft: ReturnType<typeof buildProjectDraft> | null = null;
   let template = catalogRequested ? undefined : getTemplate(data.templateId);
   if (!catalogRequested && !template) throw new ApiError(422, 'TEMPLATE_NOT_FOUND', 'Ce modèle n’existe pas.');
@@ -68,14 +69,15 @@ export async function createProject(userId: string, workspaceId: string, input: 
       if (error instanceof CatalogError) throw new ApiError(422, error.code, error.message);
       throw error;
     }
-    const content = data.generationId
-      ? await readProjectGeneration(userId, workspaceId, data.generationId, createCatalogSnapshot(resolved), database)
+    if (data.creativeConceptId && !data.generationId) throw new ApiError(422, 'GENERATION_REQUIRED', 'Générez une prévisualisation avant de choisir un concept.');
+    const generated = data.generationId
+      ? await readProjectGeneration(userId, workspaceId, data.generationId, createCatalogSnapshot(resolved), database, data.creativeConceptId)
       : undefined;
-    draft = buildProjectDraft(selection, content, resolved);
+    draft = buildProjectDraft(selection, generated?.content, resolved, generated?.creative);
     template = getTemplate(draft.resolved.templateId);
   }
   if (!template) throw new ApiError(422, 'TEMPLATE_NOT_FOUND', 'Ce modèle n’existe pas.');
-  const theme = normalizeThemeSettings(draft?.resolved.style.theme || template.theme);
+  const theme = normalizeThemeSettings(draft?.pages[0]?.document.theme || draft?.resolved.style.theme || template.theme);
   const projectPages = draft?.pages || template.pages.map((templatePage) => {
     const pageId = createId('page');
     const document = createPageDocument({ pageId, name: templatePage.name, path: templatePage.path, theme, nodes: cloneDocument(templatePage.nodes) });

@@ -77,6 +77,7 @@ describe('héritage, responsive, états et presets', () => {
     const design = designWithPreset();
     const node = makeNode('button');
     node.styles = { color: '#112233', padding: '10px' };
+    node.motion = { preset: 'rise', trigger: 'in-view', duration: 460, delay: 30, distance: 24 };
     setNodeStyle(node, 'color', '#445566', 'mobile');
     setNodeStyle(node, 'transform', 'translateY(-2px)', 'mobile', 'hover');
     expect(node.styles.color).toBe('#112233');
@@ -90,11 +91,15 @@ describe('héritage, responsive, états et presets', () => {
     pasteNodeStyle(target, snapshot);
     expect(target.styles).toEqual(node.styles);
     expect(target.responsiveStates).toEqual(node.responsiveStates);
+    expect(target.motion).toEqual(node.motion);
     snapshot.styles.color = '#FFFFFF';
+    snapshot.motion!.preset = 'fade';
     expect(node.styles.color).toBe('#112233');
+    expect(node.motion.preset).toBe('rise');
     resetNodeStyle(target);
     expect(target.styles).toEqual({});
     expect(target.responsiveStates).toBeUndefined();
+    expect(target.motion).toBeUndefined();
   });
 
   it('refuse les références de preset cassées ou incompatibles', () => {

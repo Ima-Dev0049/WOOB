@@ -5,6 +5,8 @@ import { createId } from '@/lib/id';
 import { CatalogError, resolveProjectCreation, type CatalogSelectionSnapshot } from '@/lib/catalog';
 import { buildProjectDraft, buildProjectGenerationPrompt, createLocalProjectContent, createProjectGenerationContext, creationSelectionSchema, projectContentSchema, sameCatalogSnapshot } from '@/lib/catalog/generation';
 import { functionalModuleIds, type ProjectContent, type ProjectGenerationContext } from '@/lib/catalog/types';
+import { creativeDirectionResultSchema } from '@/lib/creative/schema';
+import type { CreativeDirectionResult } from '@/lib/creative/types';
 import { getDb, type Db } from '@/server/db';
 import { aiGenerations } from '@/server/db/schema';
 import { ApiError } from '@/server/http';
@@ -21,7 +23,7 @@ const snapshotSchema = z.object({
   locale: z.enum(['fr', 'en']),
   moduleIds: z.array(z.enum(functionalModuleIds)),
 }).strict();
-const storedOutputSchema = z.object({ content: projectContentSchema, snapshot: snapshotSchema }).strict();
+const storedOutputSchema = z.object({ content: projectContentSchema, snapshot: snapshotSchema, creative: creativeDirectionResultSchema }).strict();
 
 function resolveOrApiError(input: z.output<typeof creationSelectionSchema>) {
   try {
@@ -85,7 +87,7 @@ export async function generateProjectPreview(userId: string, workspaceId: string
       : await openAiProjectContent(context);
     const draft = buildProjectDraft(data, result.content, resolved);
     await database.update(aiGenerations).set({
-      state: 'completed', output: { content: result.content, snapshot: draft.snapshot }, model: result.model,
+      state: 'completed', output: { content: result.content, snapshot: draft.snapshot, creative: draft.creative }, model: result.model,
       inputUnits: result.inputUnits, outputUnits: result.outputUnits, completedAt: new Date(),
     }).where(and(eq(aiGenerations.id, generationId), eq(aiGenerations.workspaceId, workspaceId)));
     return { generationId, provider, model: result.model, demo: provider === 'demo', draft };
@@ -98,7 +100,7 @@ export async function generateProjectPreview(userId: string, workspaceId: string
   }
 }
 
-export async function readProjectGeneration(userId: string, workspaceId: string, generationId: string, expected: CatalogSelectionSnapshot, db: Db): Promise<ProjectContent> {
+export async function readProjectGeneration(userId: string, workspaceId: string, generationId: string, expected: CatalogSelectionSnapshot, db: Db, conceptId?: string): Promise<{ content: ProjectContent; creative: CreativeDirectionResult }> {
   const row = (await db.select().from(aiGenerations).where(and(
     eq(aiGenerations.id, generationId), eq(aiGenerations.workspaceId, workspaceId), eq(aiGenerations.requestedBy, userId),
     eq(aiGenerations.kind, 'project_create'), eq(aiGenerations.state, 'completed'), isNull(aiGenerations.projectId),
@@ -107,5 +109,6 @@ export async function readProjectGeneration(userId: string, workspaceId: string,
   const parsed = storedOutputSchema.safeParse(row.output);
   if (!parsed.success) throw new ApiError(409, 'GENERATION_INVALID', 'Cette prévisualisation ne contient pas un résultat réutilisable.');
   if (!sameCatalogSnapshot(parsed.data.snapshot, expected)) throw new ApiError(409, 'GENERATION_SELECTION_MISMATCH', 'La sélection a changé. Générez une nouvelle prévisualisation.');
-  return parsed.data.content;
+  if (conceptId && !parsed.data.creative.candidates.some((candidate) => candidate.conceptId === conceptId)) throw new ApiError(422, 'CONCEPT_NOT_FOUND', 'Ce concept ne fait pas partie de la prévisualisation.');
+  return { content: parsed.data.content, creative: conceptId ? { ...parsed.data.creative, selectedId: conceptId } : parsed.data.creative };
 }

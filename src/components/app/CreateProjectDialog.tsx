@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, errorMessage } from '@/lib/client-api';
 import { getDictionary, type Dictionary, type UiLocale } from '@/lib/i18n';
 import { designStyles, functionalModuleIds, getActivityDomain, getFunctionalModule, getSiteBlueprint, getSiteType, localize, resolveProjectCreation, searchActivityDomains, searchSiteTypes, siteCategories } from '@/lib/catalog';
 import type { CreationSelection, FunctionalModuleId, UiLanguage } from '@/lib/catalog/types';
-import type { GeneratedProjectDraft } from '@/lib/catalog/generation';
+import { withCreativeConcept, type GeneratedProjectDraft } from '@/lib/catalog/generation';
+import { themeCssVariables, themeGlobalCss } from '@/lib/document/design-system';
 import type { SiteSnapshot } from '@/lib/document/types';
 import { DocumentRenderer } from '@/components/renderer/DocumentRenderer';
 import { useModalFocus } from '@/components/ui/useModalFocus';
@@ -14,9 +15,10 @@ import { useModalFocus } from '@/components/ui/useModalFocus';
 type PreviewResponse = { generationId: string; provider: string; model: string; demo: boolean; draft: GeneratedProjectDraft };
 type WizardDictionary = Dictionary['projectDialog']['wizard'];
 
-function DraftPreview({ draft, demo, model, path, onPathChange, dictionary }: { draft: GeneratedProjectDraft; demo: boolean; model: string; path: string; onPathChange: (path: string) => void; dictionary: WizardDictionary }) {
+function DraftPreview({ draft, demo, model, path, onPathChange, onConceptChange, dictionary }: { draft: GeneratedProjectDraft; demo: boolean; model: string; path: string; onPathChange: (path: string) => void; onConceptChange: (conceptId: string) => void; dictionary: WizardDictionary }) {
   const locale = draft.resolved.locale;
-  const theme = draft.resolved.style.theme;
+  const theme = (draft.pages.find((page) => page.path === path) || draft.pages[0]!).document.theme;
+  const selectedDirection = draft.creative.candidates.find((candidate) => candidate.conceptId === draft.creative.selectedId)!;
   const site: SiteSnapshot = {
     publicationId: 'catalog-preview', projectId: 'catalog-preview', slug: 'catalog-preview',
     name: draft.selection.name, description: draft.content.seoDescription, defaultLocale: locale, theme,
@@ -26,23 +28,29 @@ function DraftPreview({ draft, demo, model, path, onPathChange, dictionary }: { 
     posts: draft.posts.map((post, index) => ({ ...post, id: `preview-post-${index}`, slug: `preview-post-${index}`, publishedAt: null })),
     modules: [...draft.resolved.selectedModuleIds], publishedAt: new Date(0).toISOString(),
   };
-  const variables = {
-    '--site-primary': theme.primaryColor, '--site-secondary': theme.secondaryColor, '--site-accent': theme.accentColor,
-    '--site-bg': theme.backgroundColor, '--site-surface': theme.surfaceColor, '--site-text': theme.textColor,
-    '--site-muted': theme.mutedTextColor, '--site-font': theme.fontFamily, '--site-heading-font': theme.headingFontFamily,
-    '--site-radius': `${theme.radius}px`, '--site-container': `${theme.containerWidth}px`, '--site-section-spacing': `${theme.sectionSpacing}px`,
-  } as CSSProperties;
+  const variables = themeCssVariables(theme);
   const current = draft.pages.find((page) => page.path === path) || draft.pages[0]!;
   return <div className="catalog-preview" data-testid="catalog-preview">
     <div className="catalog-preview-meta">
       <span>{demo ? dictionary.localProvider : dictionary.remoteProvider(model)}</span>
       <strong>{draft.resolved.siteType ? localize(draft.resolved.siteType.name, locale) : dictionary.customType} · {localize(draft.resolved.style.name, locale)}</strong>
     </div>
+    <section className="creative-directions" aria-labelledby="creative-directions-title">
+      <header><div><span className="eyebrow">Creative Engine</span><h4 id="creative-directions-title">{dictionary.creativeTitle}</h4><p>{dictionary.creativeBody}</p></div><strong>{dictionary.diversity(draft.creative.diversity.score)}</strong></header>
+      <div className="creative-concept-grid" role="radiogroup" aria-label={dictionary.creativeTitle}>{draft.creative.candidates.map((candidate) => {
+        const evaluation = draft.creative.evaluations.find((item) => item.conceptId === candidate.conceptId);
+        const selected = candidate.conceptId === draft.creative.selectedId;
+        return <label className={`creative-concept ${selected ? 'selected' : ''}`} key={candidate.conceptId} data-testid={`creative-concept-${candidate.conceptId}`}><input type="radio" name="creative-direction" value={candidate.conceptId} checked={selected} onChange={() => onConceptChange(candidate.conceptId)} /><span className="creative-concept-heading"><strong>{candidate.name}</strong><small>{dictionary.relevance(evaluation?.score ?? 0)}</small></span><p>{candidate.concept}</p><span className="creative-concept-meta">{candidate.composition.heroLayout} · {candidate.typography.scale} · {candidate.motion.preset}</span><span className="creative-concept-swatches" aria-hidden="true">{[candidate.palette.primary, candidate.palette.secondary, candidate.palette.accent, candidate.palette.background].map((color) => <i key={color} style={{ background: color }} />)}</span></label>;
+      })}</div>
+      <div className="creative-selected-rationale"><strong>{selectedDirection.name}</strong><p>{selectedDirection.rationale}</p><small>{selectedDirection.palette.rationale} {selectedDirection.typography.rationale}</small></div>
+      <div className="creative-quality" data-testid="creative-quality"><strong>{dictionary.qualityTitle} · {draft.quality.score}/100</strong><span>{dictionary.contrast(draft.quality.metrics.minimumContrast?.toFixed(2) ?? '—')} · {dictionary.motionNodes(draft.quality.metrics.motionNodes)}</span><p>{dictionary.qualityNote}</p>{draft.quality.issues.filter((issue) => issue.severity !== 'info').map((issue) => <small key={issue.id} role={issue.severity === 'error' ? 'alert' : undefined}>{issue.message}</small>)}</div>
+    </section>
     <div className="catalog-preview-pages" aria-label={dictionary.previewPages}>
       {draft.pages.map((page) => <button type="button" key={page.id} className={current.path === page.path ? 'active' : ''} aria-pressed={current.path === page.path} onClick={() => onPathChange(page.path)}>{page.name}<small>{page.path}</small></button>)}
     </div>
-    <main className="published-site catalog-preview-canvas" style={variables} lang={locale}>
-      <DocumentRenderer document={current.document} context={{ mode: 'editor', site }} />
+    <main className="published-site woob-theme catalog-preview-canvas" style={variables} lang={locale}>
+      <style>{themeGlobalCss(theme)}</style>
+      <DocumentRenderer document={current.document} context={{ mode: 'preview', site, interactive: false }} />
     </main>
     {draft.resolved.notices.length > 0 && <aside className="catalog-limitations"><strong>{dictionary.limitations}</strong>{draft.resolved.notices.map((notice, index) => <p key={index}>{localize(notice, locale)}</p>)}</aside>}
   </div>;
@@ -65,6 +73,7 @@ export function CreateProjectDialog({ workspaceId, locale, compact = false }: { 
   const [domainQuery, setDomainQuery] = useState('');
   const [recommendedOnly, setRecommendedOnly] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [conceptId, setConceptId] = useState('');
   const [previewPath, setPreviewPath] = useState('/');
   const router = useRouter();
   const dict = getDictionary(locale);
@@ -82,8 +91,12 @@ export function CreateProjectDialog({ workspaceId, locale, compact = false }: { 
   const filteredTypes = useMemo(() => searchSiteTypes({ query: typeQuery, ...(categoryId ? { categoryId } : {}) }), [typeQuery, categoryId]);
   const visibleTypes = filteredTypes.slice(0, 60);
   const filteredDomains = useMemo(() => searchActivityDomains({ query: domainQuery, ...(siteTypeId ? { siteTypeId } : {}), recommendedOnly: recommendedOnly && Boolean(siteTypeId) }), [domainQuery, siteTypeId, recommendedOnly]);
+  const previewDraft = useMemo(() => {
+    if (!preview) return null;
+    return !conceptId || conceptId === preview.draft.creative.selectedId ? preview.draft : withCreativeConcept(preview.draft, conceptId);
+  }, [preview, conceptId]);
 
-  function invalidatePreview() { setPreview(null); setError(''); }
+  function invalidatePreview() { setPreview(null); setConceptId(''); setError(''); }
   function goTo(next: number) { if (next === 6 && !preview) return; setError(''); setStep(Math.max(1, Math.min(6, next))); }
   function chooseType(id: string | null) {
     const blueprint = getSiteBlueprint(id ? getSiteType(id)?.blueprintId || 'custom' : 'custom');
@@ -100,7 +113,7 @@ export function CreateProjectDialog({ workspaceId, locale, compact = false }: { 
     setPending(true); setError('');
     try {
       const result = await apiFetch<PreviewResponse>(`/api/workspaces/${workspaceId}/project-preview`, { method: 'POST', body: JSON.stringify(selection) });
-      setPreview(result); setPreviewPath('/'); setStep(6);
+      setPreview(result); setConceptId(result.draft.creative.selectedId); setPreviewPath('/'); setStep(6);
     } catch (reason) { setError(errorMessage(reason)); }
     finally { setPending(false); }
   }
@@ -108,7 +121,7 @@ export function CreateProjectDialog({ workspaceId, locale, compact = false }: { 
     if (!preview) { setStep(5); return; }
     setPending(true); setError('');
     try {
-      const result = await apiFetch<{ project: { id: string } }>(`/api/workspaces/${workspaceId}/projects`, { method: 'POST', body: JSON.stringify({ ...selection, generationId: preview.generationId }) });
+      const result = await apiFetch<{ project: { id: string } }>(`/api/workspaces/${workspaceId}/projects`, { method: 'POST', body: JSON.stringify({ ...selection, generationId: preview.generationId, creativeConceptId: conceptId }) });
       router.push(`/dashboard/projects/${result.project.id}`);
     } catch (reason) { setError(errorMessage(reason)); setPending(false); }
   }
@@ -146,7 +159,7 @@ export function CreateProjectDialog({ workspaceId, locale, compact = false }: { 
 
       {step === 5 && <section className="wizard-panel"><div className="wizard-heading"><h3 ref={headingRef} tabIndex={-1}>{w.descriptionTitle}</h3><p>{w.descriptionBody}</p></div><p className="wizard-project-name">{name}</p><label>{w.briefLabel} <span className="optional">{dict.common.optional}</span><textarea name="brief" rows={7} maxLength={2000} value={brief} placeholder={w.briefPlaceholder} onChange={(event) => { setBrief(event.target.value); invalidatePreview(); }} /></label><label>{w.languageLabel}<select value={contentLocale} onChange={(event) => { setContentLocale(event.target.value === 'en' ? 'en' : 'fr'); invalidatePreview(); }}><option value="fr">Français</option><option value="en">English</option></select></label><p className="catalog-note">{w.generationInfo}</p></section>}
 
-      {step === 6 && preview && <section className="wizard-panel preview-panel"><div className="wizard-heading"><h3 ref={headingRef} tabIndex={-1}>{w.previewTitle}</h3><p>{w.previewBody}</p></div><DraftPreview draft={preview.draft} demo={preview.demo} model={preview.model} path={previewPath} onPathChange={setPreviewPath} dictionary={w} /></section>}
+      {step === 6 && preview && previewDraft && <section className="wizard-panel preview-panel"><div className="wizard-heading"><h3 ref={headingRef} tabIndex={-1}>{w.previewTitle}</h3><p>{w.previewBody}</p></div><DraftPreview draft={previewDraft} demo={preview.demo} model={preview.model} path={previewPath} onPathChange={setPreviewPath} onConceptChange={setConceptId} dictionary={w} /></section>}
       {error && <div className="alert error" role="alert">{error}</div>}
       <footer className="wizard-actions"><div><button type="button" className="button ghost" disabled={pending} onClick={() => setOpen(false)}>{dict.common.cancel}</button>{step > 1 && <button type="button" className="button ghost" disabled={pending} onClick={() => goTo(step - 1)}>← {w.back}</button>}</div>{step < 5 ? <button type="button" className="button coral" disabled={pending} onClick={(event) => { event.preventDefault(); goTo(step + 1); }}>{w.next} →</button> : step === 5 ? <button className="button coral" disabled={pending}>{pending ? w.generating : w.generatePreview}</button> : <button className="button coral" disabled={pending || !preview}>{pending ? dict.projectDialog.creating : dict.projectDialog.create}</button>}</footer>
     </form>

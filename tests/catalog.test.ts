@@ -90,6 +90,24 @@ describe('génération et persistance du parcours catalogue', () => {
     await expect(createProject(account.user.id, account.workspace.id, { ...selection, generationId: preview.generationId }, context.db)).rejects.toMatchObject({ status: 404 });
   });
 
+  it('persiste le concept choisi dans le thème et chaque page sans consommer la génération sur une erreur', async () => {
+    const account = await createAccount(context.db, 'creative-choice@example.com', 'Creative Choice');
+    const preview = await generateProjectPreview(account.user.id, account.workspace.id, selection, context.db);
+    const alternative = preview.draft.creative.candidates.find((candidate) => candidate.conceptId !== preview.draft.creative.selectedId)!;
+    await expect(createProject(account.user.id, account.workspace.id, { ...selection, generationId: preview.generationId, creativeConceptId: 'concept-inexistant' }, context.db)).rejects.toMatchObject({ status: 422, code: 'CONCEPT_NOT_FOUND' });
+    const details = await createProject(account.user.id, account.workspace.id, { ...selection, generationId: preview.generationId, creativeConceptId: alternative.conceptId }, context.db);
+    const home = details.pages.find((page) => page.path === '/')!;
+    const hero = home.draftDocument.root.children?.find((node) => node.type === 'hero');
+    expect(details.project.theme.creativeDirection?.conceptId).toBe(alternative.conceptId);
+    expect(home.draftDocument.theme.creativeDirection?.conceptId).toBe(alternative.conceptId);
+    expect(hero?.props.layout).toBe(alternative.composition.heroLayout);
+    expect(hero?.motion?.preset).toBe(alternative.motion.preset);
+    expect(details.pages.every((page) => page.draftDocument.theme.creativeDirection?.conceptId === alternative.conceptId)).toBe(true);
+    const logged = (await context.db.select().from(aiGenerations).where(eq(aiGenerations.id, preview.generationId)))[0]!;
+    expect(logged.output).toMatchObject({ creative: { selectedId: preview.draft.creative.selectedId } });
+    expect(logged.projectId).toBe(details.project.id);
+  });
+
   it('refuse la réutilisation croisée ou avec une sélection modifiée', async () => {
     const account = await createAccount(context.db, 'catalog-owner@example.com', 'Catalogue Owner');
     const other = await createAccount(context.db, 'catalog-other@example.com', 'Catalogue Other');

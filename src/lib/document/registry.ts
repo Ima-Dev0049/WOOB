@@ -44,9 +44,9 @@ export const componentRegistry: Record<Exclude<ComponentType, 'page'>, Component
   },
   hero: {
     type: 'hero', label: 'Hero', category: 'Conversion', description: 'Ouverture éditoriale avec actions et visuel.',
-    propsSchema: base({ eyebrow: short, title: short, description: text, primaryLabel: short, primaryHref: href, secondaryLabel: short, secondaryHref: href, imageAssetId: asset, imageUrl: z.string().max(2048).optional().or(z.literal('')), imageAlt: short }),
+    propsSchema: base({ eyebrow: short, title: short, description: text, primaryLabel: short, primaryHref: href, secondaryLabel: short, secondaryHref: href, imageAssetId: asset, imageUrl: z.string().max(2048).optional().or(z.literal('')), imageAlt: short, layout: z.enum(['split', 'editorial', 'immersive', 'monumental', 'product-stage']).optional(), visualTreatment: z.enum(['plain', 'organic', 'framed', 'orbital', 'duotone', 'product']).optional() }),
     defaults: { eyebrow: 'Votre histoire commence ici', title: 'Une idée. Un site remarquable.', description: 'Présentez clairement votre valeur et guidez vos visiteurs vers la prochaine étape.', primaryLabel: 'Découvrir', primaryHref: '#contact', secondaryLabel: 'En savoir plus', secondaryHref: '#contenu', imageAssetId: '', imageUrl: '', imageAlt: '' },
-    fields: [{ key: 'eyebrow', label: 'Surtitre', kind: 'text' }, { key: 'title', label: 'Titre principal', kind: 'textarea' }, { key: 'description', label: 'Description', kind: 'textarea' }, { key: 'primaryLabel', label: 'Bouton principal', kind: 'text' }, { key: 'primaryHref', label: 'Lien principal', kind: 'url' }, { key: 'secondaryLabel', label: 'Bouton secondaire', kind: 'text' }, { key: 'secondaryHref', label: 'Lien secondaire', kind: 'url' }, { key: 'imageAssetId', label: 'Image', kind: 'asset' }, { key: 'imageAlt', label: 'Texte alternatif', kind: 'text' }], keywords: ['bannière', 'accueil'],
+    fields: [{ key: 'eyebrow', label: 'Surtitre', kind: 'text' }, { key: 'title', label: 'Titre principal', kind: 'textarea' }, { key: 'description', label: 'Description', kind: 'textarea' }, { key: 'primaryLabel', label: 'Bouton principal', kind: 'text' }, { key: 'primaryHref', label: 'Lien principal', kind: 'url' }, { key: 'secondaryLabel', label: 'Bouton secondaire', kind: 'text' }, { key: 'secondaryHref', label: 'Lien secondaire', kind: 'url' }, { key: 'imageAssetId', label: 'Image', kind: 'asset' }, { key: 'imageAlt', label: 'Texte alternatif', kind: 'text' }, { key: 'layout', label: 'Composition créative', kind: 'select', options: [{ value: 'split', label: 'Fractionnée' }, { value: 'editorial', label: 'Éditoriale asymétrique' }, { value: 'immersive', label: 'Immersive' }, { value: 'monumental', label: 'Monumentale' }, { value: 'product-stage', label: 'Scène produit' }] }, { key: 'visualTreatment', label: 'Traitement du visuel', kind: 'select', options: [{ value: 'plain', label: 'Simple' }, { value: 'organic', label: 'Organique' }, { value: 'framed', label: 'Encadré' }, { value: 'orbital', label: 'Orbital' }, { value: 'duotone', label: 'Duotone' }, { value: 'product', label: 'Produit' }] }], keywords: ['bannière', 'accueil'],
   },
   heading: {
     type: 'heading', label: 'Titre', category: 'Contenu', description: 'Titre hiérarchique accessible.',
@@ -74,16 +74,16 @@ export const componentRegistry: Record<Exclude<ComponentType, 'page'>, Component
   },
   features: {
     type: 'features', label: 'Fonctionnalités', category: 'Contenu', description: 'Grille de bénéfices ou services.',
-    propsSchema: base({ title: short, items: list(item({ title: short, description: text, icon: short })) }),
+    propsSchema: base({ title: short, items: list(item({ title: short, description: text, icon: short })), layout: z.enum(['cards', 'editorial', 'minimal']).optional() }),
     defaults: { title: 'Tout pour vous lancer', items: [{ title: 'Simple', description: 'Une expérience claire et accessible.', icon: 'sparkles' }, { title: 'Rapide', description: 'Des pages légères et réactives.', icon: 'zap' }, { title: 'Évolutif', description: 'Des blocs qui grandissent avec vous.', icon: 'layers' }] },
-    fields: [{ key: 'title', label: 'Titre', kind: 'text' }],
+    fields: [{ key: 'title', label: 'Titre', kind: 'text' }, { key: 'layout', label: 'Composition', kind: 'select', options: [{ value: 'cards', label: 'Cartes' }, { value: 'editorial', label: 'Éditoriale' }, { value: 'minimal', label: 'Minimaliste' }] }],
     collectionFields: { items: [{ key: 'title', label: 'Titre', kind: 'text' }, { key: 'description', label: 'Description', kind: 'textarea' }, { key: 'icon', label: 'Icône', kind: 'text' }] }, keywords: ['services', 'grille'],
   },
   gallery: {
     type: 'gallery', label: 'Galerie', category: 'Contenu', description: 'Galerie d’images responsive.',
-    propsSchema: base({ title: short, images: list(item({ assetId: asset, src: z.string().max(2048).optional().or(z.literal('')), alt: short })) }),
+    propsSchema: base({ title: short, images: list(item({ assetId: asset, src: z.string().max(2048).optional().or(z.literal('')), alt: short })), layout: z.enum(['grid', 'editorial', 'filmstrip']).optional() }),
     defaults: { title: 'En images', images: [] },
-    fields: [{ key: 'title', label: 'Titre', kind: 'text' }],
+    fields: [{ key: 'title', label: 'Titre', kind: 'text' }, { key: 'layout', label: 'Composition', kind: 'select', options: [{ value: 'grid', label: 'Grille' }, { value: 'editorial', label: 'Éditoriale' }, { value: 'filmstrip', label: 'Pellicule horizontale' }] }],
     collectionFields: { images: [{ key: 'assetId', label: 'Image', kind: 'asset' }, { key: 'alt', label: 'Texte alternatif', kind: 'text' }] }, keywords: ['photos', 'portfolio'],
   },
   testimonials: {

@@ -1,3 +1,5 @@
+import type { CreativeDirection, MotionPreset } from '@/lib/creative/types';
+
 export const COMPONENT_TYPES = [
   'page', 'section', 'heading', 'text', 'button', 'image',
   'hero', 'features', 'cta', 'contactForm', 'header', 'footer',
@@ -10,6 +12,13 @@ export type Viewport = 'desktop' | 'tablet' | 'mobile';
 export type EditorMode = 'simple' | 'advanced' | 'expert';
 export type StyleState = 'hover' | 'focus-visible' | 'active' | 'disabled';
 export type ShadowToken = 'none' | 'small' | 'medium' | 'large';
+export interface NodeMotion {
+  preset: MotionPreset;
+  trigger: 'in-view';
+  duration: number;
+  delay: number;
+  distance: number;
+}
 
 /** Only these declarations can enter the renderer. This is not an arbitrary CSS field. */
 export const STYLE_PROPERTIES = [
@@ -111,6 +120,8 @@ export interface ThemeSettings {
   radius: number;
   sectionSpacing: number;
   designSystem?: DesignSystem | undefined;
+  /** Original, justified art direction. Tokens remain the live visual source of truth. */
+  creativeDirection?: CreativeDirection | undefined;
 }
 
 export const DEFAULT_THEME: ThemeSettings = {
@@ -135,6 +146,8 @@ export interface PageNode {
   responsiveStates?: ResponsiveStateStyles;
   /** Expert-only, scoped custom properties. Names and values are validated. */
   cssVariables?: Record<string, string | number>;
+  /** Optional native in-view choreography; absent means no entrance motion. */
+  motion?: NodeMotion;
   children?: PageNode[];
 }
 
