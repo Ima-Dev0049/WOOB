@@ -8,6 +8,8 @@ import './catalog.css';
 import './responsive.css';
 import './editor-panels.css';
 import './motion.css';
+import './experience.css';
+import { RouteMotion } from '@/components/ui/RouteMotion';
 
 export const metadata: Metadata = {
   title: { default: 'Woob — Votre site, votre vision', template: '%s · Woob' },
@@ -17,5 +19,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#f6f5f1' };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="fr"><body>{children}</body></html>;
+  return <html lang="fr"><body><RouteMotion>{children}</RouteMotion></body></html>;
 }

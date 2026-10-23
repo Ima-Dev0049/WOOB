@@ -178,5 +178,5 @@ export function DocumentRenderer({ document, context = { mode: 'public' } }: { d
   const renderContext: RenderContext = { ...context, designSystem: getDesignSystem(document.theme) };
   const direction = document.theme.creativeDirection;
   const motionKey = `${direction?.conceptId || 'legacy'}:${document.revision}`;
-  return <CreativeMotion enabled={context.mode !== 'editor' || context.animateMotion === true} reduceMotion={renderContext.designSystem?.motion.reducedMotion === 'reduce'} motionKey={motionKey}><div className={`wb-page wb-mode-${context.mode} ${direction ? `creative-mode-${direction.palette.mode}` : ''}`} data-testid="document-renderer" data-creative-concept={direction?.conceptId}><NodeRenderer node={document.root} context={renderContext} /></div></CreativeMotion>;
+  return <CreativeMotion enabled={context.mode !== 'editor' || context.animateMotion === true} reduceMotion={renderContext.designSystem?.motion.reducedMotion === 'reduce'} heroExperience={renderContext.designSystem?.motion.entrance === 'none'} motionKey={motionKey}><div className={`wb-page wb-mode-${context.mode} ${direction ? `creative-mode-${direction.palette.mode}` : ''}`} data-testid="document-renderer" data-creative-concept={direction?.conceptId}><NodeRenderer node={document.root} context={renderContext} /></div></CreativeMotion>;
 }

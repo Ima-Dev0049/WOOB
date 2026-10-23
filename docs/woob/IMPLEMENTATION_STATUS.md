@@ -2,7 +2,19 @@
 
 Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-## Incrément courant — `font-catalog-500`
+## Incrément courant — `experience-motion`
+
+Une couche de motion design native harmonise le marketing, l’authentification, le back-office, l’éditeur et les sites publics sans nouvelle dépendance. `RouteMotion` utilise WAAPI pour une entrée courte à chaque navigation, sans masquer le HTML SSR ni conserver de transformation après la fin. Les boutons, champs, cartes, onglets, modales, alertes, tiroirs et feedbacks disposent de transitions bornées ; le feedback de pression des boutons conserve la transition `transform` historique afin de rester stable au clavier comme au clic.
+
+`MotionSurface` ajoute un tilt très limité du showcase sur pointeur fin uniquement, avec remise à zéro et aucune boucle. Sa finalisation est désormais garantie sur `animationend`, `animationcancel` ou un timeout de sécurité de 1,5 s, avec nettoyage des timers. `CreativeMotion` compose une seule fois les contenus du premier hero public lorsque le thème n’a pas d’entrée globale : les entrées créatives locales restent actives et les propriétés individuelles évitent d’écraser leurs transformations. Le canvas de l’éditeur utilise sa limite desktop réelle de 1180 px afin que les changements vers 768/390 px produisent une véritable interpolation.
+
+- `npm run verify` : TypeScript, ESLint, build et **86/86 Vitest dans 15 fichiers** réussis.
+- `npm run test:e2e` : **45/45 Playwright** sur build de production en Chromium, en 10,2 min. Cinq scénarios dédiés instrumentent de vrais appels WAAPI, `animationstart` et `transitionrun`, puis vérifient la fin des animations et l’absence de résidu.
+- Les preuves couvrent navigation client, tilt et remise à zéro, authentification, modale de création, hero public avec motion local conservé, viewport éditeur, panneau typographique et reduced-motion sans route/tilt/ouverture animée. Les audits axe, le clavier, le SSR sans JavaScript, la 3D et le rejeu IA passent dans la même suite.
+- Captures Chromium réelles inspectées sur marketing, authentification, modale, éditeur et site public. Aucune migration, réinitialisation de base, modification d’environnement sensible ou publication externe.
+- **Limites :** entrées et feedbacks bornés, pas une timeline de motion libre ni un système de transitions de sortie ; validation limitée à Chromium et viewports émulés, sans lecteur d’écran ni mesure Core Web Vitals.
+
+## Incrément précédent — `font-catalog-500`
 
 L’éditeur propose désormais **500 styles typographiques réellement sélectionnables : 50 familles variables × 10 graisses adaptées à leur axe `wght` réel**. Le sélecteur du texte et celui des titres comprennent recherche, catégories, aperçu à la demande et graisse ; la pile CSS personnalisée reste disponible. Les compteurs et options viennent du catalogue de données, sans duplication dans les composants.
 
@@ -63,7 +75,7 @@ La capacité procédurale est intégrée au registre, à l’orchestrateur synch
 
 ## Résultats historiques du socle
 
-Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `font-catalog-500` ci-dessus et des guides créatifs.
+Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `experience-motion` ci-dessus et des guides créatifs.
 
 | Vérification | Résultat constaté |
 | --- | --- |
@@ -86,6 +98,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 
 - Site marketing, catalogue de tarifs sans prix payant inventé, inscription, connexion, déconnexion, récupération et vérification email.
 - Couche `surface-motion` partagée par l’accueil, les tarifs et le dashboard : entrées bornées, révélations one-shot, header de lecture, interactions clavier/survol, fallback SSR et reduced motion, sans transformations résiduelles sur les ancêtres de modales.
+- Couche `experience-motion` globale : entrées de routes WAAPI, tilt borné du showcase, transitions des dialogues et contrôles, ouverture éditorialisée du hero public et viewport d’éditeur réellement interpolé. Les préférences reduced-motion, le SSR et les entrées créatives locales sont préservés.
 - Motion de document `scroll-motion` : parallaxe et presets de progression sur blocs compatibles, trois effets/page, inspecteur, IA `updateMotion` prévisualisable, historique, persistance et publication ; aucune boucle permanente, cible fragile ou activation automatique sur l’existant.
 - Sessions opaques hashées, cookies, CSRF double-submit, consommation atomique des jetons, RBAC serveur et isolation par workspace. Les réponses `/api/auth/me` sont limitées au profil utile et ne contiennent plus le hash du mot de passe.
 - Administration plateforme `/admin`, distincte du rôle `admin` d’un workspace : rôle persisté `users.platformRole` ou allowlist `PLATFORM_ADMIN_EMAILS`, sans promotion automatique. Statistiques SQL globales, activité sur 14 jours, utilisateurs, espaces, projets, offres, modération, attribution manuelle d’offre et journal `admin_audit_logs` transactionnel. Les valeurs de commandes restent ventilées par devise et statut, sans les assimiler à un chiffre d’affaires encaissé.
@@ -126,6 +139,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 
 - Idempotence IA : replay d’une réponse terminée sans doublon, refus d’une autre consigne avec la même clé, doublon actif refusé, bail expiré repris avec `attempts=2`, révision de page modifiée refusée et interruption réseau navigateur suivie d’un replay HTTP 200 identique.
 - Motion de surface : révélation et état final statique, progression/compactage du header, ancre non masquée, contenu SSR sans JavaScript, reduced motion, largeur mobile, liens accessibles avant révélation et modales fixes ouvertes depuis le header comme depuis l’état vide du dashboard.
+- Motion d’expérience : appels WAAPI de navigation réellement observés, événements CSS de modale/hero/panneau, tilt sur pointeur fin et reset, `transitionrun` du canvas 1180 → 390 px, nettoyage final et absence de ces mouvements sous reduced-motion ; entrée créative locale du hero conservée.
 - Motion scroll de document : parallaxe IA annulée sans effet puis appliquée, undo/redo, amplitude conservée après rechargement, snapshot publié, progression réelle sans boucle, reduced-motion initial/dynamique et contenu SSR visible ; validation des cibles et du budget de trois effets.
 - Design system : compatibilité d’un ancien document, normalisation idempotente, héritage desktop/tablette/mobile, priorité des exceptions, états, copie/reset, références de presets, dégradés sûrs, variables expertes, entrées CSS/URL hostiles et contrastes.
 - Typographie : 50 familles et 500 styles uniques, dix graisses dans chaque plage réelle, signatures et licences des 50 assets, anciens thèmes sans requête, déduplication des `@font-face`, rejet d’URL injectée ; parcours Fraunces 600/Playfair Display 800 persisté et publié avec fontes réellement chargées.

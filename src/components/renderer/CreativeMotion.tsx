@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 
 function reveal(target: HTMLElement): void { target.dataset.motionState = 'visible'; }
 function clearScroll(target: HTMLElement): void {
@@ -9,7 +9,7 @@ function clearScroll(target: HTMLElement): void {
 }
 
 /** Native one-shot entrances and bounded scroll progress. SSR content never starts hidden. */
-export function CreativeMotion({ children, enabled, reduceMotion, motionKey }: { children: ReactNode; enabled: boolean; reduceMotion: boolean; motionKey: string }) {
+export function CreativeMotion({ children, enabled, reduceMotion, motionKey, heroExperience = false }: { children: ReactNode; enabled: boolean; reduceMotion: boolean; motionKey: string; heroExperience?: boolean }) {
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,6 +100,42 @@ export function CreativeMotion({ children, enabled, reduceMotion, motionKey }: {
       targets.forEach((target) => { reveal(target); clearScroll(target); });
     };
   }, [enabled, reduceMotion, motionKey]);
+
+  useLayoutEffect(() => {
+    const container = root.current;
+    if (!container || !enabled || !heroExperience) return;
+    const hero = container.querySelector<HTMLElement>('.wb-hero');
+    if (!hero) return;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let frame = 0;
+    let timeout = 0;
+    const finish = () => {
+      if (frame) cancelAnimationFrame(frame);
+      if (timeout) window.clearTimeout(timeout);
+      frame = 0;
+      timeout = 0;
+      hero.dataset.experienceState = 'entered';
+    };
+    const onAnimationEnd = (event: AnimationEvent) => {
+      if (event.target instanceof HTMLElement && event.target.matches('.hero-visual') && event.animationName === 'experience-hero-visual') finish();
+    };
+    const onPreferenceChange = () => { if (media.matches) finish(); };
+    if (reduceMotion || media.matches) { finish(); return; }
+    hero.dataset.experienceState = 'pending';
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      hero.dataset.experienceState = 'visible';
+      // The fallback only clears the transient state; it never hides content.
+      timeout = window.setTimeout(finish, 1500);
+    });
+    hero.addEventListener('animationend', onAnimationEnd);
+    media.addEventListener('change', onPreferenceChange);
+    return () => {
+      hero.removeEventListener('animationend', onAnimationEnd);
+      media.removeEventListener('change', onPreferenceChange);
+      finish();
+    };
+  }, [enabled, heroExperience, reduceMotion, motionKey]);
 
   return <div className="creative-motion-root" ref={root} data-motion-key={motionKey}>{children}</div>;
 }

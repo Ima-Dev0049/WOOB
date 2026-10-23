@@ -1,0 +1,132 @@
+@layer pages {
+  /* Shared motion language: native route entry, direct manipulation, transient UI. */
+  .experience-route { min-height: 100vh; min-width: 0; }
+  .icon-button, .history-buttons button, .viewport-buttons button,
+  .component-library > button, .font-family-results button, .editor-left-tabs button,
+  .business-tabs button, .app-nav a, .admin-nav-link {
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease,
+      color 180ms ease, scale 180ms cubic-bezier(.22, 1, .36, 1), translate 180ms cubic-bezier(.22, 1, .36, 1);
+  }
+  .button:not(:disabled):active { transform: translateY(0) scale(.975); }
+  .icon-button:not(:disabled):active, .component-library > button:not(:disabled):active { scale: .975; }
+  input, textarea, select, .font-family-trigger {
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  }
+  :is(input, textarea, select):focus-visible, .font-family-trigger:focus-visible {
+    box-shadow: 0 0 0 3px #6d4aff18, 0 0 0 1px #6d4aff55;
+  }
+  :is(.settings-card, .admin-panel, .inspector-section, .project-card) {
+    transition: background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 220ms cubic-bezier(.22, 1, .36, 1);
+  }
+  .project-card:focus-within { border-color: #c7bdd9; box-shadow: 0 15px 40px #25352c12; }
+
+  /* Pointer tilt is set only by MotionSurface on fine pointers and never loops. */
+  .hero-showcase .showcase-body {
+    transform: perspective(1400px) rotateX(var(--surface-tilt-x, 0deg)) rotateY(var(--surface-tilt-y, 0deg));
+    transform-origin: 50% 45%;
+    transition: transform 160ms ease-out;
+  }
+  .hero-showcase[data-surface-tilt-active="true"] .showcase-body { transition-duration: 70ms; }
+
+  /* Dialogs, menus and status feedback enter once; no retained animation fill. */
+  .modal-backdrop { animation: experience-backdrop-in 200ms ease-out; }
+  .modal { animation: experience-modal-in 380ms cubic-bezier(.22, 1, .36, 1); transform-origin: 50% 42%; }
+  .editor-toast { animation: experience-toast-in 360ms cubic-bezier(.22, 1, .36, 1); }
+  .conflict-banner { animation: experience-banner-in 320ms cubic-bezier(.22, 1, .36, 1); }
+  :is(.order-popover, .font-catalog, .dns-instructions, .ai-result, .project-brief-success) {
+    animation: experience-panel-in 300ms cubic-bezier(.22, 1, .36, 1);
+  }
+  :is(.form-status, .alert, .save-indicator.saved) { animation: experience-status-in 260ms ease-out; }
+  details[open] > :not(summary) { animation: experience-details-in 240ms cubic-bezier(.22, 1, .36, 1); }
+  .canvas-document { max-width: 1180px; transition: max-width 360ms cubic-bezier(.22, 1, .36, 1), box-shadow 220ms ease; }
+  .editor-node { transition: outline-color 140ms ease, box-shadow 140ms ease; }
+  .empty-illustration { animation: experience-empty-in 480ms cubic-bezier(.22, 1, .36, 1); }
+
+  /* Authentication has one quiet editorial entrance, not an ambient loop. */
+  .auth-aside::after { transform-origin: center; }
+  .auth-aside[data-surface-state="visible"]::after { animation: experience-auth-ring 480ms cubic-bezier(.22, 1, .36, 1); }
+  .auth-mobile-logo { animation: experience-status-in 360ms ease-out; }
+
+  /* Public sites: a first-screen composition only when no custom entrance owns it. */
+  .wb-hero[data-experience-state="pending"] :is(.hero-copy > .eyebrow, .hero-copy > h1, .hero-copy > p, .hero-copy > .button-row, .hero-visual) { opacity: 0; }
+  .wb-hero[data-experience-state="pending"]:focus-within :is(.hero-copy > .eyebrow, .hero-copy > h1, .hero-copy > p, .hero-copy > .button-row, .hero-visual) { opacity: 1; }
+  .wb-hero[data-experience-state="visible"] .hero-copy > .eyebrow { animation: experience-hero-kicker 440ms cubic-bezier(.22, 1, .36, 1) both; }
+  .wb-hero[data-experience-state="visible"] .hero-copy > h1 { animation: experience-hero-title 620ms cubic-bezier(.22, 1, .36, 1) 70ms both; }
+  .wb-hero[data-experience-state="visible"] .hero-copy > p { animation: experience-hero-copy 520ms cubic-bezier(.22, 1, .36, 1) 150ms both; }
+  .wb-hero[data-experience-state="visible"] .hero-copy > .button-row { animation: experience-hero-copy 520ms cubic-bezier(.22, 1, .36, 1) 220ms both; }
+  .wb-hero[data-experience-state="visible"] .hero-visual { animation: experience-hero-visual 720ms cubic-bezier(.22, 1, .36, 1) 160ms both; }
+  .wb-hero[data-experience-state="entered"] :is(.hero-copy > .eyebrow, .hero-copy > h1, .hero-copy > p, .hero-copy > .button-row, .hero-visual) {
+    animation: none;
+    clip-path: none;
+    opacity: 1;
+    scale: none;
+    translate: none;
+  }
+  .woob-theme :is(.feature-card, .pricing-card, .product-card, .post-card, .team-card) {
+    transition: border-color 220ms ease, box-shadow 220ms ease, translate 220ms cubic-bezier(.22, 1, .36, 1);
+  }
+  .woob-theme :is(.product-card, .gallery-grid, .gallery-masonry, .gallery-filmstrip) img {
+    transition: scale 420ms cubic-bezier(.22, 1, .36, 1), filter 220ms ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .component-library > button:hover, .font-family-results button:hover { translate: 2px 0; }
+    .woob-theme :is(.feature-card, .pricing-card, .product-card, .post-card, .team-card):hover,
+    .woob-theme :is(.feature-card, .pricing-card, .product-card, .post-card, .team-card):focus-within {
+      box-shadow: 0 16px 42px color-mix(in srgb, var(--site-text) 8%, transparent);
+      translate: 0 -4px;
+    }
+    .woob-theme :is(.product-card, .gallery-grid, .gallery-masonry, .gallery-filmstrip) img:hover { scale: 1.025; }
+  }
+}
+
+@keyframes experience-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes experience-modal-in {
+  from { opacity: 0; scale: .975; translate: 0 18px; }
+  to { opacity: 1; scale: 1; translate: 0 0; }
+}
+@keyframes experience-toast-in {
+  from { opacity: 0; translate: 0 16px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes experience-banner-in {
+  from { opacity: 0; translate: 0 100%; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes experience-panel-in {
+  from { opacity: 0; scale: .985; translate: 0 -8px; }
+  to { opacity: 1; scale: 1; translate: 0 0; }
+}
+@keyframes experience-status-in { from { opacity: 0; translate: 0 5px; } to { opacity: 1; translate: 0 0; } }
+@keyframes experience-details-in { from { opacity: 0; translate: 0 -6px; } to { opacity: 1; translate: 0 0; } }
+@keyframes experience-empty-in { from { opacity: 0; scale: .92; rotate: -2deg; } to { opacity: 1; scale: 1; rotate: 0deg; } }
+@keyframes experience-auth-ring { from { opacity: 0; scale: .72; rotate: -12deg; } to { opacity: 1; scale: 1; rotate: 0deg; } }
+@keyframes experience-hero-kicker { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: 0 0; } }
+@keyframes experience-hero-title {
+  from { clip-path: inset(0 0 35% 0); opacity: 0; translate: 0 34px; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; translate: 0 0; }
+}
+@keyframes experience-hero-copy { from { opacity: 0; translate: 0 20px; } to { opacity: 1; translate: 0 0; } }
+@keyframes experience-hero-visual { from { opacity: 0; scale: .965; translate: 0 26px; } to { opacity: 1; scale: 1; translate: 0 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .experience-route { opacity: 1; translate: none; }
+  .hero-showcase .showcase-body { transform: none !important; transition: none; }
+  .modal-backdrop, .modal, .editor-toast, .conflict-banner, .order-popover, .font-catalog,
+  .dns-instructions, .ai-result, .project-brief-success, .form-status, .alert,
+  .save-indicator.saved, details[open] > :not(summary), .empty-illustration,
+  .auth-aside::after, .auth-mobile-logo { animation: none !important; }
+  .button:not(:disabled):active { transform: none; }
+  .icon-button:not(:disabled):active, .component-library > button:not(:disabled):active { scale: 1; }
+  .component-library > button, .font-family-results button,
+  .woob-theme :is(.feature-card, .pricing-card, .product-card, .post-card, .team-card) { translate: none !important; }
+  .woob-theme :is(.product-card, .gallery-grid, .gallery-masonry, .gallery-filmstrip) img { scale: 1 !important; transition: none; }
+  .wb-hero[data-experience-state] :is(.hero-copy > .eyebrow, .hero-copy > h1, .hero-copy > p, .hero-copy > .button-row, .hero-visual) {
+    animation: none !important;
+    clip-path: none;
+    opacity: 1;
+    scale: none;
+    translate: none;
+  }
+}

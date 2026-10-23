@@ -22,32 +22,51 @@ export function MotionSurface({ children, scrollHeader = false, motionKey = 'sur
       targets.forEach(reveal);
       return;
     }
+    const completionTimers = new Map<HTMLElement, number>();
+    const complete = (target: HTMLElement) => {
+      const timer = completionTimers.get(target);
+      if (timer) window.clearTimeout(timer);
+      completionTimers.delete(target);
+      // Do not retain a zero transform: it would still trap fixed descendants such as dialogs.
+      if (target.dataset.surfaceState === 'visible') target.dataset.surfaceState = 'entered';
+    };
+    const revealAndSchedule = (target: HTMLElement) => {
+      reveal(target);
+      // Longest current sequence: 820ms + 350ms delay. This is a fallback, not a loop.
+      completionTimers.set(target, window.setTimeout(() => complete(target), 1500));
+    };
     const onAnimationEnd = (event: AnimationEvent) => {
       if (!(event.target instanceof HTMLElement) || !event.target.matches('[data-surface-reveal]')) return;
-      // Do not retain a zero transform: it would still trap fixed descendants such as dialogs.
-      event.target.dataset.surfaceState = 'entered';
+      complete(event.target);
     };
     container.addEventListener('animationend', onAnimationEnd);
+    container.addEventListener('animationcancel', onAnimationEnd);
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (!entry.isIntersecting) continue;
         const target = entry.target as HTMLElement;
-        reveal(target);
+        revealAndSchedule(target);
         observer.unobserve(target);
       }
     }, { threshold: 0.08, rootMargin: '0px 0px -5% 0px' });
     targets.forEach((target) => { target.dataset.surfaceState = 'pending'; observer.observe(target); });
     const onPreferenceChange = () => {
       if (!media.matches) return;
+      completionTimers.forEach((timer) => window.clearTimeout(timer));
+      completionTimers.clear();
       targets.forEach(reveal);
       observer.disconnect();
       container.removeEventListener('animationend', onAnimationEnd);
+      container.removeEventListener('animationcancel', onAnimationEnd);
     };
     media.addEventListener('change', onPreferenceChange);
     return () => {
       observer.disconnect();
       container.removeEventListener('animationend', onAnimationEnd);
+      container.removeEventListener('animationcancel', onAnimationEnd);
       media.removeEventListener('change', onPreferenceChange);
+      completionTimers.forEach((timer) => window.clearTimeout(timer));
+      completionTimers.clear();
       targets.forEach(reveal);
     };
   }, [motionKey]);
@@ -78,6 +97,58 @@ export function MotionSurface({ children, scrollHeader = false, motionKey = 'sur
       header.style.removeProperty('--surface-progress');
     };
   }, [scrollHeader]);
+
+  useEffect(() => {
+    const container = root.current;
+    if (!container) return;
+    const targets = Array.from(container.querySelectorAll<HTMLElement>('[data-surface-tilt]'));
+    if (!targets.length) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const cleanups: (() => void)[] = [];
+    for (const target of targets) {
+      let frame = 0;
+      let rotateX = 0;
+      let rotateY = 0;
+      const apply = () => {
+        frame = 0;
+        target.style.setProperty('--surface-tilt-x', `${rotateX.toFixed(2)}deg`);
+        target.style.setProperty('--surface-tilt-y', `${rotateY.toFixed(2)}deg`);
+      };
+      const reset = () => {
+        if (frame) cancelAnimationFrame(frame);
+        frame = 0;
+        delete target.dataset.surfaceTiltActive;
+        target.style.setProperty('--surface-tilt-x', '0deg');
+        target.style.setProperty('--surface-tilt-y', '0deg');
+      };
+      const onPointerMove = (event: PointerEvent) => {
+        if (reduced.matches || !finePointer.matches || event.pointerType === 'touch') { reset(); return; }
+        const rect = target.getBoundingClientRect();
+        const x = Math.min(1, Math.max(-1, ((event.clientX - rect.left) / Math.max(1, rect.width) - 0.5) * 2));
+        const y = Math.min(1, Math.max(-1, ((event.clientY - rect.top) / Math.max(1, rect.height) - 0.5) * 2));
+        rotateX = -y * 1.4;
+        rotateY = x * 1.8;
+        target.dataset.surfaceTiltActive = 'true';
+        if (!frame) frame = requestAnimationFrame(apply);
+      };
+      target.addEventListener('pointermove', onPointerMove, { passive: true });
+      target.addEventListener('pointerleave', reset);
+      target.addEventListener('pointercancel', reset);
+      cleanups.push(() => {
+        reset();
+        target.removeEventListener('pointermove', onPointerMove);
+        target.removeEventListener('pointerleave', reset);
+        target.removeEventListener('pointercancel', reset);
+      });
+    }
+    const onPreferenceChange = () => { if (reduced.matches) cleanups.forEach((cleanup) => cleanup()); };
+    reduced.addEventListener('change', onPreferenceChange);
+    return () => {
+      reduced.removeEventListener('change', onPreferenceChange);
+      cleanups.forEach((cleanup) => cleanup());
+    };
+  }, [motionKey]);
 
   return <div className="surface-motion-root" ref={root}>{children}</div>;
 }
