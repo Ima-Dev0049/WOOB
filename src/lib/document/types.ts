@@ -131,7 +131,7 @@ export interface ThemeSettings {
 }
 
 export const DEFAULT_THEME: ThemeSettings = {
-  primaryColor: '#7C5CFC', secondaryColor: '#1D2033', accentColor: '#FF7A59',
+  primaryColor: '#6D4AFF', secondaryColor: '#1D2033', accentColor: '#FF7A59',
   backgroundColor: '#FAFAF8', surfaceColor: '#FFFFFF', textColor: '#1D2033', mutedTextColor: '#667085',
   fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif', headingFontFamily: 'Georgia, serif',
   baseFontSize: 16, containerWidth: 1180, radius: 18, sectionSpacing: 80,

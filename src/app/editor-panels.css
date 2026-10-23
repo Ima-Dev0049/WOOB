@@ -39,6 +39,35 @@
 .asset-library-grid small { margin-top: 4px; color: var(--muted); font-size: 10px; }
 @media (max-width: 600px) { .asset-library-actions { grid-template-columns: 1fr; } .asset-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
+/* Server-checked publication preflight: deterministic facts, not a synthetic Lighthouse score. */
+.publication-preflight-modal { width: min(780px, 95vw); max-height: 92vh; overflow: auto; }
+.publication-preflight-modal > header p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.publication-preflight-summary { display: grid; gap: 4px; margin: 20px 0 16px; padding: 14px 16px; border-radius: 10px; }
+.publication-preflight-summary.blocked { background: #fff0ed; color: #8f261d; }
+.publication-preflight-summary.warnings { background: #fff7e5; color: #714b08; }
+.publication-preflight-summary.pass { background: #eaf8f1; color: #166647; }
+.publication-preflight-summary span { font-size: 12px; }
+.publication-preflight-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.publication-preflight-metrics > div { padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.publication-preflight-metrics dt { color: var(--muted); font-size: 10px; }
+.publication-preflight-metrics dd { margin: 4px 0 0; font-size: 16px; font-weight: 750; }
+.publication-preflight-issues { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+.publication-preflight-issues li { display: grid; grid-template-columns: 105px minmax(0, 1fr); gap: 10px; padding: 11px 12px; border-radius: 8px; font-size: 12px; }
+.publication-preflight-issues li.error { background: #fff0ed; color: #8f261d; }
+.publication-preflight-issues li.warning { background: #fff7e5; color: #714b08; }
+.publication-preflight-pages { margin-top: 16px; }
+.publication-preflight-pages summary { cursor: pointer; font-size: 12px; font-weight: 700; }
+.publication-preflight-pages > div { margin-top: 10px; overflow-x: auto; }
+.publication-preflight-pages table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.publication-preflight-pages th, .publication-preflight-pages td { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; }
+.publication-preflight-note { margin: 16px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.publication-preflight-modal > footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+@media (max-width: 600px) {
+  .publication-preflight-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .publication-preflight-issues li { grid-template-columns: 1fr; gap: 3px; }
+  .publication-preflight-modal > footer { flex-wrap: wrap; }
+}
+
 /* Structured design system inspectors. Advanced groups stay collapsed until requested. */
 .style-disclosure { padding: 0; }
 .style-disclosure > summary { cursor: pointer; list-style: none; padding: 15px 0; color: var(--text); font-size: 12px; font-weight: 800; }

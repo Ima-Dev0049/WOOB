@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, max } from 'drizzle-orm';
 import { createId } from '@/lib/id';
 import { cloneDocument, collectAssetIds, validateSiteSnapshot } from '@/lib/document/validation';
+import { buildPublicationPreflight } from '@/lib/publication/preflight';
 import type { SiteSnapshot } from '@/lib/document/types';
 import { getDb, type Db } from '@/server/db';
 import { assets, pageVersions, pages, posts, products, projectModules, projects, publications, workspaces } from '@/server/db/schema';
@@ -13,6 +14,17 @@ function usedAssetIds(snapshot: SiteSnapshot): string[] {
   for (const page of snapshot.pages) for (const id of collectAssetIds(page.document)) ids.add(id);
   for (const product of snapshot.products) if (product.imageAssetId) ids.add(product.imageAssetId);
   return [...ids];
+}
+
+async function assessPublication(snapshot: SiteSnapshot, workspaceId: string, db: Db) {
+  const ids = usedAssetIds(snapshot);
+  const assetFacts = ids.length ? await db.select({ id: assets.id, byteSize: assets.byteSize, fileName: assets.fileName }).from(assets).where(and(
+    eq(assets.workspaceId, workspaceId),
+    eq(assets.projectId, snapshot.projectId),
+    inArray(assets.id, ids),
+    isNull(assets.deletedAt),
+  )) : [];
+  return buildPublicationPreflight(snapshot, assetFacts);
 }
 
 export async function buildProjectSnapshot(project: Project, publicationId: string, db: Db): Promise<SiteSnapshot> {
@@ -65,13 +77,22 @@ async function persistPublication(project: Project, userId: string, snapshot: Si
   });
 }
 
+export async function getProjectPublicationPreflight(userId: string, projectId: string, db?: Db) {
+  const database = db ?? await getDb();
+  const project = await requireProject(userId, projectId, 'read', database);
+  const snapshot = await buildProjectSnapshot(project, createId('publication'), database);
+  return assessPublication(snapshot, project.workspaceId, database);
+}
+
 export async function publishProject(userId: string, projectId: string, db?: Db) {
   const database = db ?? await getDb();
   const project = await requireProject(userId, projectId, 'publish', database);
   const publicationId = createId('publication');
   const snapshot = await buildProjectSnapshot(project, publicationId, database);
+  const preflight = await assessPublication(snapshot, project.workspaceId, database);
+  if (preflight.status === 'blocked') throw new ApiError(422, 'PUBLICATION_QUALITY_BLOCKED', 'La publication est bloquée par le contrôle qualité.', preflight);
   const publication = await persistPublication(project, userId, snapshot, database);
-  return { publication, url: `/s/${project.slug}` };
+  return { publication, url: `/s/${project.slug}`, preflight };
 }
 
 export async function unpublishProject(userId: string, projectId: string, db?: Db) {

@@ -46,7 +46,7 @@ export function mountScene3D(host: HTMLElement, options: Scene3DRuntimeOptions):
   const group = new THREE.Group();
   scene.add(group);
 
-  const primary = themeColor(host, '--site-primary', '#7C5CFC');
+  const primary = themeColor(host, '--site-primary', '#6D4AFF');
   const accent = themeColor(host, '--site-accent', '#FF7A59');
   const detail = SCENE3D_BUDGET.geometryDetail[quality];
   const coreGeometry = options.preset === 'orbital'

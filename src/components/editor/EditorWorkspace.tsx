@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Project, Page } from '@/server/db/schema';
 import type { ComponentType, EditorMode, PageDocument, PageNode, SharedStyle, SiteSnapshot, Viewport } from '@/lib/document/types';
+import type { PublicationPreflightReport } from '@/lib/publication/preflight';
 import { copyNodeStyle, getDesignSystem, pasteNodeStyle, resetNodeStyle, setNodeStyle, themeCssVariables, themeGlobalCss, withDesignSystem, type NodeStyleSnapshot } from '@/lib/document/design-system';
 import { componentRegistry, createNode, insertableComponents } from '@/lib/document/registry';
 import { cloneDocument, findNode, validatePageDocument, walkNodes } from '@/lib/document/validation';
@@ -14,6 +15,7 @@ import { Logo } from '@/components/ui/Logo';
 import { EditorInspector } from './EditorInspector';
 import { AiPanel } from './AiPanel';
 import { VersionHistory } from './VersionHistory';
+import { PublicationPreflightDialog } from './PublicationPreflightDialog';
 import { insertNode, moveNode, moveNodeBy, removeNode } from '@/lib/document/operations';
 import { apiFetch, ClientApiError, errorMessage } from '@/lib/client-api';
 
@@ -39,6 +41,7 @@ export function EditorWorkspace({ project, pages, initialPage, initialSite }: { 
   const [showTheme, setShowTheme] = useState(false);
   const [showAi, setShowAi] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
+  const [publicationPreflight, setPublicationPreflight] = useState<PublicationPreflightReport | null>(null);
   const [mobilePanel, setMobilePanel] = useState<'left' | 'right' | null>(null);
   const [notice, setNotice] = useState('');
   const [pendingAction, setPendingAction] = useState(false);
@@ -118,7 +121,7 @@ export function EditorWorkspace({ project, pages, initialPage, initialSite }: { 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => { if (['dirty', 'error', 'saving'].includes(saveState)) { event.preventDefault(); event.returnValue = ''; } };
     const keyboard = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setMobilePanel(null); setShowVersions(false); setShowAi(false); return; }
+      if (event.key === 'Escape') { setMobilePanel(null); setShowVersions(false); setShowAi(false); setPublicationPreflight(null); return; }
       const target = event.target as HTMLElement | null;
       const editing = target?.matches('input, textarea, select, [contenteditable="true"]');
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') { event.preventDefault(); void save(); return; }
@@ -141,14 +144,32 @@ export function EditorWorkspace({ project, pages, initialPage, initialSite }: { 
     setMobilePanel('right');
   }
 
+  async function publishNow() {
+    setPendingAction(true);
+    try {
+      const result = await apiFetch<{ url: string; preflight: PublicationPreflightReport }>(`/api/projects/${project.id}/publish`, { method: 'POST' });
+      setPublicationPreflight(null);
+      const warnings = result.preflight.issues.filter((issue) => issue.severity === 'warning').length;
+      setNotice(`Site publié : ${result.url}${warnings ? ` · ${warnings} avertissement${warnings > 1 ? 's' : ''}` : ''}`);
+      router.refresh();
+    } catch (error) {
+      if (error instanceof ClientApiError && error.code === 'PUBLICATION_QUALITY_BLOCKED' && error.details) setPublicationPreflight(error.details as PublicationPreflightReport);
+      else setNotice(errorMessage(error));
+    } finally { setPendingAction(false); }
+  }
+
   async function publish() {
     if (saveState !== 'saved') {
       const saved = await save();
       if (!saved) { setNotice('Publication interrompue : le brouillon n’a pas pu être enregistré.'); return; }
     }
     setPendingAction(true); setNotice('');
-    try { const result = await apiFetch<{ url: string }>(`/api/projects/${project.id}/publish`, { method: 'POST' }); setNotice(`Site publié : ${result.url}`); router.refresh(); }
-    catch (error) { setNotice(errorMessage(error)); } finally { setPendingAction(false); }
+    try {
+      const report = await apiFetch<PublicationPreflightReport>(`/api/projects/${project.id}/publication-preflight`);
+      if (report.status === 'pass') await publishNow();
+      else setPublicationPreflight(report);
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setPendingAction(false); }
   }
 
   async function checkpoint() {
@@ -220,7 +241,7 @@ export function EditorWorkspace({ project, pages, initialPage, initialSite }: { 
               if (node.cssVariables) { delete node.cssVariables[key]; if (!Object.keys(node.cssVariables).length) delete node.cssVariables; }
             } else { node.cssVariables ??= {}; node.cssVariables[key] = value; }
           }),
-        }} /><button type="button" className="panel-close" onClick={() => setMobilePanel(null)} aria-label="Fermer le panneau de propriétés">×</button></aside></div>{showVersions && <VersionHistory pageId={initialPage.id} onRestore={restoreVersion} onClose={() => setShowVersions(false)} />}{showAi && <AiPanel pageId={initialPage.id} document={document} site={editorSite} selectedNodeId={selectedId} onClose={() => setShowAi(false)} onApply={(generated) => { commit((draft) => { draft.root = generated.root; draft.theme = generated.theme; }); setShowAi(false); setNotice('Proposition appliquée au brouillon. Vérifiez et enregistrez.'); }} />}{notice && <div className="editor-toast" role="status"><span>{notice}</span>{notice.startsWith('Site publié') && <a href={`/s/${project.slug}`} target="_blank">Voir le site ↗</a>}<button onClick={() => setNotice('')} aria-label="Fermer">×</button></div>}{saveState === 'conflict' && <div className="conflict-banner"><strong>Modification concurrente détectée.</strong><span>Votre texte reste dans cet onglet. Rechargez pour repartir de la dernière version serveur.</span><button onClick={() => window.location.reload()}>Recharger</button></div>}</div>;
+        }} /><button type="button" className="panel-close" onClick={() => setMobilePanel(null)} aria-label="Fermer le panneau de propriétés">×</button></aside></div>{publicationPreflight && <PublicationPreflightDialog report={publicationPreflight} pending={pendingAction} onClose={() => setPublicationPreflight(null)} onConfirm={() => void publishNow()} />}{showVersions && <VersionHistory pageId={initialPage.id} onRestore={restoreVersion} onClose={() => setShowVersions(false)} />}{showAi && <AiPanel pageId={initialPage.id} document={document} site={editorSite} selectedNodeId={selectedId} onClose={() => setShowAi(false)} onApply={(generated) => { commit((draft) => { draft.root = generated.root; draft.theme = generated.theme; }); setShowAi(false); setNotice('Proposition appliquée au brouillon. Vérifiez et enregistrez.'); }} />}{notice && <div className="editor-toast" role="status"><span>{notice}</span>{notice.startsWith('Site publié') && <a href={`/s/${project.slug}`} target="_blank">Voir le site ↗</a>}<button onClick={() => setNotice('')} aria-label="Fermer">×</button></div>}{saveState === 'conflict' && <div className="conflict-banner"><strong>Modification concurrente détectée.</strong><span>Votre texte reste dans cet onglet. Rechargez pour repartir de la dernière version serveur.</span><button onClick={() => window.location.reload()}>Recharger</button></div>}</div>;
 }
 
 function StructureTree({ node, selectedId, onSelect, onMove, onDrop, depth = 0 }: { node: PageNode; selectedId: string; onSelect: (id: string) => void; onMove: (id: string, direction: -1 | 1) => void; onDrop: (source: string, target: string) => void; depth?: number }) {
@@ -232,6 +253,6 @@ function PagesPanel({ projectId, pages, currentPage, saveState }: { projectId: s
   async function action(pageId: string, actionName: 'duplicate' | 'home') { setError(''); try { await apiFetch(`/api/pages/${pageId}/${actionName}`, { method: 'POST' }); window.location.reload(); } catch (reason) { setError(errorMessage(reason)); } }
   async function remove(pageId: string) { if (!window.confirm('Supprimer cette page du brouillon ?')) return; try { await apiFetch(`/api/pages/${pageId}`, { method: 'DELETE' }); if (pageId === currentPage.id) router.push(`/dashboard/projects/${projectId}`); else window.location.reload(); } catch (reason) { setError(errorMessage(reason)); } }
   async function create(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const values = new FormData(event.currentTarget); try { const result = await apiFetch<{ page: { id: string } }>(`/api/projects/${projectId}/pages`, { method: 'POST', body: JSON.stringify({ name: values.get('name'), path: values.get('path') }) }); router.push(`/dashboard/projects/${projectId}/editor/${result.page.id}`); } catch (reason) { setError(errorMessage(reason)); } }
-  async function metadata(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); if (saveState !== 'saved') { setError('Attendez la sauvegarde du document avant de modifier ses métadonnées.'); return; } const values = new FormData(event.currentTarget); try { await apiFetch(`/api/pages/${currentPage.id}`, { method: 'PATCH', body: JSON.stringify({ name: values.get('name'), path: values.get('path'), seoTitle: values.get('seoTitle'), seoDescription: values.get('seoDescription'), baseRevision: currentPage.draftRevision }) }); window.location.reload(); } catch (reason) { setError(errorMessage(reason)); } }
+  async function metadata(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); if (saveState !== 'saved') { setError('Attendez la sauvegarde du document avant de modifier ses métadonnées.'); return; } const values = new FormData(event.currentTarget); try { await apiFetch(`/api/pages/${currentPage.id}`, { method: 'PATCH', body: JSON.stringify({ name: values.get('name'), path: values.get('path') ?? currentPage.path, seoTitle: values.get('seoTitle'), seoDescription: values.get('seoDescription'), baseRevision: currentPage.draftRevision }) }); window.location.reload(); } catch (reason) { setError(errorMessage(reason)); } }
   return <><div className="panel-heading"><h2>Pages</h2><p>Navigation, accueil et référencement.</p></div><div className="editor-page-list">{pages.map((page) => <article key={page.id} className={page.id === currentPage.id ? 'active' : ''}><a href={`/dashboard/projects/${projectId}/editor/${page.id}`}><strong>{page.name}</strong><code>{page.path}</code></a><div><button onClick={() => action(page.id, 'home')} disabled={page.path === '/'} title="Définir comme accueil">⌂</button><button onClick={() => action(page.id, 'duplicate')} title="Dupliquer">⧉</button><button onClick={() => remove(page.id)} disabled={page.path === '/'} title="Supprimer">×</button></div></article>)}</div><button className="add-collection-item" onClick={() => setAdding(!adding)}>＋ Nouvelle page</button>{adding && <form className="page-create-form" onSubmit={create}><label>Nom<input name="name" required /></label><label>Chemin<input name="path" placeholder="/nouvelle-page" /></label><button className="button dark small">Créer</button></form>}<details className="page-seo"><summary>SEO de la page actuelle</summary><form onSubmit={metadata}><label>Nom<input name="name" defaultValue={currentPage.name} required /></label><label>Chemin<input name="path" defaultValue={currentPage.path} disabled={currentPage.path === '/'} /></label><label>Titre SEO<input name="seoTitle" defaultValue={currentPage.seoTitle} maxLength={180} /></label><label>Description SEO<textarea name="seoDescription" defaultValue={currentPage.seoDescription} maxLength={500} rows={3} /></label><button className="button secondary small">Enregistrer le SEO</button></form></details>{error && <div className="alert error">{error}</div>}</>;
 }

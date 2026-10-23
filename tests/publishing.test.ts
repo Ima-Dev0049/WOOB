@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { DatabaseContext } from '@/server/db';
 import { testDatabase, createAccount } from './helpers/database';
 import { createPage, createPageCheckpoint, createProject, getProjectDetails, listPageVersions, restorePageVersion, savePageDocument } from '@/server/services/projects';
-import { getPublishedSite, listPublications, publishProject, rollbackPublication, unpublishProject } from '@/server/services/publishing';
+import { getProjectPublicationPreflight, getPublishedSite, listPublications, publishProject, rollbackPublication, unpublishProject } from '@/server/services/publishing';
 import { cloneDocument, findNode } from '@/lib/document/validation';
 import { makeNode } from '@/lib/document/factory';
 import { getDesignSystem, withDesignSystem } from '@/lib/document/design-system';
@@ -113,5 +113,36 @@ describe('snapshots de publication', () => {
     expect(published.pages.find((page) => page.id === second.id)?.document.theme.designSystem?.tokens.colors.primary).toBe('#135724');
     expect(findNode(published.pages.find((page) => page.id === first.id)!.document.root, themedHeading.id)?.styleId).toBe('shared-heading');
     expect(published.pages.find((page) => page.id === first.id)?.document.theme.designSystem?.styles[0]).toMatchObject({ id: 'shared-heading', name: 'Titre partagé' });
+  });
+
+  it('recalcule le préflight, autorise les alertes et bloque sans créer de version si un média manque', async () => {
+    const account = await createAccount(context.db, 'preflight@example.com', 'Preflight');
+    const outsider = await createAccount(context.db, 'preflight-outside@example.com', 'Preflight Outside');
+    const details = await createProject(account.user.id, account.workspace.id, { name: 'Préflight publication', description: '', templateId: 'studio-business' }, context.db);
+    const page = details.pages[0]!;
+    const withWarning = cloneDocument(page.draftDocument);
+    withWarning.metadata.description = '';
+    await savePageDocument(account.user.id, page.id, { baseRevision: 0, document: withWarning }, context.db);
+    const initial = await getProjectPublicationPreflight(account.user.id, details.project.id, context.db);
+    expect(initial.status).toBe('warnings');
+    expect(initial.metrics.minimumContrast).toBeGreaterThanOrEqual(4.5);
+    expect(initial.issues.some((issue) => issue.id.startsWith('description-') && issue.severity === 'warning')).toBe(true);
+    await expect(getProjectPublicationPreflight(outsider.user.id, details.project.id, context.db)).rejects.toMatchObject({ status: 404 });
+
+    const published = await publishProject(account.user.id, details.project.id, context.db);
+    expect(published.preflight.status).toBe('warnings');
+    expect(await listPublications(account.user.id, details.project.id, context.db)).toHaveLength(1);
+    const broken = cloneDocument(withWarning);
+    const missingAssetId = crypto.randomUUID();
+    const hero = broken.root.children!.find((node) => node.type === 'hero')!;
+    hero.props.imageAssetId = missingAssetId;
+    await savePageDocument(account.user.id, page.id, { baseRevision: 1, document: broken }, context.db);
+    const blocked = await getProjectPublicationPreflight(account.user.id, details.project.id, context.db);
+    expect(blocked.status).toBe('blocked');
+    expect(blocked.issues.some((issue) => issue.id === `missing-asset-${missingAssetId}`)).toBe(true);
+    await expect(publishProject(account.user.id, details.project.id, context.db)).rejects.toMatchObject({ status: 422, code: 'PUBLICATION_QUALITY_BLOCKED' });
+    expect(await listPublications(account.user.id, details.project.id, context.db)).toHaveLength(1);
+    const active = await getPublishedSite(details.project.slug, context.db);
+    expect(active?.publicationId).toBe(published.publication.id);
   });
 });

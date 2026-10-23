@@ -2,7 +2,21 @@
 
 Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-## Incrément courant — `experience-motion`
+## Incrément courant — `publication-preflight`
+
+La publication dispose désormais d’un contrôle préalable déterministe, calculé depuis le `SiteSnapshot` validé et le diagnostic créatif existant. Le moteur `src/lib/publication/preflight.ts` ne duplique ni la validation structurelle ni les règles de contraste, SEO, responsive, brief ou motion. Il ajoute les références de médias managés absents ou supprimés et additionne les octets réellement enregistrés, avec une requête bornée au workspace, au projet, aux identifiants référencés et aux lignes non supprimées. Les images de produits sont attribuées aux pages qui contiennent un bloc catalogue ; leur portée globale de publication reste inchangée.
+
+Le rapport distingue `pass`, `warnings` et `blocked`. Par page, un poids strictement supérieur à **1 500 000 octets** produit un avertissement et un poids strictement supérieur à **5 000 000 octets** produit un blocage. Une erreur structurelle ou un média manquant bloque ; une description SEO absente ou un avertissement de motion reste publiable après confirmation. `GET /api/projects/[projectId]/publication-preflight` expose le rapport en lecture authentifiée. Le service `publishProject` recalcule obligatoirement ce rapport avant `persistPublication` et répond **422 `PUBLICATION_QUALITY_BLOCKED`** sans créer de version si une erreur est présente. Le rollback de snapshot reste inchangé.
+
+L’éditeur sauvegarde d’abord le brouillon, publie directement un rapport conforme et affiche sinon un dialogue accessible avec erreurs, avertissements, contraste structurel minimal, poids global et par page, entrées animées et scènes 3D. Le serveur recalcule après confirmation : le navigateur ne peut donc pas transformer un blocage en publication réussie. Le formulaire SEO de la page d’accueil conserve aussi son chemin `/`, absent de `FormData` parce que le champ est désactivé. La couleur primaire par défaut des nouveaux documents est `#6D4AFF` (ratio mesuré de **4,93:1** sur `#FAFAF8` et **5,15:1** sur blanc) ; les documents historiques ne sont pas migrés.
+
+- `npm run verify` : TypeScript strict, ESLint, build et **91/91 Vitest dans 16 fichiers** réussis.
+- `npx playwright test --workers=1` : **46/46 Playwright** sur build de production en Chromium, en **10,5 min**. Le nouveau parcours modifie réellement le SEO de l’accueil, vérifie le GET et l’avertissement, audite le dialogue avec axe, confirme le POST puis lit le site publié anonymement.
+- Les tests couvrent les seuils exacts et leur dépassement d’un octet, médias manquants, produits, diagnostics structurels, avertissement non bloquant, blocage serveur sans nouvelle version, conservation de la publication active et refus d’accès horizontal. La capture du dialogue a été inspectée.
+- Aucune dépendance, migration, réinitialisation de base, modification d’environnement sensible ou publication externe. Les avertissements non bloquants de traçage filesystem et de configuration Vite persistent.
+- **Limites :** contrôle documentaire et médias managés référencés uniquement. Ce n’est ni une inspection visuelle, ni une conformité WCAG globale, ni Lighthouse, ni une mesure LCP/Core Web Vitals ou du réseau. Le poids des médias distants, fontes, CSS, JavaScript et autres ressources n’entre pas dans ces budgets.
+
+## Incrément précédent — `experience-motion`
 
 Une couche de motion design native harmonise le marketing, l’authentification, le back-office, l’éditeur et les sites publics sans nouvelle dépendance. `RouteMotion` utilise WAAPI pour une entrée courte à chaque navigation, sans masquer le HTML SSR ni conserver de transformation après la fin. Les boutons, champs, cartes, onglets, modales, alertes, tiroirs et feedbacks disposent de transitions bornées ; le feedback de pression des boutons conserve la transition `transform` historique afin de rester stable au clavier comme au clic.
 
@@ -75,7 +89,7 @@ La capacité procédurale est intégrée au registre, à l’orchestrateur synch
 
 ## Résultats historiques du socle
 
-Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `experience-motion` ci-dessus et des guides créatifs.
+Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `publication-preflight` ci-dessus et des guides créatifs.
 
 | Vérification | Résultat constaté |
 | --- | --- |
@@ -112,6 +126,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - Édition mobile utilisable à 390 px : tiroirs de blocs/propriétés, aperçu responsive et sauvegarde conservée dans la barre d’actions.
 - Document canonique versionné et validé ; registre de composants ; renderer commun sans HTML arbitraire ni `dangerouslySetInnerHTML` ; contrôle des clés de prototype et des URL dangereuses, y compris dans les propriétés imbriquées.
 - Aperçu privé, multipage, publication par `SiteSnapshot`, dépublication, historique et rollback sans mélanger brouillon et version publique.
+- Préflight de publication côté serveur : diagnostic créatif réutilisé, médias managés manquants, budgets d’octets par page, métriques motion/3D, endpoint authentifié, dialogue de confirmation et erreur 422 bloquante recalculée au POST. Le parcours conforme et le rollback existants sont préservés.
 - Médias PNG/JPEG/WebP/GIF : signature du contenu, taille/quota, chemins confinés, accès privé/public et protection contre la suppression d’un média utilisé. Pilotes fichier et S3 présents.
 - Modules métier : messages, demandes de réservation, commandes manuelles, catalogue, articles et activation de modules. Prix relus côté serveur, lignes de panier consolidées, stock transactionnel et restauration à l’annulation.
 - IA structurée : propositions JSON limitées aux opérations du registre, quota/journal, aperçu isolé avant application, mode démo local explicitement étiqueté et adaptateur OpenAI configurable. Pour la création, le brouillon généré est lié au workspace et à son auteur, vérifié contre la sélection et consommable une seule fois ; le mode local ne fait aucun appel distant.
@@ -149,6 +164,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - Parcours obligatoire : sélection d’un titre Hero, modification, sauvegarde, actualisation et texte retrouvé ; publication et lecture anonyme.
 - Double refus d’accès croisé `404` entre comptes, refus `viewer`, conflit de révision et isolation des snapshots.
 - Publication, dépublication et rollback ; les modifications du brouillon ne changent pas le snapshot actif.
+- Préflight : budgets à 1 500 000/5 000 000 octets et dépassements d’un octet, médias managés manquants, portée produits, avertissements non bloquants, 422 sans écriture de version, snapshot actif inchangé, accès horizontal refusé et confirmation navigateur auditée avec axe.
 - Points de brouillon : création, restauration dans une nouvelle révision, historique conservé et contenu retrouvé après rechargement.
 - Validation des six modèles techniques, opérations d’arbre, pollution `__proto__`, URL `javascript:` et propriétés IA arbitraires.
 - Catalogue : unicité globale, parents et relations des 180 entrées sectorielles, capacités implémentées, recherche sans accent, filtres combinés, retrait des pages/composants selon les modules et refus d’un module incompatible. La création libre sans type ni domaine produit aussi un document valide.
@@ -184,6 +200,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - Les variantes du catalogue nommées marketplace, SaaS, LMS, portail patient, billetterie, dons ou paiement produisent seulement l’architecture éditoriale et les modules affichés comme disponibles. Leurs limites sont présentées dans le wizard ; aucun backend de ce type n’est simulé.
 - Le catalogue typographique local couvre seulement le style normal et le sous-ensemble latin ; l’upload de fontes, les italiques et les autres sous-ensembles ne sont pas implémentés. Le lot personnalisation ne comprend pas encore les images/vidéos de fond, le recadrage média, les carrousels/lightbox, les timelines de scroll libres, le CSS arbitraire ou les scripts tiers. La parallaxe et les presets de progression bornés du lot `scroll-motion` ne constituent pas un éditeur de timeline. Les presets sont enregistrés par projet ; il n’existe pas encore de bibliothèque partagée entre projets ni de gestion visuelle complète de leur cycle de vie. L’application multiple cible les blocs d’un même type, pas une sélection arbitraire multiple.
 - Le diagnostic de contraste couvre quatre paires par palette active, en hexadécimal. Il ne vérifie pas tous les états, images, dégradés ou composants et ne remplace pas un audit manuel.
+- Le préflight de publication réutilise ce diagnostic limité et ne contrôle que les médias managés référencés. Ses seuils sont des budgets déterministes par page, pas le poids total d’une navigation : médias distants, fontes, CSS, JavaScript, réseau, LCP et Core Web Vitals sont hors périmètre. Aucune inspection visuelle ou certification WCAG n’est déduite du rapport.
 - Le build PDF de la documentation de référence n’est pas livré ; les neuf SVG déjà produits restent des documents de référence, pas des tests applicatifs.
 
 ## État local de la preview
@@ -192,4 +209,4 @@ La preview courante utilise `.woob-data-runtime-v2`, initialisée par les migrat
 
 ## Prochaine priorité
 
-Après les incréments `scene3d`, `surface-motion`, `scroll-motion`, `ai-idempotency` et `font-catalog-500`, la priorité d’architecture est d’étendre la reprise idempotente à `project_create`, puis d’évaluer un worker durable si une exécution sans requête devient nécessaire. Les preuves navigateur produit et corrections ciblées à cycles bornés restent nécessaires. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.
+Après les incréments `scene3d`, `surface-motion`, `scroll-motion`, `ai-idempotency`, `font-catalog-500`, `experience-motion` et `publication-preflight`, la priorité d’architecture est d’étendre la reprise idempotente à `project_create`, puis d’évaluer un worker durable si une exécution sans requête devient nécessaire. Les preuves navigateur produit et corrections ciblées à cycles bornés restent nécessaires. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.
