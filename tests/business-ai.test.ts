@@ -6,7 +6,7 @@ import { createProject, savePageDocument } from '@/server/services/projects';
 import { publishProject } from '@/server/services/publishing';
 import { createManualOrder, submitPublicForm, submitReservation } from '@/server/services/public-business';
 import { updateOrderStatus } from '@/server/services/business';
-import { orders, products, formSubmissions, reservations, plans, subscriptions, domains } from '@/server/db/schema';
+import { orders, products, formSubmissions, reservations, plans, subscriptions, domains, aiGenerations } from '@/server/db/schema';
 import { addDomain, listDomains, verifyDomain } from '@/server/services/domains';
 import { createCheckout, handleStripeWebhook } from '@/server/services/billing';
 import { generateAiProposal } from '@/server/services/ai';
@@ -108,6 +108,67 @@ describe('IA structurée et mode démo', () => {
     const preview = applyAiProposal(page.draftDocument, generated.proposal);
     expect(findNode(preview.root, heading.id)?.props.text).toContain('Studio de céramique durable');
     expect(findNode(page.draftDocument.root, heading.id)?.props.text).toBe('Titre initial');
+  });
+
+  it('rejoue une réponse terminée avec la même clé sans créer de doublon', async () => {
+    const account = await createAccount(context.db, 'aiidempotency@example.com', 'AI Idempotency');
+    const details = await createProject(account.user.id, account.workspace.id, { name: 'Projet IA idempotente', description: '', templateId: 'studio-business' }, context.db);
+    const page = details.pages[0]!;
+    const target = flattenNodes(page.draftDocument.root).find((node) => node.type === 'hero')!;
+    const requestId = crypto.randomUUID();
+    const input = { instruction: 'Un atelier de céramique lumineux', selectedNodeId: target.id, requestId };
+    const first = await generateAiProposal(account.user.id, page.id, input, context.db);
+    const replay = await generateAiProposal(account.user.id, page.id, input, context.db);
+    expect(first.replayed).toBe(false);
+    expect(replay).toMatchObject({ id: first.id, requestId, replayed: true });
+    expect(replay.proposal).toEqual(first.proposal);
+    const rows = await context.db.select().from(aiGenerations).where(eq(aiGenerations.requestKey, requestId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ pageId: page.id, selectedNodeId: target.id, baseRevision: page.draftRevision, attempts: 1, state: 'completed' });
+    expect(rows[0]!.requestHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(rows[0]!.leaseExpiresAt).toBeNull();
+    await expect(generateAiProposal(account.user.id, page.id, { ...input, instruction: 'Une consigne différente' }, context.db)).rejects.toMatchObject({ status: 409, code: 'AI_REQUEST_MISMATCH' });
+    expect(await context.db.select().from(aiGenerations).where(eq(aiGenerations.requestKey, requestId))).toHaveLength(1);
+  });
+
+  it('refuse un doublon actif puis reprend un bail expiré sans nouvelle ligne', async () => {
+    const account = await createAccount(context.db, 'airecovery@example.com', 'AI Recovery');
+    const details = await createProject(account.user.id, account.workspace.id, { name: 'Projet IA reprise', description: '', templateId: 'studio-business' }, context.db);
+    const page = details.pages[0]!;
+    const target = flattenNodes(page.draftDocument.root).find((node) => node.type === 'hero')!;
+    const requestId = crypto.randomUUID();
+    const input = { instruction: 'Un atelier de céramique durable', selectedNodeId: target.id, requestId };
+    const first = await generateAiProposal(account.user.id, page.id, input, context.db);
+    await context.db.update(aiGenerations).set({ state: 'processing', output: null, completedAt: null, leaseExpiresAt: new Date(Date.now() + 60_000) }).where(eq(aiGenerations.id, first.id));
+    await expect(generateAiProposal(account.user.id, page.id, input, context.db)).rejects.toMatchObject({ status: 409, code: 'AI_GENERATION_IN_PROGRESS' });
+    expect((await context.db.select().from(aiGenerations).where(eq(aiGenerations.id, first.id)))[0]!.attempts).toBe(1);
+
+    await context.db.update(aiGenerations).set({ leaseExpiresAt: new Date(Date.now() - 1000) }).where(eq(aiGenerations.id, first.id));
+    const recovered = await generateAiProposal(account.user.id, page.id, input, context.db);
+    expect(recovered).toMatchObject({ id: first.id, requestId, replayed: false });
+    const row = (await context.db.select().from(aiGenerations).where(eq(aiGenerations.id, first.id)))[0]!;
+    expect(row).toMatchObject({ state: 'completed', attempts: 2 });
+    expect(row.leaseExpiresAt).toBeNull();
+    expect(await context.db.select().from(aiGenerations).where(eq(aiGenerations.requestKey, requestId))).toHaveLength(1);
+    expect((await generateAiProposal(account.user.id, page.id, input, context.db)).replayed).toBe(true);
+  });
+
+  it('refuse la reprise expirée si la page a changé depuis la demande initiale', async () => {
+    const account = await createAccount(context.db, 'aistale@example.com', 'AI Stale');
+    const details = await createProject(account.user.id, account.workspace.id, { name: 'Projet IA révision', description: '', templateId: 'studio-business' }, context.db);
+    const page = details.pages[0]!;
+    const target = flattenNodes(page.draftDocument.root).find((node) => node.type === 'hero')!;
+    const requestId = crypto.randomUUID();
+    const input = { instruction: 'Une proposition devenue obsolète', selectedNodeId: target.id, requestId };
+    const first = await generateAiProposal(account.user.id, page.id, input, context.db);
+    await context.db.update(aiGenerations).set({ state: 'processing', output: null, completedAt: null, leaseExpiresAt: new Date(Date.now() - 1000) }).where(eq(aiGenerations.id, first.id));
+    const changed = structuredClone(page.draftDocument);
+    findNode(changed.root, target.id)!.props.title = 'Modification indépendante conservée';
+    await savePageDocument(account.user.id, page.id, { baseRevision: page.draftRevision, document: changed }, context.db);
+    await expect(generateAiProposal(account.user.id, page.id, input, context.db)).rejects.toMatchObject({ status: 409, code: 'AI_PAGE_CHANGED' });
+    const row = (await context.db.select().from(aiGenerations).where(eq(aiGenerations.id, first.id)))[0]!;
+    expect(row).toMatchObject({ state: 'failed', errorCode: 'AI_PAGE_CHANGED', attempts: 1 });
+    expect(findNode(changed.root, target.id)?.props.title).toBe('Modification indépendante conservée');
   });
 
   it('propose la 3D sur demande explicite puis la reconfigure sans écraser ses autres réglages', async () => {

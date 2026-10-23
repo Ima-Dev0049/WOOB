@@ -2,7 +2,19 @@
 
 Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-## Incrément courant — `scroll-motion`
+## Incrément courant — `ai-idempotency`
+
+Les générations IA `page_edit` acceptent désormais un `requestId` ou l’en-tête `Idempotency-Key`. Une empreinte SHA-256 lie la clé à la page, la consigne et le bloc ; la réutiliser pour une autre demande est refusée. Une réponse terminée est relue et validée puis renvoyée avec le même identifiant et le même résultat, sans nouvelle ligne ni nouveau décompte de quota. La route renvoie 200 pour ce replay et conserve 201 pour une nouvelle exécution.
+
+Un bail de 120 secondes bloque les doublons actifs. Après expiration, une reprise atomique incrémente `attempts`, qui sert de fencing token contre la finalisation d’une ancienne exécution. Si la révision de la page a changé avant reprise, la génération échoue explicitement au lieu de changer de contexte. La migration additive `0007_blushing_the_spike.sql` conserve les anciennes lignes et la création de projet.
+
+- `npm run verify` : TypeScript, ESLint, build et **80/80 Vitest dans 14 fichiers** réussis.
+- `npm run test:e2e` : **39/39 Playwright** sur le build de production, en Chromium. Le nouveau parcours laisse le serveur terminer réellement, interrompt la première réponse navigateur, puis vérifie le même `id`, la même clé et `replayed:true` au second essai.
+- Les tests unitaires couvrent le replay, l’empreinte différente, le bail actif, la reprise expirée et la révision de page modifiée. Les états de crash sont simulés en base : aucun test `SIGKILL` ou de coupure système n’est revendiqué.
+- `npm ci --no-audit --no-fund` a restauré les 483 paquets verrouillés ; aucune nouvelle dépendance. Migration générée par Drizzle et appliquée au démarrage de la preview, sans réinitialisation de base ni modification d’environnement sensible.
+- **Limite :** l’exécution reste liée à la requête, sans worker autonome. Si un processus s’arrête après une réponse du fournisseur mais avant l’enregistrement local, une reprise peut devoir rappeler ce fournisseur : l’exactly-once externe n’est pas garanti. Le lot ne couvre pas encore `project_create`.
+
+## Incrément précédent — `scroll-motion`
 
 Le document accepte désormais un déclenchement `scroll` et un preset `parallax`, en conservant les entrées `in-view` existantes. `CreativeMotion` calcule une progression bornée avec des listeners passifs et un seul `requestAnimationFrame` par événement, sans boucle permanente. Le HTML SSR reste visible ; reduced-motion supprime la progression et les transformations, y compris lorsque la préférence change pendant la consultation.
 
@@ -32,14 +44,14 @@ Une couche motion native et bornée améliore l’accueil, les tarifs et le tabl
 
 La capacité procédurale est intégrée au registre, à l’orchestrateur synchrone, à l’agent prévisualisable, à l’éditeur, à la persistance, au renderer public et à la démo Atelier Ligne. Three.js est différé, borné, suspendu hors viewport et remplacé par un fallback sous reduced motion ou indisponibilité WebGL. Voir [../WOOB_SCENE3D.md](../WOOB_SCENE3D.md) pour le contrat et les limites.
 
-- Au moment de sa livraison : **74/74 Vitest**, **32/32 Playwright**, TypeScript, ESLint et build réussis ; la suite courante est désormais de 38 scénarios Playwright.
+- Au moment de sa livraison : **74/74 Vitest**, **32/32 Playwright**, TypeScript, ESLint et build réussis ; la suite courante est désormais de 39 scénarios Playwright.
 - Captures 3D réelles à 1440/390 px inspectées ; smoke HTTP et audit axe ciblé réussis.
 - `npm audit --omit=dev` : 0 vulnérabilité ; 4 alertes modérées de développement conservées sans correctif forcé.
 - Aucune migration, réinitialisation de base, modification d’environnement sensible ou publication externe pour ce lot.
 
 ## Résultats historiques du socle
 
-Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `scroll-motion` ci-dessus et des guides créatifs.
+Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `ai-idempotency` ci-dessus et des guides créatifs.
 
 | Vérification | Résultat constaté |
 | --- | --- |
@@ -77,6 +89,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - Médias PNG/JPEG/WebP/GIF : signature du contenu, taille/quota, chemins confinés, accès privé/public et protection contre la suppression d’un média utilisé. Pilotes fichier et S3 présents.
 - Modules métier : messages, demandes de réservation, commandes manuelles, catalogue, articles et activation de modules. Prix relus côté serveur, lignes de panier consolidées, stock transactionnel et restauration à l’annulation.
 - IA structurée : propositions JSON limitées aux opérations du registre, quota/journal, aperçu isolé avant application, mode démo local explicitement étiqueté et adaptateur OpenAI configurable. Pour la création, le brouillon généré est lié au workspace et à son auteur, vérifié contre la sélection et consommable une seule fois ; le mode local ne fait aucun appel distant.
+- Idempotence des propositions `page_edit` : clé scoped workspace/utilisateur, empreinte de requête, replay validé, bail de 120 s, reprise atomique avec fencing et protection de révision. L’exécution reste synchrone dans la requête ; aucun worker autonome ni exactly-once fournisseur n’est déclaré.
 - Capacité `scene3d` : opérations `insert/update/remove` validées sur clone, une scène par page, presets procéduraux Three.js, inspecteur, undo/redo, sauvegarde/publication, pause/reprise, suspension et fallback. L’orchestration est synchrone ; aucune tâche longue persistante n’est déclarée.
 - Domaines : normalisation IDN avec rejet des chemins/ports, quotas, conflit 409, DTO sans hash interne, jeton TXT hashé, instructions affichées une fois et resolver DNS seulement si activé. Aucun succès TLS/routage simulé.
 - Facturation : utilisation et offres, checkout Stripe conditionnel, webhook signé et idempotent. Le retour navigateur ne change jamais le plan ; seul un abonnement confirmé peut le faire.
@@ -98,6 +111,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 
 ## Comportements vérifiés par tests
 
+- Idempotence IA : replay d’une réponse terminée sans doublon, refus d’une autre consigne avec la même clé, doublon actif refusé, bail expiré repris avec `attempts=2`, révision de page modifiée refusée et interruption réseau navigateur suivie d’un replay HTTP 200 identique.
 - Motion de surface : révélation et état final statique, progression/compactage du header, ancre non masquée, contenu SSR sans JavaScript, reduced motion, largeur mobile, liens accessibles avant révélation et modales fixes ouvertes depuis le header comme depuis l’état vide du dashboard.
 - Motion scroll de document : parallaxe IA annulée sans effet puis appliquée, undo/redo, amplitude conservée après rechargement, snapshot publié, progression réelle sans boucle, reduced-motion initial/dynamique et contenu SSR visible ; validation des cibles et du budget de trois effets.
 - Design system : compatibilité d’un ancien document, normalisation idempotente, héritage desktop/tablette/mobile, priorité des exceptions, états, copie/reset, références de presets, dégradés sûrs, variables expertes, entrées CSS/URL hostiles et contrastes.
@@ -130,6 +144,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 
 - **Aucun déploiement public, PostgreSQL externe, S3, SMTP, appel OpenAI, paiement Stripe, DNS public ou certificat TLS n’a été vérifié.** Leur code ou leurs variables ne valent pas preuve d’intégration.
 - L’IA démo est testée ; le fournisseur OpenAI ne l’est pas. Le pilote email fichier ne transmet aucun email.
+- L’idempotence `page_edit` ne remplace pas une file de travaux : pas de worker autonome, pas de reprise sans nouvelle requête et pas de garantie exactly-once chez un fournisseur externe dans la fenêtre réponse fournisseur/enregistrement local. `project_create` n’est pas encore couvert.
 - Les offres payantes restent sans montant configuré. Aucun prix n’a été inventé pour rendre le checkout artificiellement utilisable.
 - Les domaines personnalisés ne sont pas encore routés par l’application et aucune émission TLS n’est incluse. La disponibilité d’un domaine chez un registrar n’est jamais présumée.
 - Le français et l’anglais fonctionnent sur le shell, le dashboard, les libellés du wizard de création, les paramètres/membres, l’authentification et la console admin. De nombreuses variantes et entrées sectorielles utilisent encore le français comme fallback ; l’éditeur, les autres écrans du back-office, le marketing, les modèles et de nombreux messages serveur restent à traduire.
@@ -149,4 +164,4 @@ La preview courante utilise `.woob-data-runtime-v2`, initialisée par les migrat
 
 ## Prochaine priorité
 
-Après les incréments `scene3d`, `surface-motion` et `scroll-motion`, la priorité d’architecture reste une orchestration persistante et idempotente pour les tâches longues, puis des preuves navigateur produit et des corrections ciblées à cycles bornés. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.
+Après les incréments `scene3d`, `surface-motion`, `scroll-motion` et `ai-idempotency`, la priorité d’architecture est d’étendre la reprise idempotente à `project_create`, puis d’évaluer un worker durable si une exécution sans requête devient nécessaire. Les preuves navigateur produit et corrections ciblées à cycles bornés restent nécessaires. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.

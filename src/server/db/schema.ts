@@ -251,16 +251,23 @@ export const aiGenerations = pgTable('ai_generations', {
   id: uuid('id').primaryKey(),
   workspaceId: uuid('workspace_id').notNull(),
   projectId: uuid('project_id'),
+  pageId: uuid('page_id'),
   requestedBy: uuid('requested_by').notNull().references(() => users.id),
   kind: text('kind').notNull(),
   provider: text('provider').notNull(),
   model: text('model').notNull(),
   state: text('state').notNull(),
   prompt: text('prompt').notNull(),
+  requestKey: text('request_key'),
+  requestHash: text('request_hash'),
+  selectedNodeId: text('selected_node_id'),
+  baseRevision: integer('base_revision'),
   output: jsonb('output').$type<unknown>(),
   errorCode: text('error_code'),
+  attempts: integer('attempts').notNull().default(0),
   inputUnits: integer('input_units').notNull().default(0),
   outputUnits: integer('output_units').notNull().default(0),
+  leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp('completed_at', { withTimezone: true }),
 }, (table) => [
@@ -270,6 +277,7 @@ export const aiGenerations = pgTable('ai_generations', {
     name: 'ai_generations_project_tenant_fk',
   }).onDelete('cascade'),
   index('ai_generations_workspace_created_idx').on(table.workspaceId, table.createdAt),
+  uniqueIndex('ai_generations_request_key_unique').on(table.workspaceId, table.requestedBy, table.requestKey),
 ]);
 
 export const usageRecords = pgTable('usage_records', {

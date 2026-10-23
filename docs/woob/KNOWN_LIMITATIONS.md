@@ -4,6 +4,7 @@
 - PGlite reste un mode local mono-processus. Les arrêts `SIGINT`/`SIGTERM` sont synchronisés, mais `SIGKILL`, une coupure système et les accès concurrents ne sont pas une stratégie de production ; utiliser PostgreSQL et des sauvegardes réelles.
 - Le stockage et l’email fichiers sont des pilotes locaux ; la boîte fichier n’envoie pas de messages.
 - Le mode IA démo est un gabarit local et ne doit pas être présenté comme une réponse d’un modèle distant.
+- L’idempotence des propositions `page_edit` rejoue les résultats terminés et reprend les baux expirés, mais n’est ni un worker autonome ni une garantie exactly-once chez OpenAI. Une coupure entre réponse externe et enregistrement local peut imposer un nouvel appel ; `project_create` reste hors de ce mécanisme.
 - `dns_verified` atteste seulement le TXT lu par le resolver configuré ; il ne signifie ni hôte routé ni certificat émis. Les transitions sont testées avec un resolver simulé, pas avec un domaine public.
 - Les commandes sont manuelles ; leurs montants et statuts `paid`/`unpaid`, y compris dans les statistiques admin, ne prouvent pas un encaissement bancaire ou Stripe. Aucun paiement réussi n’est affiché sans prestataire confirmé.
 - Les réservations sont des demandes en attente, sans moteur complet de disponibilité ni confirmation automatique.

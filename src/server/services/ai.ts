@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { createId } from '@/lib/id';
@@ -14,7 +15,7 @@ import { ApiError } from '@/server/http';
 import { requireProject } from '@/server/auth/tenancy';
 import { assertAiQuota } from './quotas';
 
-const requestSchema = z.object({ instruction: z.string().trim().min(3).max(1000), selectedNodeId: z.string().max(160).optional() });
+const requestSchema = z.object({ instruction: z.string().trim().min(3).max(1000), selectedNodeId: z.string().max(160).optional(), requestId: z.string().uuid().optional() });
 type AiRequest = z.infer<typeof requestSchema>;
 
 function demoProposal(page: typeof pages.$inferSelect, request: AiRequest): AiProposal {
@@ -124,24 +125,80 @@ async function openAiProposal(page: typeof pages.$inferSelect, request: AiReques
   return { proposal: parsed, model: process.env.OPENAI_MODEL, inputUnits: response.usage?.input_tokens || 0, outputUnits: response.usage?.output_tokens || 0 };
 }
 
-export async function generateAiProposal(userId: string, pageId: string, input: unknown, db?: Db) {
-  const request = requestSchema.parse(input);
+const AI_LEASE_MS = 120_000;
+type AiGeneration = typeof aiGenerations.$inferSelect;
+type AiProposalResult = { id: string; requestId: string; proposal: AiProposal; provider: string; model: string; demo: boolean; replayed: boolean };
+
+function fingerprint(pageId: string, request: AiRequest): string {
+  return createHash('sha256').update(JSON.stringify({ pageId, instruction: request.instruction, selectedNodeId: request.selectedNodeId ?? null })).digest('hex');
+}
+
+function completedResult(row: AiGeneration): AiProposalResult {
+  if (!row.requestKey) throw new ApiError(500, 'AI_RESULT_INVALID', 'La génération journalisée ne contient pas sa clé de reprise.');
+  const parsed = aiProposalSchema.safeParse(row.output);
+  if (!parsed.success) throw new ApiError(500, 'AI_RESULT_INVALID', 'La génération journalisée ne contient pas une proposition réutilisable.');
+  return { id: row.id, requestId: row.requestKey, proposal: parsed.data, provider: row.provider, model: row.model, demo: row.provider === 'demo', replayed: true };
+}
+
+async function executeAiGeneration(database: Db, row: AiGeneration, page: typeof pages.$inferSelect, request: AiRequest, attempt: number): Promise<AiProposalResult> {
+  if (!row.requestKey) throw new ApiError(500, 'AI_RESULT_INVALID', 'La génération à exécuter ne contient pas sa clé de reprise.');
+  try {
+    const result = row.provider === 'demo' ? { proposal: demoProposal(page, request), model: 'local-template-v1', inputUnits: 0, outputUnits: 0 } : await openAiProposal(page, request);
+    applyAiProposal(page.draftDocument, result.proposal);
+    const completed = await database.update(aiGenerations).set({
+      state: 'completed', output: result.proposal, model: result.model, errorCode: null, inputUnits: result.inputUnits, outputUnits: result.outputUnits, leaseExpiresAt: null, completedAt: new Date(),
+    }).where(and(eq(aiGenerations.id, row.id), eq(aiGenerations.state, 'processing'), eq(aiGenerations.attempts, attempt))).returning();
+    if (!completed[0]) throw new ApiError(409, 'AI_GENERATION_SUPERSEDED', 'Une reprise plus récente a remplacé cette exécution.');
+    return { id: row.id, requestId: row.requestKey, proposal: result.proposal, provider: row.provider, model: result.model, demo: row.provider === 'demo', replayed: false };
+  } catch (error) {
+    await database.update(aiGenerations).set({ state: 'failed', errorCode: error instanceof ApiError ? error.code : 'PROVIDER_OR_VALIDATION_ERROR', leaseExpiresAt: null, completedAt: new Date() })
+      .where(and(eq(aiGenerations.id, row.id), eq(aiGenerations.state, 'processing'), eq(aiGenerations.attempts, attempt)));
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(502, 'AI_GENERATION_FAILED', 'La génération a échoué ou sa réponse n’est pas valide. Aucune modification n’a été appliquée.');
+  }
+}
+
+export async function generateAiProposal(userId: string, pageId: string, input: unknown, db?: Db): Promise<AiProposalResult> {
+  const parsed = requestSchema.parse(input);
+  const requestId = parsed.requestId ?? createId('request');
+  const request: AiRequest = { ...parsed, requestId };
+  const requestHash = fingerprint(pageId, request);
   const database = db ?? await getDb();
   const page = (await database.select().from(pages).where(eq(pages.id, pageId)).limit(1))[0];
   if (!page) throw new ApiError(404, 'PAGE_NOT_FOUND', 'Page introuvable.');
   const project = await requireProject(userId, page.projectId, 'edit', database);
+  const findExisting = async () => (await database.select().from(aiGenerations).where(and(
+    eq(aiGenerations.workspaceId, project.workspaceId), eq(aiGenerations.requestedBy, userId), eq(aiGenerations.requestKey, requestId),
+  )).limit(1))[0];
+  const resolveExisting = async (row: AiGeneration): Promise<AiProposalResult> => {
+    if (row.kind !== 'page_edit' || row.pageId !== pageId || row.requestHash !== requestHash) throw new ApiError(409, 'AI_REQUEST_MISMATCH', 'Cette clé de reprise a déjà été utilisée pour une autre demande.');
+    if (row.state === 'completed') return completedResult(row);
+    if (row.state === 'failed') throw new ApiError(409, 'AI_GENERATION_ALREADY_FAILED', 'Cette demande a déjà échoué. Relancez une nouvelle proposition.');
+    if (row.state !== 'processing') throw new ApiError(409, 'AI_GENERATION_STATE_INVALID', 'Cette génération ne peut pas être reprise.');
+    if (row.leaseExpiresAt && row.leaseExpiresAt.getTime() > Date.now()) throw new ApiError(409, 'AI_GENERATION_IN_PROGRESS', 'Une génération identique est déjà en cours. Patientez avant de renvoyer la demande.', { retryAfterMs: Math.max(1000, row.leaseExpiresAt.getTime() - Date.now()) });
+    if (row.baseRevision !== null && row.baseRevision !== page.draftRevision) {
+      await database.update(aiGenerations).set({ state: 'failed', errorCode: 'AI_PAGE_CHANGED', leaseExpiresAt: null, completedAt: new Date() })
+        .where(and(eq(aiGenerations.id, row.id), eq(aiGenerations.state, 'processing'), eq(aiGenerations.attempts, row.attempts)));
+      throw new ApiError(409, 'AI_PAGE_CHANGED', 'La page a changé depuis la demande initiale. Créez une nouvelle proposition.');
+    }
+    const attempt = row.attempts + 1;
+    const claimed = await database.update(aiGenerations).set({ attempts: attempt, output: null, errorCode: null, completedAt: null, leaseExpiresAt: new Date(Date.now() + AI_LEASE_MS) })
+      .where(and(eq(aiGenerations.id, row.id), eq(aiGenerations.state, 'processing'), eq(aiGenerations.attempts, row.attempts))).returning();
+    if (!claimed[0]) throw new ApiError(409, 'AI_GENERATION_IN_PROGRESS', 'Une reprise identique vient de commencer. Patientez avant de renvoyer la demande.');
+    return executeAiGeneration(database, row, page, request, attempt);
+  };
+
+  const existing = await findExisting();
+  if (existing) return resolveExisting(existing);
   await assertAiQuota(project.workspaceId, database);
   const provider = process.env.AI_PROVIDER === 'openai' ? 'openai' : 'demo';
-  const generationId = createId('generation');
-  await database.insert(aiGenerations).values({ id: generationId, workspaceId: project.workspaceId, projectId: project.id, requestedBy: userId, kind: 'page_edit', provider, model: provider === 'demo' ? 'local-template-v1' : process.env.OPENAI_MODEL || 'unconfigured', state: 'processing', prompt: request.instruction });
-  try {
-    const result = provider === 'demo' ? { proposal: demoProposal(page, request), model: 'local-template-v1', inputUnits: 0, outputUnits: 0 } : await openAiProposal(page, request);
-    applyAiProposal(page.draftDocument, result.proposal);
-    await database.update(aiGenerations).set({ state: 'completed', output: result.proposal, model: result.model, inputUnits: result.inputUnits, outputUnits: result.outputUnits, completedAt: new Date() }).where(and(eq(aiGenerations.id, generationId), eq(aiGenerations.workspaceId, project.workspaceId)));
-    return { id: generationId, proposal: result.proposal, provider, model: result.model, demo: provider === 'demo' };
-  } catch (error) {
-    await database.update(aiGenerations).set({ state: 'failed', errorCode: error instanceof ApiError ? error.code : 'PROVIDER_OR_VALIDATION_ERROR', completedAt: new Date() }).where(eq(aiGenerations.id, generationId));
-    if (error instanceof ApiError) throw error;
-    throw new ApiError(502, 'AI_GENERATION_FAILED', 'La génération a échoué ou sa réponse n’est pas valide. Aucune modification n’a été appliquée.');
-  }
+  const inserted = await database.insert(aiGenerations).values({
+    id: createId('generation'), workspaceId: project.workspaceId, projectId: project.id, pageId, requestedBy: userId, kind: 'page_edit', provider,
+    model: provider === 'demo' ? 'local-template-v1' : process.env.OPENAI_MODEL || 'unconfigured', state: 'processing', prompt: request.instruction,
+    requestKey: requestId, requestHash, selectedNodeId: request.selectedNodeId ?? null, baseRevision: page.draftRevision, attempts: 1, leaseExpiresAt: new Date(Date.now() + AI_LEASE_MS),
+  }).onConflictDoNothing().returning();
+  if (inserted[0]) return executeAiGeneration(database, inserted[0], page, request, 1);
+  const concurrent = await findExisting();
+  if (!concurrent) throw new ApiError(500, 'AI_GENERATION_CONFLICT', 'La génération n’a pas pu être journalisée.');
+  return resolveExisting(concurrent);
 }

@@ -119,3 +119,48 @@ test('prévisualiser et appliquer l’IA démo, puis vérifier domaines et paiem
   await expect(page.getByText('Paiement externe non configuré', { exact: true })).toBeVisible();
   await expect(page.getByText('Gratuit', { exact: true }).first()).toBeVisible();
 });
+
+test('une réponse IA interrompue est rejouée avec la même clé et le même résultat', async ({ page }) => {
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const instruction = `Atelier idempotent ${suffix}`;
+  await isolateIp(page);
+  await register(page, 'IA idempotente E2E', `ai-idempotent-${suffix}@example.com`);
+  await createProject(page, `Projet IA idempotent ${suffix}`);
+  await page.getByRole('link', { name: 'Ouvrir l’éditeur →' }).click();
+  await expect(page).toHaveURL(/\/editor\/[a-f0-9-]+$/);
+  const pageId = page.url().split('/').pop()!;
+  await page.locator('[data-testid="editor-canvas"] [data-node-type="hero"]').first().click();
+  await page.getByRole('button', { name: '✦ IA' }).click();
+  await page.getByLabel('Votre consigne').fill(instruction);
+
+  let firstGenerationId = '';
+  let firstRequestId = '';
+  let requests = 0;
+  await page.route(`**/api/pages/${pageId}/ai`, async (route) => {
+    requests += 1;
+    const body = route.request().postDataJSON() as { requestId: string };
+    if (requests === 1) {
+      firstRequestId = body.requestId;
+      const response = await route.fetch();
+      expect(response.status()).toBe(201);
+      firstGenerationId = (await response.json() as { id: string }).id;
+      await route.abort('failed');
+      return;
+    }
+    expect(body.requestId).toBe(firstRequestId);
+    await route.continue();
+  });
+
+  await page.getByRole('button', { name: 'Générer une proposition', exact: true }).click();
+  await expect(page.locator('.alert.error')).toContainText('Vous pouvez renvoyer la même consigne');
+  expect(firstGenerationId).toMatch(/^[a-f0-9-]{36}$/);
+  expect(firstRequestId).toMatch(/^[a-f0-9-]{36}$/);
+  const replayResponse = page.waitForResponse((response) => response.url().includes(`/api/pages/${pageId}/ai`) && response.request().method() === 'POST' && response.status() === 200);
+  await page.getByRole('button', { name: 'Générer une proposition', exact: true }).click();
+  const replay = await (await replayResponse).json() as { id: string; requestId: string; replayed: boolean };
+  expect(replay).toMatchObject({ id: firstGenerationId, requestId: firstRequestId, replayed: true });
+  await expect(page.locator('.ai-preview h1').first()).toHaveText(instruction);
+  await page.getByRole('button', { name: 'Appliquer au brouillon', exact: true }).click();
+  await expect(page.locator('[data-testid="editor-canvas"] h1').first()).toHaveText(instruction);
+  expect(requests).toBe(2);
+});
