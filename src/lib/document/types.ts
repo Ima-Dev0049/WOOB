@@ -4,7 +4,7 @@ export const COMPONENT_TYPES = [
   'page', 'section', 'heading', 'text', 'button', 'image',
   'hero', 'features', 'cta', 'contactForm', 'header', 'footer',
   'gallery', 'testimonials', 'pricing', 'faq', 'stats',
-  'team', 'reservation', 'blog', 'products', 'contact',
+  'team', 'reservation', 'blog', 'products', 'contact', 'scene3d',
 ] as const;
 export type ComponentType = typeof COMPONENT_TYPES[number];
 

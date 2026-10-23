@@ -253,6 +253,9 @@ export function validatePageDocument(input: unknown): DocumentValidation {
   const ids = new Set<string>();
   const nodeCount = validateNode(document.root, 'root', issues, ids, 0, design.styles);
   if (nodeCount > 1500) issues.push({ path: 'root', message: 'La page dépasse 1 500 composants.' });
+  let scene3dCount = 0;
+  walkNodes(document.root, (node) => { if (node.type === 'scene3d') scene3dCount += 1; });
+  if (scene3dCount > 1) issues.push({ path: 'root', message: 'Une page est limitée à une scène 3D pour maîtriser le budget graphique.' });
   if (document.root.type !== 'page') issues.push({ path: 'root.type', message: 'La racine doit être de type page.' });
   if (JSON.stringify(document).length > 2_000_000) issues.push({ path: 'document', message: 'Le document dépasse la limite de 2 Mo.' });
   if (issues.length) return { success: false, issues };
@@ -297,7 +300,7 @@ export function collectAssetIds(document: PageDocument): Set<string> {
     if (Array.isArray(value)) return value.forEach(visit);
     if (!value || typeof value !== 'object') return;
     for (const [key, entry] of Object.entries(value)) {
-      if ((key === 'assetId' || key === 'imageAssetId') && typeof entry === 'string' && entry) ids.add(entry);
+      if ((key === 'assetId' || key === 'imageAssetId' || key === 'fallbackAssetId') && typeof entry === 'string' && entry) ids.add(entry);
       else visit(entry);
     }
   };

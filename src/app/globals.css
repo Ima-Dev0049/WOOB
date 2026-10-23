@@ -327,6 +327,30 @@
   .wb-cta { background: var(--site-secondary); border-radius: var(--site-radius); color: #fff; margin: var(--site-section-spacing) 0; padding: 55px; text-align: center; }
   .wb-cta .eyebrow { color: color-mix(in srgb, #fff 65%, var(--site-accent)); }
   .wb-cta p { color: #ffffffb5; margin: 16px auto 25px; }
+  .wb-node-scene3d { margin: var(--site-section-spacing) 0; }
+  .scene3d-shell { background: #14201c; border: 1px solid color-mix(in srgb, var(--site-accent) 30%, transparent); border-radius: var(--site-radius); color: #fff; display: grid; gap: clamp(28px, 5vw, 64px); grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); overflow: hidden; padding: clamp(24px, 4.5vw, 56px); }
+  .scene3d-copy { align-self: center; min-width: 0; overflow-wrap: anywhere; }
+  .scene3d-copy h2 { font-size: clamp(32px, 4vw, 52px); line-height: 1.08; margin: 15px 0 20px; }
+  .scene3d-copy p { color: #d7deda; line-height: 1.75; }
+  .scene3d-copy small { color: #b9c6bf; display: block; font-size: 11px; margin-top: 24px; }
+  .scene3d-experience { min-width: 0; }
+  .scene3d-stage { background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--site-primary) 22%, #14201c), #0e1512 72%); border-radius: calc(var(--site-radius) * .75); min-height: 380px; overflow: hidden; position: relative; }
+  .scene3d-canvas-host { inset: 0; position: absolute; touch-action: pan-y; }
+  .scene3d-canvas { display: block; height: 100%; width: 100%; }
+  .scene3d-fallback { align-items: center; background: #14201c; display: grid; inset: 0; justify-items: center; overflow: hidden; position: absolute; }
+  .scene3d-fallback[hidden] { display: none; }
+  .scene3d-fallback img { height: 100%; object-fit: cover; opacity: .82; width: 100%; }
+  .scene3d-fallback svg { color: var(--site-accent); height: 82%; width: 82%; }
+  .scene3d-toolbar { align-items: center; display: flex; gap: 14px; justify-content: space-between; margin-top: 14px; }
+  .scene3d-toolbar > span { color: #c9d3ce; font-size: 11px; }
+  .scene3d-controls { display: flex; flex-wrap: wrap; gap: 7px; }
+  .scene3d-controls button { align-items: center; background: #ffffff0d; border: 1px solid #ffffff38; border-radius: 8px; color: #fff; display: inline-flex; font-size: 11px; gap: 6px; justify-content: center; min-height: 40px; padding: 8px 11px; }
+  .scene3d-controls button:hover { background: #ffffff1c; }
+  @media (max-width: 700px) {
+    .scene3d-shell { grid-template-columns: minmax(0, 1fr); }
+    .scene3d-stage { min-height: 300px; }
+    .scene3d-toolbar { align-items: flex-start; flex-direction: column; }
+  }
   .wb-footer { align-items: end; border-top: 1px solid color-mix(in srgb, var(--site-text) 12%, transparent); display: flex; justify-content: space-between; margin-top: 40px; padding: 40px 0; }
   .wb-footer p { color: var(--site-muted); font-size: 11px; margin-top: 8px; }
   .wb-footer nav { display: flex; gap: 20px; }

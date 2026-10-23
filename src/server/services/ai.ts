@@ -5,6 +5,8 @@ import { createId } from '@/lib/id';
 import { aiProposalSchema, applyAiProposal, type AiProposal } from '@/lib/document/ai';
 import { designSystemSchema, findNode, nodeStyleSchema } from '@/lib/document/validation';
 import { getDesignSystem } from '@/lib/document/design-system';
+import { flattenNodes } from '@/lib/document/operations';
+import { evaluateScene3DFit } from '@/lib/creative/scene3d';
 import { getDb, type Db } from '@/server/db';
 import { aiGenerations, pages } from '@/server/db/schema';
 import { ApiError } from '@/server/http';
@@ -17,6 +19,25 @@ type AiRequest = z.infer<typeof requestSchema>;
 function demoProposal(page: typeof pages.$inferSelect, request: AiRequest): AiProposal {
   const subject = request.instruction.replace(/[<>]/g, '').slice(0, 180);
   const selected = request.selectedNodeId ? findNode(page.draftDocument.root, request.selectedNodeId) : undefined;
+  const sceneFit = evaluateScene3DFit(request.instruction);
+  if (sceneFit.eligible) {
+    const existing = flattenNodes(page.draftDocument.root).find((node) => node.type === 'scene3d');
+    const target = selected?.type === 'scene3d' ? selected : existing;
+    if (target && /(?:supprim|retir)/i.test(request.instruction)) {
+      return { summary: 'Suppression locale de la scène 3D, à confirmer dans l’aperçu.', operations: [{ kind: 'scene3d', action: 'remove', targetId: target.id, position: 'after', props: {} }] };
+    }
+    if (!target && /(?:supprim|retir)/i.test(request.instruction)) throw new ApiError(422, 'SCENE3D_NOT_FOUND', 'Aucune scène 3D à supprimer sur cette page.');
+    const props = {
+      ...(/prisme/i.test(request.instruction) ? { preset: 'prism' as const } : /orbite|orbital/i.test(request.instruction) ? { preset: 'orbital' as const } : {}),
+      ...(/équilibr|equilibr/i.test(request.instruction) ? { quality: 'balanced' as const } : /économe|econome/i.test(request.instruction) ? { quality: 'low' as const } : {}),
+      ...(/sans rotation|statique/i.test(request.instruction) ? { autoRotate: false } : /rotation automatique/i.test(request.instruction) ? { autoRotate: true } : {}),
+      ...(/sans interaction/i.test(request.instruction) ? { interactive: false } : /interaction|manuel/i.test(request.instruction) ? { interactive: true } : {}),
+    };
+    if (target) {
+      return { summary: 'Configuration locale de la scène 3D existante, sans toucher aux autres blocs.', operations: [{ kind: 'scene3d', action: 'update', targetId: target.id, position: 'after', props: Object.keys(props).length ? props : { interactive: true } }] };
+    }
+    return { summary: 'Scène 3D procédurale bornée, proposée localement et visible avant acceptation.', operations: [{ kind: 'scene3d', action: 'insert', targetId: selected?.id || page.draftDocument.root.id, position: selected && selected.type !== 'page' ? 'after' : 'inside', props }] };
+  }
   if (/(?:th[èe]me|palette|couleur|sombre|dark mode)/i.test(request.instruction)) {
     const designSystem = structuredClone(getDesignSystem(page.draftDocument.theme));
     const direction = /luxe|premium/i.test(request.instruction) ? 'luxe' : /nature|durable|bio/i.test(request.instruction) ? 'nature' : /tech|digital|logiciel/i.test(request.instruction) ? 'technologie' : 'personnalisée';
@@ -70,6 +91,7 @@ function jsonSchema() {
             { type: 'object', additionalProperties: false, required: ['kind', 'targetId', 'position', 'component', 'props'], properties: { kind: { const: 'insertComponent' }, targetId: { type: 'string' }, position: { enum: ['before', 'after', 'inside'] }, component: { type: 'string' }, props: { type: 'object', additionalProperties: true } } },
             { type: 'object', additionalProperties: false, required: ['kind', 'designSystem'], properties: { kind: { const: 'updateTheme' }, designSystem } },
             { type: 'object', additionalProperties: false, required: ['kind', 'nodeId', 'viewport', 'styles'], properties: { kind: { const: 'updateStyle' }, nodeId: { type: 'string' }, viewport: { enum: ['desktop', 'tablet', 'mobile'] }, state: { enum: ['hover', 'focus-visible', 'active', 'disabled'] }, styles: nodeStyle } },
+            { type: 'object', additionalProperties: false, required: ['kind', 'action', 'targetId', 'position', 'props'], properties: { kind: { const: 'scene3d' }, action: { enum: ['insert', 'update', 'remove'] }, targetId: { type: 'string' }, position: { enum: ['before', 'after', 'inside'] }, props: { type: 'object', additionalProperties: true } } },
           ],
         },
       },
@@ -80,7 +102,7 @@ function jsonSchema() {
 async function openAiProposal(page: typeof pages.$inferSelect, request: AiRequest): Promise<{ proposal: AiProposal; model: string; inputUnits: number; outputUnits: number }> {
   if (!process.env.OPENAI_API_KEY || !process.env.OPENAI_MODEL) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'Configurez OPENAI_API_KEY et OPENAI_MODEL, ou choisissez AI_PROVIDER=demo.');
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 45_000, maxRetries: 1 });
-  const response = await client.responses.create({ model: process.env.OPENAI_MODEL, input: [{ role: 'system', content: 'Tu produis uniquement une proposition JSON pour un éditeur de site. N’invente pas d’ID. N’utilise que les composants et propriétés présents dans le document. Aucun HTML, script ou URL javascript.' }, { role: 'user', content: `Consigne : ${request.instruction}\nComposant sélectionné : ${request.selectedNodeId || 'racine'}\nDocument : ${JSON.stringify(page.draftDocument)}` }], text: { format: { type: 'json_schema', name: 'woob_page_proposal', strict: true, schema: jsonSchema() } } });
+  const response = await client.responses.create({ model: process.env.OPENAI_MODEL, input: [{ role: 'system', content: 'Tu produis uniquement une proposition JSON pour un éditeur de site. N’invente pas d’ID. N’utilise que les composants et propriétés présents dans le document, ou la capacité structurée scene3d lorsqu’elle est explicitement demandée. Aucun HTML, script ou URL javascript.' }, { role: 'user', content: `Consigne : ${request.instruction}\nComposant sélectionné : ${request.selectedNodeId || 'racine'}\nDocument : ${JSON.stringify(page.draftDocument)}` }], text: { format: { type: 'json_schema', name: 'woob_page_proposal', strict: true, schema: jsonSchema() } } });
   const parsed = aiProposalSchema.parse(JSON.parse(response.output_text));
   return { proposal: parsed, model: process.env.OPENAI_MODEL, inputUnits: response.usage?.input_tokens || 0, outputUnits: response.usage?.output_tokens || 0 };
 }

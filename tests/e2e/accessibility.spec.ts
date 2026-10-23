@@ -40,7 +40,7 @@ test('accueil et connexion respectent les règles WCAG automatisées', async ({ 
 test('les trois démonstrations respectent les règles WCAG automatisées', async ({ page }) => {
   for (const path of [
     '/demos/king-food', '/demos/king-food/reservation',
-    '/demos/atelier-ligne', '/demos/atelier-ligne/contact',
+    '/demos/atelier-ligne', '/demos/atelier-ligne/projets', '/demos/atelier-ligne/contact',
     '/demos/studio-cap', '/demos/studio-cap/formations',
   ]) {
     await page.goto(path);

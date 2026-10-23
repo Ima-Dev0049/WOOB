@@ -13,15 +13,15 @@ Ce document complète l’[audit initial](./WOOB_CREATIVE_ENGINE_AUDIT.md) et le
 | `art-direction-engine` | **Partiel** | Direction justifiée, palette corrigée pour le contraste, typographie et tokens existants appliqués aux documents. | Formes/textures/iconographie plus riches, variantes de design system et apprentissage seulement avec consentement. |
 | `composition-engine` | **Partiel** | Cinq heroes, trois fonctionnalités, trois galeries et six traitements visuels dans le registre/renderer. | Composition ouverte à partir de règles et composants autorisés, proportions et profondeur plus variées, sans positions absolues systématiques. |
 | `ux-engine` | **Partiel, fondations existantes** | Blueprints, pages/modules réels, routes, formulaires, navigation et limitations ; pages requises désormais traçables dans le brief. | Objectifs et parcours UX plus explicites, davantage d’états vides/erreur et tests dynamiques propres à chaque site. |
-| `component-engine` | **Partiel, fondations existantes** | Registre strict, props validées, variantes éditables, document JSON sans HTML arbitraire. | Contrats complets de dépendances/tests par composant et génération de nouveaux composants uniquement dans un environnement isolé. |
+| `component-engine` | **Partiel, fondations existantes** | Registre strict, props validées, variantes éditables, document JSON sans HTML arbitraire ; descripteur complet de la capacité `scene3d` dans `creative/capabilities.ts`. | Étendre les contrats de dépendances/tests aux autres composants et générer de nouveaux composants uniquement dans un environnement isolé. |
 | `motion-engine` | **Partiel, incrément livré** | Entrées `IntersectionObserver`, presets bornés, contrôle éditeur, reduced motion, contenu visible sans JS, contrainte « sans animation » effective. | Sorties, scroll, micro-interactions et transitions de pages au cas par cas, budgets de performance et annulation avancée. |
 | `media-engine` | **Partiel, socle existant** | Uploads validés, assets privés/publics, réutilisation, alt, stockage local/S3 et images responsives limitées. | Recherche/génération, provenance/licences, recadrage, compression, vidéo et polices. Aucun média généré n’est déclaré. |
 | `code-generation-engine` | **Absent pour du code libre** | WOOB produit des documents interprétés par un renderer contrôlé, ce qui évite aujourd’hui l’exécution de code non fiable. | Si du code libre est introduit : worker isolé, limites CPU/mémoire/réseau/secrets, compilation et tests avant tout succès. |
 | `responsive-engine` | **Partiel** | Tokens, cascade desktop/tablette/mobile, exceptions locales, compositions adaptatives et parcours à 390 px. | Composition responsive générée plus riche, grands écrans, davantage de navigateurs/appareils et mesures de stabilité. |
 | `visual-inspection-engine` | **Absent comme produit** | Inspections manuelles documentées et captures temporaires réellement examinées ; aucun drapeau automatique trompeur. | Captures persistées et privées, erreurs/overflow/images, diff contrôlé, preuves et inspection effective avant correction. |
-| `functional-test-engine` | **Partiel, suite réelle** | 23 parcours Playwright couvrent création, édition, modules, sécurité, publication, responsive et motion. | Génération de parcours spécifiques au brief, exécution à la demande et rapports par version avec contrôles ignorés explicites. |
+| `functional-test-engine` | **Partiel, suite réelle** | 32 parcours Playwright couvrent création, édition, modules, sécurité, publication, responsive, motion et la capacité 3D. | Génération de parcours spécifiques au brief, exécution à la demande et rapports par version avec contrôles ignorés explicites. |
 | `quality-engine` | **Partiel** | Rapport structurel : contrastes, SEO, breakpoints, exigences du brief, motion, diversité ; scans axe ciblés dans les E2E. | Rapport catégorisé avec preuves, exécutés/ignorés, performance laboratoire/terrain et portes critiques distinctes du score. |
-| `editing-engine` | **Partiel, fondations existantes** | Édition ciblée, historique, presets, IA JSON prévisualisable/annulable, composition et motion dans l’éditeur. | Plan d’impact et dépendances plus explicites, commandes créatives spécialisées et comparaison visuelle des propositions. |
+| `editing-engine` | **Partiel, fondations existantes** | Édition ciblée, historique, presets, IA JSON prévisualisable/annulable, composition, motion et `scene3d` dans l’éditeur jusqu’à la publication. | Plan d’impact et dépendances plus explicites, autres commandes créatives spécialisées et comparaison visuelle des propositions. |
 | `learning-engine` | **Absent** | Aucune collecte d’apprentissage ni entraînement sur les données utilisateurs. | Consentement, minimisation, rétention, évaluations explicites et calibration hors données privées par défaut. |
 
 ## 2. Fondations transverses
@@ -30,12 +30,12 @@ Ce document complète l’[audit initial](./WOOB_CREATIVE_ENGINE_AUDIT.md) et le
 | --- | --- | --- |
 | Séparation intention / conception / implémentation / exécution | **Partiel** | `ProjectBrief`, `CreativeDirection`, `PageDocument` et site navigateur sont distincts. Le brief n’est pas encore une spécification projet complète et éditable couvrant toutes les interactions. |
 | Design system versionné | **Partiel** | Schéma `1.0.0`, tokens et presets partagés ; pas de versions indépendantes multiples avec comparaison complète. |
-| Orchestrateur et tâches | **Absent pour les tâches longues** | `ai_generations` journalise les opérations synchrones et leurs erreurs ; pas de file persistante, annulation ou reprise générale. |
+| Orchestrateur et tâches | **Partiel synchrone ; absent pour les tâches longues** | `runCreativeCapability` orchestre `scene3d` sur clone avec validation ; `ai_generations` journalise les opérations synchrones. Toujours aucune file persistante, annulation ou reprise générale. |
 | Versions et publication | **Partiel avancé** | Révisions, checkpoints, restauration, snapshots immuables, dépublication et rollback publié existent. Pas de version projet complète couvrant chaque artefact créatif. |
 | Sécurité et isolation tenant | **Fondations vérifiées** | Sessions, CSRF, RBAC, quotas, rate-limit, validation CSS/URL/uploads et tests d’accès horizontal. Aucun code utilisateur arbitraire n’est exécuté. |
-| Performance | **Absent comme mesure Creative Engine** | Aucun LCP/INP/CLS, budget de génération ou profil mémoire n’est déclaré. Les tests de fonctionnement ne sont pas des mesures Core Web Vitals. |
+| Performance | **Budgets 3D ; absent comme mesure Creative Engine** | `scene3d` borne contextes, particules, DPR et boucles. Aucun LCP/INP/CLS, budget de génération ou profil mémoire n’est déclaré. Les tests de fonctionnement ne sont pas des mesures Core Web Vitals. |
 | Observabilité | **Partiel** | États et erreurs de génération en base ; pas de contrat complet de corrélation, métriques de durée/coût ou artefacts par étape. |
-| Accessibilité | **Partiel vérifié** | Contrastes calculés, reduced motion, parcours clavier et scans axe ciblés. Pas de certification WCAG globale ni de revue lecteur d’écran exhaustive. |
+| Accessibilité | **Partiel vérifié** | Contrastes calculés, reduced motion, parcours clavier, scans axe ciblés et fallback 3D sans canvas sous reduced motion. Pas de certification WCAG globale ni de revue lecteur d’écran exhaustive. |
 
 ## 3. Lots prioritaires et dépendances
 
@@ -70,9 +70,16 @@ Ce document complète l’[audit initial](./WOOB_CREATIVE_ENGINE_AUDIT.md) et le
 - **Risques :** droits d’usage, SSRF, fichiers malveillants, coûts fournisseurs et copie de références.
 - **Critère de sortie :** une référence autorisée influence des décisions structurées sans copier du code ni prétendre posséder des droits non vérifiés.
 
+### Lot E — incrément vertical `scene3d` livré
+
+- Contrat strict, descripteur de capacité, dispatcher synchrone, rendu Three.js différé, deux presets, édition et publication.
+- Une scène par page, 32/64 particules, DPR borné, pause/reprise, suspension hors viewport/onglet et nettoyage explicite.
+- Fallback SSR/image/SVG, reduced motion sans canvas, agent local prévisualisable et démo Atelier Ligne.
+- Preuves et limites : [WOOB_SCENE3D.md](./WOOB_SCENE3D.md). Ce lot ne livre ni modèles importés, ni timeline, ni file persistante, ni mesure Core Web Vitals.
+
 ### Lots ultérieurs
 
-Narration avancée, 3D/WebGL au cas par cas, évaluateurs multimodaux explicitement identifiés, calibration humaine et apprentissage consenti. Aucun de ces éléments n’est une dépendance des lots A à C.
+Narration avancée, 3D/WebGL plus riches au cas par cas, évaluateurs multimodaux explicitement identifiés, calibration humaine et apprentissage consenti. Aucun de ces éléments n’est une dépendance des lots A à C.
 
 ## 4. Portes de validation permanentes
 
@@ -85,8 +92,8 @@ Narration avancée, 3D/WebGL au cas par cas, évaluateurs multimodaux explicitem
 
 ## 5. Dernière base vérifiée
 
-- TypeScript, ESLint et build de production : réussis.
-- Vitest : **61/61 tests dans 12 fichiers**.
-- Playwright : **23/23 parcours** sur le build de production.
-- Migration `0006_creative_brief` : **42 projets avant/après** sur la base locale existante.
-- Cinq captures du brief et six captures de concepts examinées séparément ; ce ne sont pas des pipelines visuels automatiques.
+- TypeScript, ESLint et build de production : réussis dans `npm run verify`.
+- Vitest : **74/74 tests dans 14 fichiers**.
+- Playwright : **32/32 parcours** sur le build de production.
+- Migration historique `0006_creative_brief` : **42 projets avant/après** sur la base locale existante ; aucune nouvelle migration pour `scene3d`.
+- Captures du brief, concepts et démos examinées séparément ; deux captures 3D production à 1440/390 px ajoutées. Ce ne sont pas des pipelines visuels automatiques.

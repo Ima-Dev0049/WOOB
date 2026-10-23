@@ -207,7 +207,7 @@ export function themeGlobalCss(theme: ThemeSettings): string {
     .woob-theme h1{font-size:var(--site-font-size-h1)}.woob-theme h2{font-size:var(--site-font-size-h2)}.woob-theme h3{font-size:var(--site-font-size-h3)}
     .woob-theme a{color:var(--site-link)}.woob-theme .eyebrow{color:var(--site-primary)}.woob-theme .muted{color:var(--site-muted)}
     .woob-theme .button.primary{color:#fff}.woob-theme .button.light{color:#17231f}.woob-theme .creative-mode-dark .button.primary{color:var(--site-bg)}.woob-theme .wb-cta .eyebrow{color:#fff}
-    .woob-theme .wb-cta :is(h2,h3){color:inherit}.woob-theme .wb-text{line-height:var(--site-body-line-height);max-width:var(--site-paragraph-width)}
+    .woob-theme .wb-cta :is(h2,h3){color:inherit}.woob-theme .scene3d-shell :is(h2,h3),.woob-theme .scene3d-shell .eyebrow{color:#fff}.woob-theme .wb-text{line-height:var(--site-body-line-height);max-width:var(--site-paragraph-width)}
     .woob-theme .button{border-radius:var(--site-button-radius);padding:var(--site-button-padding-y) var(--site-button-padding-x);min-height:var(--site-button-min-height);font-weight:var(--site-button-font-weight);box-shadow:var(--site-button-shadow);text-transform:var(--site-button-transform);transition:transform var(--site-motion-duration) var(--site-motion-easing),box-shadow var(--site-motion-duration) var(--site-motion-easing)}
     .woob-theme .button:hover{transform:translateY(calc(-1 * var(--site-button-hover-lift)))}
     .woob-theme :is(.feature-card,.pricing-card,.post-card,.product-card){border-radius:var(--site-card-radius);padding:var(--site-card-padding);border-width:var(--site-card-border-width);box-shadow:var(--site-card-shadow)}

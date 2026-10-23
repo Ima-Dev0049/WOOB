@@ -29,6 +29,8 @@ export type ComponentDefinition = {
 
 const base = <T extends z.ZodRawShape>(shape: T) => z.object(shape).strict();
 
+export const scene3dPropsSchema = base({ title: short, description: text, preset: z.enum(['orbital', 'prism']), quality: z.enum(['low', 'balanced']), autoRotate: z.boolean(), interactive: z.boolean(), fallbackSrc: z.string().max(2048).optional().or(z.literal('')), fallbackAssetId: asset, fallbackAlt: short });
+
 export const componentRegistry: Record<Exclude<ComponentType, 'page'>, ComponentDefinition> = {
   section: {
     type: 'section', label: 'Section', category: 'Structure', description: 'Conteneur de contenu réutilisable.',
@@ -157,6 +159,23 @@ export const componentRegistry: Record<Exclude<ComponentType, 'page'>, Component
     propsSchema: base({ title: short, address: short, email: short, phone: short, hours: short }),
     defaults: { title: 'Nous trouver', address: 'Votre adresse', email: 'contact@example.com', phone: '+00 00 00 00 00', hours: 'Lun–Sam · 9h–18h' },
     fields: [{ key: 'title', label: 'Titre', kind: 'text' }, { key: 'address', label: 'Adresse', kind: 'text' }, { key: 'email', label: 'Email', kind: 'text' }, { key: 'phone', label: 'Téléphone', kind: 'text' }, { key: 'hours', label: 'Horaires', kind: 'text' }], keywords: ['adresse', 'contact'],
+  },
+  scene3d: {
+    type: 'scene3d', label: 'Scène 3D procédurale', category: 'Contenu', description: 'Sculpture générée localement, chargée à l’approche du viewport, avec contrôles et fallback statique.',
+    propsSchema: scene3dPropsSchema,
+    defaults: { title: 'Une matière à explorer', description: 'Une sculpture procédurale pour donner du relief au récit, sans modèle externe.', preset: 'orbital', quality: 'low', autoRotate: true, interactive: true, fallbackSrc: '', fallbackAssetId: '', fallbackAlt: 'Sculpture abstraite, alternative statique de la scène 3D.' },
+    fields: [
+      { key: 'title', label: 'Titre de la scène', kind: 'text' },
+      { key: 'description', label: 'Description accessible', kind: 'textarea' },
+      { key: 'preset', label: 'Composition 3D', kind: 'select', options: [{ value: 'orbital', label: 'Orbite' }, { value: 'prism', label: 'Prisme' }] },
+      { key: 'quality', label: 'Budget visuel', kind: 'select', options: [{ value: 'low', label: 'Économe' }, { value: 'balanced', label: 'Équilibré' }] },
+      { key: 'autoRotate', label: 'Rotation automatique', kind: 'boolean' },
+      { key: 'interactive', label: 'Rotation manuelle', kind: 'boolean' },
+      { key: 'fallbackAssetId', label: 'Image de fallback', kind: 'asset' },
+      { key: 'fallbackSrc', label: 'URL du fallback externe', kind: 'url' },
+      { key: 'fallbackAlt', label: 'Alternative du fallback', kind: 'text' },
+    ],
+    keywords: ['3d', 'webgl', 'orbite', 'sculpture', 'immersif'],
   },
 };
 

@@ -6,6 +6,7 @@ import { createNode } from './registry';
 import { insertNode } from './operations';
 import { setNodeStyle, withDesignSystem } from './design-system';
 import { createId } from '@/lib/id';
+import { runCreativeCapability, scene3dCapabilityOperationSchema } from '@/lib/creative/orchestrator';
 
 export const aiProposalSchema = z.object({
   summary: z.string().min(3).max(500),
@@ -14,13 +15,14 @@ export const aiProposalSchema = z.object({
     z.object({ kind: z.literal('insertComponent'), targetId: z.string().min(1).max(160), position: z.enum(['before', 'after', 'inside']), component: z.enum(COMPONENT_TYPES.filter((type) => type !== 'page')), props: z.record(z.string(), z.unknown()) }).strict(),
     z.object({ kind: z.literal('updateTheme'), designSystem: designSystemSchema }).strict(),
     z.object({ kind: z.literal('updateStyle'), nodeId: z.string().min(1).max(160), viewport: z.enum(['desktop', 'tablet', 'mobile']).default('desktop'), state: z.enum(['hover', 'focus-visible', 'active', 'disabled']).optional(), styles: nodeStyleSchema }).strict(),
+    scene3dCapabilityOperationSchema,
   ])).min(1).max(10),
 }).strict();
 export type AiProposal = z.infer<typeof aiProposalSchema>;
 
 export function applyAiProposal(document: PageDocument, input: unknown): PageDocument {
   const proposal = aiProposalSchema.parse(input);
-  const next = cloneDocument(document);
+  let next = cloneDocument(document);
   for (const operation of proposal.operations) {
     if (operation.kind === 'updateProps') {
       const node = findNode(next.root, operation.nodeId);
@@ -32,6 +34,8 @@ export function applyAiProposal(document: PageDocument, input: unknown): PageDoc
       if (!insertNode(next.root, node, operation.targetId, operation.position)) throw new Error('Le point d’insertion proposé est invalide.');
     } else if (operation.kind === 'updateTheme') {
       next.theme = withDesignSystem(next.theme, operation.designSystem);
+    } else if (operation.kind === 'scene3d') {
+      next = runCreativeCapability(next, 'scene3d', operation);
     } else {
       const node = findNode(next.root, operation.nodeId);
       if (!node) throw new Error('Le composant à styliser est introuvable.');

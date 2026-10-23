@@ -13,6 +13,7 @@ import { generateAiProposal } from '@/server/services/ai';
 import { applyAiProposal } from '@/lib/document/ai';
 import { findNode } from '@/lib/document/validation';
 import { makeNode } from '@/lib/document/factory';
+import { flattenNodes } from '@/lib/document/operations';
 
 let context: DatabaseContext;
 beforeAll(async () => { context = await testDatabase(); process.env.AI_PROVIDER = 'demo'; }, 60_000);
@@ -107,6 +108,30 @@ describe('IA structurée et mode démo', () => {
     const preview = applyAiProposal(page.draftDocument, generated.proposal);
     expect(findNode(preview.root, heading.id)?.props.text).toContain('Studio de céramique durable');
     expect(findNode(page.draftDocument.root, heading.id)?.props.text).toBe('Titre initial');
+  });
+
+  it('propose la 3D sur demande explicite puis la reconfigure sans écraser ses autres réglages', async () => {
+    const account = await createAccount(context.db, 'ai3d@example.com', 'AI 3D');
+    const details = await createProject(account.user.id, account.workspace.id, { name: 'Projet IA 3D', description: '', templateId: 'studio-business' }, context.db);
+    const page = details.pages[0]!;
+    const generic = await generateAiProposal(account.user.id, page.id, { instruction: 'Rends ce portfolio plus premium' }, context.db);
+    expect(generic.proposal.operations.some((operation) => operation.kind === 'scene3d')).toBe(false);
+    await expect(generateAiProposal(account.user.id, page.id, { instruction: 'Supprime la scène 3D' }, context.db)).rejects.toMatchObject({ status: 422, code: 'SCENE3D_NOT_FOUND' });
+
+    const generated = await generateAiProposal(account.user.id, page.id, { instruction: 'Ajoute une scène 3D orbitale économe' }, context.db);
+    expect(generated.demo).toBe(true);
+    expect(generated.proposal.operations[0]).toMatchObject({ kind: 'scene3d', action: 'insert', props: { preset: 'orbital', quality: 'low' } });
+    expect(flattenNodes(page.draftDocument.root).some((node) => node.type === 'scene3d')).toBe(false);
+    const preview = applyAiProposal(page.draftDocument, generated.proposal);
+    const scene = flattenNodes(preview.root).find((node) => node.type === 'scene3d')!;
+    expect(scene.props.title).toBe('Une matière à explorer');
+    await savePageDocument(account.user.id, page.id, { baseRevision: 0, document: preview }, context.db);
+
+    const changed = await generateAiProposal(account.user.id, page.id, { instruction: 'Passe la scène 3D en prisme sans rotation', selectedNodeId: scene.id }, context.db);
+    expect(changed.proposal.operations[0]).toMatchObject({ kind: 'scene3d', action: 'update', targetId: scene.id, props: { preset: 'prism', autoRotate: false } });
+    const updated = applyAiProposal(preview, changed.proposal);
+    expect(findNode(updated.root, scene.id)?.props).toMatchObject({ title: 'Une matière à explorer', quality: 'low', preset: 'prism', autoRotate: false });
+    expect(findNode(preview.root, scene.id)?.props.preset).toBe('orbital');
   });
 
   it('rejette les propriétés arbitraires et les URL dangereuses dans une proposition', async () => {

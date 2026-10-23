@@ -4,6 +4,7 @@ import { assertValidPageDocument } from '@/lib/document/validation';
 import { makeNode } from '@/lib/document/factory';
 import type { ComponentType, PageNode, SiteSnapshot } from '@/lib/document/types';
 import { isDemoSlug, type DemoSlug } from './showcases';
+import { runCreativeCapability } from '@/lib/creative/orchestrator';
 
 type DemoDefinition = {
   slug: DemoSlug;
@@ -157,6 +158,18 @@ const definitions: DemoDefinition[] = [
       });
       update(draft, '/projets', 'heading', { text: 'Études visuelles', level: 1 });
       update(draft, '/projets', 'gallery', { title: 'Architecture & volumes', images: portfolioImages, layout: 'editorial' });
+      const projectPage = draft.pages.find((page) => page.path === '/projets');
+      const gallery = nodeAt(draft, '/projets', 'gallery').node;
+      if (!projectPage) throw new Error('Page Projets introuvable pour la scène 3D.');
+      projectPage.document = runCreativeCapability(projectPage.document, 'scene3d', {
+        kind: 'scene3d', action: 'insert', targetId: gallery.id, position: 'after',
+        props: {
+          title: 'Orbite 01 — une étude en volume',
+          description: 'Une sculpture procédurale prolonge les études de matières du portfolio. Tournez-la manuellement ou laissez la rotation lente révéler ses faces.',
+          preset: 'orbital', quality: 'low', autoRotate: true, interactive: true,
+          fallbackSrc: portfolioImages[1].src, fallbackAlt: portfolioImages[1].alt,
+        },
+      });
       update(draft, '/projets', 'features', {
         title: 'Lire les études', layout: 'minimal',
         items: [

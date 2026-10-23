@@ -2,7 +2,19 @@
 
 Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-## Résultats effectivement exécutés
+## Incrément courant — `scene3d`
+
+La capacité procédurale est intégrée au registre, à l’orchestrateur synchrone, à l’agent prévisualisable, à l’éditeur, à la persistance, au renderer public et à la démo Atelier Ligne. Three.js est différé, borné, suspendu hors viewport et remplacé par un fallback sous reduced motion ou indisponibilité WebGL. Voir [../WOOB_SCENE3D.md](../WOOB_SCENE3D.md) pour le contrat et les limites.
+
+- `npm run verify` : TypeScript, ESLint, build et **74/74 Vitest dans 14 fichiers** réussis.
+- `npm run test:e2e` : **32/32 Playwright** sur le build de production.
+- Captures 3D réelles à 1440/390 px inspectées ; smoke HTTP et audit axe ciblé réussis.
+- `npm audit --omit=dev` : 0 vulnérabilité ; 4 alertes modérées de développement conservées sans correctif forcé.
+- Aucune migration, réinitialisation de base, modification d’environnement sensible ou publication externe pour ce lot.
+
+## Résultats historiques du socle
+
+Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `scene3d` ci-dessus et des guides créatifs.
 
 | Vérification | Résultat constaté |
 | --- | --- |
@@ -38,6 +50,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - Médias PNG/JPEG/WebP/GIF : signature du contenu, taille/quota, chemins confinés, accès privé/public et protection contre la suppression d’un média utilisé. Pilotes fichier et S3 présents.
 - Modules métier : messages, demandes de réservation, commandes manuelles, catalogue, articles et activation de modules. Prix relus côté serveur, lignes de panier consolidées, stock transactionnel et restauration à l’annulation.
 - IA structurée : propositions JSON limitées aux opérations du registre, quota/journal, aperçu isolé avant application, mode démo local explicitement étiqueté et adaptateur OpenAI configurable. Pour la création, le brouillon généré est lié au workspace et à son auteur, vérifié contre la sélection et consommable une seule fois ; le mode local ne fait aucun appel distant.
+- Capacité `scene3d` : opérations `insert/update/remove` validées sur clone, une scène par page, presets procéduraux Three.js, inspecteur, undo/redo, sauvegarde/publication, pause/reprise, suspension et fallback. L’orchestration est synchrone ; aucune tâche longue persistante n’est déclarée.
 - Domaines : normalisation IDN avec rejet des chemins/ports, quotas, conflit 409, DTO sans hash interne, jeton TXT hashé, instructions affichées une fois et resolver DNS seulement si activé. Aucun succès TLS/routage simulé.
 - Facturation : utilisation et offres, checkout Stripe conditionnel, webhook signé et idempotent. Le retour navigateur ne change jamais le plan ; seul un abonnement confirmé peut le faire.
 - i18n : dictionnaires typés français/anglais sur shell, dashboard, création de projet, paramètres/membres, authentification et console admin, avec préférence persistée et langue de connexion conservée après déconnexion.
@@ -107,4 +120,4 @@ La preview courante utilise `.woob-data-runtime-v2`, initialisée par les migrat
 
 ## Prochaine priorité
 
-Poursuivre la personnalisation par un lot P2 limité : modification/suppression sûre des presets avec analyse d’usage, variantes de boutons et hiérarchie typographique complète, import/export validé d’un thème et extension du diagnostic aux états. Ensuite, traiter les médias de fond et les polices avec le pipeline d’assets réel, sans contournement `url()` ni chargement distant implicite. Les travaux déjà recensés restent également ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.
+Après l’incrément vertical `scene3d`, la priorité d’architecture reste une orchestration persistante et idempotente pour les tâches longues, puis des preuves navigateur produit et des corrections ciblées à cycles bornés. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.

@@ -2,7 +2,7 @@
 
 Date : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-Ce document décrit **les incréments fonctionnels livrés** du Creative Engine : concepts/compositions/motion, puis brief structuré et traçabilité des exigences. Il ne présente pas les phases restantes de l’[audit](./WOOB_CREATIVE_ENGINE_AUDIT.md) ou de la [feuille de route](./WOOB_CREATIVE_ENGINE_ROADMAP.md) comme terminées.
+Ce document décrit **les incréments fonctionnels livrés** du Creative Engine : concepts/compositions/motion, brief structuré et traçabilité des exigences. Il ne présente pas les phases restantes de l’[audit](./WOOB_CREATIVE_ENGINE_AUDIT.md) ou de la [feuille de route](./WOOB_CREATIVE_ENGINE_ROADMAP.md) comme terminées. L’incrément 3D ultérieur, ses contrats et ses preuves sont détaillés dans [WOOB_SCENE3D.md](./WOOB_SCENE3D.md).
 
 ## 1. Capacités livrées
 
@@ -16,6 +16,7 @@ Ce document décrit **les incréments fonctionnels livrés** du Creative Engine 
 - Un aperçu non interactif qui utilise le renderer public sans les contours de sélection de l’éditeur ni de vrais formulaires actifs.
 - Une persistance additive du brief dans `projects.creative_brief` et les snapshots, avec vérification que le nom et le brief n’ont pas changé depuis la prévisualisation.
 - Le respect effectif d’une contrainte explicite « sans animation » et le signalement d’une contradiction lorsque le même brief exige aussi des animations.
+- Une capacité `scene3d` procédurale et optionnelle : contrat validé, orchestration synchrone, Three.js différé, édition/persistance, contrôles, suspension et fallback, documentée séparément dans [WOOB_SCENE3D.md](./WOOB_SCENE3D.md).
 
 ## 2. Chemin brief → concept → site
 
@@ -119,6 +120,7 @@ Les props sont déclarées dans `src/lib/document/registry.ts` et rendues par `D
 | Fonctionnalités | `cards`, `editorial`, `minimal` |
 | Galerie | `grid`, `editorial`, `filmstrip` |
 | Traitement visuel | `plain`, `organic`, `framed`, `orbital`, `duotone`, `product` |
+| Scène 3D optionnelle | `orbital`, `prism`, budgets `low`/`balanced` et fallback statique |
 
 Les variantes utilisent des classes contrôlées et les tokens existants. Aucun HTML ou CSS libre n’est introduit. Les règles tablette/mobile réduisent les compositions asymétriques et préservent une galerie horizontale lorsqu’elle est intentionnelle. La navigation mobile reste disponible sous forme de liens enveloppés.
 
@@ -217,7 +219,7 @@ Résultats du 2026-10-23 sur ce lot :
 - Le brief structuré est consultable mais pas encore éditable après création ; seules les contradictions motion explicites sont détectées, sans analyse générale de documents ou d’images.
 - Pas encore d’orchestrateur de tâches longues avec annulation/reprise ni d’ingestion de références créatives.
 - Le visuel abstrait de secours reste partagé : de vrais assets sont nécessaires pour des identités riches. Aucun pipeline d’images génératives n’est branché.
-- Pas de pipeline automatique de screenshots, diff visuel, Lighthouse/INP/LCP, scènes au scroll, WebGL ou transitions de pages.
+- Pas de pipeline automatique de screenshots, diff visuel, Lighthouse/INP/LCP, scènes au scroll ou transitions de pages. La 3D livrée est limitée à la capacité procédurale bornée de [WOOB_SCENE3D.md](./WOOB_SCENE3D.md), sans modèles importés ni timeline.
 - Pas de nouvelle commande conversationnelle spécialisée en direction artistique ; l’IA structurée d’édition existante est conservée.
 - Les contrastes calculés et scans axe ne remplacent pas une revue clavier, lecteur d’écran, contenu et design réels.
 

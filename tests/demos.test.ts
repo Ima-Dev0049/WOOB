@@ -74,6 +74,27 @@ describe('démonstrations publiques Woob', () => {
     }
   });
 
+  it('expose la scène procédurale d’Atelier Ligne avec un fallback SSR et sans canvas côté serveur', () => {
+    const site = getDemoSite('atelier-ligne')!;
+    const page = site.pages.find((candidate) => candidate.path === '/projets')!;
+    const scene = flatten(page.document.root.children ?? []).find((node) => node.type === 'scene3d');
+    expect(scene).toBeDefined();
+    expect(scene?.props).toMatchObject({ preset: 'orbital', quality: 'low', autoRotate: true, fallbackSrc: '/images/demos/portfolio-project.jpg' });
+    const html = renderToStaticMarkup(createElement(DocumentRenderer, { document: page.document, context: { mode: 'demo', site, projectId: site.projectId, slug: site.slug } }));
+    expect(html).toContain('data-testid="scene3d"');
+    expect(html).toContain('data-testid="scene3d-fallback"');
+    expect(html).toContain('Orbite 01');
+    expect(html).not.toContain('<canvas');
+
+    const reducedDocument = structuredClone(page.document);
+    if (!reducedDocument.theme.designSystem) throw new Error('Design system de démo absent.');
+    reducedDocument.theme.designSystem.motion.reducedMotion = 'reduce';
+    const reducedHtml = renderToStaticMarkup(createElement(DocumentRenderer, { document: reducedDocument, context: { mode: 'demo', site, projectId: site.projectId, slug: site.slug } }));
+    expect(reducedHtml).toContain('data-scene3d-state="fallback"');
+    expect(reducedHtml).toContain('data-scene3d-fallback-reason="reduced-motion"');
+    expect(reducedHtml).not.toContain('<canvas');
+  });
+
   it.each(demoShowcases)('rend $name en mode démo sans action métier active', (showcase) => {
     const site = getDemoSite(showcase.slug)!;
     for (const page of site.pages) {
