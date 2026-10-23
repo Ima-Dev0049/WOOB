@@ -51,6 +51,7 @@ describe('design system versionné et compatible', () => {
     const css = themeGlobalCss(next);
     expect(css).toContain('prefers-color-scheme:dark');
     expect(css).toContain('prefers-reduced-motion:reduce');
+    expect(css).toContain('.woob-theme .wb-cta :is(h2,h3){color:inherit}');
     expect(css).not.toContain('url(');
     expect(contrastRatio('#000000', '#FFFFFF')).toBe(21);
   });

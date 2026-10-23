@@ -174,7 +174,7 @@
   .editor-node.selected::after { background: #7652b5; color: white; content: attr(data-node-type); font-family: Inter, sans-serif; font-size: 8px; left: 0; padding: 2px 6px; position: absolute; top: 0; z-index: 4; }
   .wb-node-page.editor-node:hover, .wb-node-page.editor-node.selected { outline: 0; }
   .wb-node-page.editor-node::after { display: none; }
-  .editor-form .mock-field { background: #fff; border: 1px solid #d8ddd6; border-radius: 5px; color: #899189; font-size: 11px; margin: 8px 0; padding: 10px; }
+  .editor-form .mock-field { background: #fff; border: 1px solid #d8ddd6; border-radius: 5px; color: #66716c; font-size: 11px; margin: 8px 0; padding: 10px; }
   .editor-form .mock-field.tall { height: 70px; }
   .editor-statusbar { align-items: center; background: #f7f8f5; border-top: 1px solid #dfe3dc; color: #5f6963; display: flex; font-size: 8px; justify-content: space-between; padding: 0 12px; }
   .editor-right { border-left: 1px solid #dfe3dc; overflow-y: auto; }

@@ -3,6 +3,20 @@ import AxeBuilder from '@axe-core/playwright';
 import { createProjectThroughWizard } from './project-wizard';
 
 async function audit(page: Page) {
+  // Attendre l’hydratation, puis auditer l’état stable : un fondu en cours modifie temporairement le contraste mesuré.
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(async () => {
+    // Révéler aussi les blocs sous la ligne de flottaison pour ne pas auditer seulement le premier écran.
+    for (let y = 0; y < document.documentElement.scrollHeight; y += Math.max(400, window.innerHeight * .8)) {
+      window.scrollTo(0, y);
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    }
+    window.scrollTo(0, 0);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    for (const animation of document.getAnimations()) {
+      if (animation.effect?.getTiming().iterations !== Infinity) animation.finish();
+    }
+  });
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   return result.violations.map((violation) => ({ id: violation.id, impact: violation.impact, help: violation.help, nodes: violation.nodes.map((node) => ({ target: node.target, summary: node.failureSummary })) }));
 }
@@ -21,6 +35,17 @@ test('accueil et connexion respectent les règles WCAG automatisées', async ({ 
   expect(await audit(page)).toEqual([]);
   await page.goto('/login');
   expect(await audit(page)).toEqual([]);
+});
+
+test('les trois démonstrations respectent les règles WCAG automatisées', async ({ page }) => {
+  for (const path of [
+    '/demos/king-food', '/demos/king-food/reservation',
+    '/demos/atelier-ligne', '/demos/atelier-ligne/contact',
+    '/demos/studio-cap', '/demos/studio-cap/formations',
+  ]) {
+    await page.goto(path);
+    expect(await audit(page), path).toEqual([]);
+  }
 });
 
 test('dashboard et éditeur respectent les règles WCAG automatisées', async ({ page }) => {

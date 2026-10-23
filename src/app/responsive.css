@@ -13,7 +13,7 @@
     .marketing-nav nav { display: none; }
     .marketing-section { padding: 85px 35px; }
     .modules-section { gap: 45px; }
-    .template-content { padding-top: 60px; }
+    .template-content h3 { font-size: 34px; }
     .app-layout { grid-template-columns: 75px 1fr; }
     .app-sidebar { padding: 20px 10px; }
     .app-sidebar-logo .brand-logo span, .workspace-switcher > div, .workspace-switcher > span:last-child, .app-nav a:not(:first-child) { display: none; }
@@ -52,6 +52,9 @@
     .section-intro.horizontal { align-items: start; flex-direction: column; gap: 20px; }
     .template-showcase { grid-template-columns: 1fr; }
     .template-browser { height: 320px; }
+    .demo-notice-bar { gap: 10px 16px; grid-template-columns: 1fr auto; padding: 11px 18px; }
+    .demo-notice-bar > a:last-child { grid-column: 2; grid-row: 1; }
+    .demo-notice-bar p { align-items: start; flex-direction: column; gap: 2px; grid-column: 1 / -1; grid-row: 2; text-align: left; }
     .modules-section { grid-template-columns: 1fr; }
     .marketing-footer { grid-template-columns: 1fr; }
     .marketing-footer nav { justify-content: start; }
@@ -106,6 +109,15 @@
     .hero-art, .hero-image { max-height: 450px; }
     .card-grid.three, .card-grid.two { grid-template-columns: 1fr; }
     .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+    .gallery-grid:has(> :only-child), .gallery-editorial:has(> :nth-child(2):last-child) { grid-template-columns: minmax(0, 1fr); }
+    .gallery-editorial:has(> :nth-child(2):last-child) { grid-auto-rows: minmax(190px, auto); }
+    .gallery-editorial:has(> :nth-child(2):last-child) > :first-child { grid-row: auto; }
+    .demo-notice-bar + .published-site .wb-header { align-items: flex-start; flex-wrap: wrap; }
+    .demo-notice-bar + .published-site .wb-header nav { flex-basis: 100%; order: 3; }
+    .demo-notice-bar + .published-site .wb-hero-editorial .hero-copy { padding-bottom: 0; }
+    .demo-notice-bar + .published-site .wb-hero-editorial .hero-visual { margin-top: 0; }
+    .demo-notice-bar + .published-site .wb-hero-monumental .hero-copy > p { margin-left: 0; }
+    .demo-notice-bar + .published-site .wb-hero-monumental .hero-visual { width: 100%; }
     .public-form-shell { padding: 25px; }
     .wb-cta { padding: 35px 22px; }
     .wb-footer { align-items: start; flex-direction: column; gap: 20px; }
