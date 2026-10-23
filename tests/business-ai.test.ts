@@ -134,6 +134,30 @@ describe('IA structurée et mode démo', () => {
     expect(findNode(preview.root, scene.id)?.props.preset).toBe('orbital');
   });
 
+  it('propose une parallaxe ciblée sur copie et permet son retrait sans muter l’aperçu', async () => {
+    const account = await createAccount(context.db, 'aimotion@example.com', 'AI Motion');
+    const details = await createProject(account.user.id, account.workspace.id, { name: 'Projet IA Motion', description: '', templateId: 'studio-business' }, context.db);
+    const document = details.pages[0]!.draftDocument;
+    const target = flattenNodes(document.root).find((node) => node.type === 'hero')!;
+    const original = structuredClone(document);
+    const generated = await generateAiProposal(account.user.id, details.pages[0]!.id, { instruction: 'Ajoute une parallaxe de 64 px liée au défilement', selectedNodeId: target.id }, context.db);
+    expect(generated.demo).toBe(true);
+    expect(generated.proposal.operations[0]).toMatchObject({ kind: 'updateMotion', nodeId: target.id, motion: { preset: 'parallax', trigger: 'scroll', distance: 64 } });
+    expect(document).toEqual(original);
+    const preview = applyAiProposal(document, generated.proposal);
+    expect(findNode(preview.root, target.id)?.motion).toMatchObject({ preset: 'parallax', trigger: 'scroll', distance: 64 });
+    expect(document).toEqual(original);
+    const removed = applyAiProposal(preview, { summary: 'Retirer le mouvement', operations: [{ kind: 'updateMotion', nodeId: target.id, motion: null }] });
+    expect(findNode(removed.root, target.id)?.motion).toBeUndefined();
+    expect(findNode(preview.root, target.id)?.motion?.trigger).toBe('scroll');
+
+    const saturated = structuredClone(document);
+    const headings = Array.from({ length: 4 }, (_, index) => makeNode('heading', { text: `Titre ${index + 1}`, level: 2 }));
+    saturated.root.children!.push(...headings);
+    for (const heading of headings.slice(0, 3)) heading.motion = { preset: 'parallax', trigger: 'scroll', duration: 460, delay: 0, distance: 48 };
+    expect(() => applyAiProposal(saturated, { summary: 'Quatrième effet', operations: [{ kind: 'updateMotion', nodeId: headings[3]!.id, motion: { preset: 'parallax', trigger: 'scroll', duration: 460, delay: 0, distance: 48 } }] })).toThrow(/trois effets/);
+  });
+
   it('rejette les propriétés arbitraires et les URL dangereuses dans une proposition', async () => {
     const account = await createAccount(context.db, 'aisafe@example.com', 'AI Safe');
     const details = await createProject(account.user.id, account.workspace.id, { name: 'Projet IA sécurité', description: '', templateId: 'studio-business' }, context.db);

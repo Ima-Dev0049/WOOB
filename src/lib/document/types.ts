@@ -10,11 +10,14 @@ export type ComponentType = typeof COMPONENT_TYPES[number];
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
 export type EditorMode = 'simple' | 'advanced' | 'expert';
+export type NodeMotionPreset = MotionPreset | 'parallax';
+export const SCROLL_MOTION_COMPONENT_TYPES: readonly ComponentType[] = ['section', 'hero', 'features', 'gallery', 'stats', 'products', 'blog', 'image', 'heading', 'text', 'cta'];
+export function supportsScrollMotion(type: ComponentType): boolean { return SCROLL_MOTION_COMPONENT_TYPES.includes(type); }
 export type StyleState = 'hover' | 'focus-visible' | 'active' | 'disabled';
 export type ShadowToken = 'none' | 'small' | 'medium' | 'large';
 export interface NodeMotion {
-  preset: MotionPreset;
-  trigger: 'in-view';
+  preset: NodeMotionPreset;
+  trigger: 'in-view' | 'scroll';
   duration: number;
   delay: number;
   distance: number;
@@ -146,7 +149,7 @@ export interface PageNode {
   responsiveStates?: ResponsiveStateStyles;
   /** Expert-only, scoped custom properties. Names and values are validated. */
   cssVariables?: Record<string, string | number>;
-  /** Optional native in-view choreography; absent means no entrance motion. */
+  /** Optional native in-view or bounded scroll choreography; absent means static content. */
   motion?: NodeMotion;
   children?: PageNode[];
 }

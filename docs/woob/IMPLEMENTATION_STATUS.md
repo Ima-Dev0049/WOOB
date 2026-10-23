@@ -2,7 +2,20 @@
 
 Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-## Incrément courant — `surface-motion`
+## Incrément courant — `scroll-motion`
+
+Le document accepte désormais un déclenchement `scroll` et un preset `parallax`, en conservant les entrées `in-view` existantes. `CreativeMotion` calcule une progression bornée avec des listeners passifs et un seul `requestAnimationFrame` par événement, sans boucle permanente. Le HTML SSR reste visible ; reduced-motion supprime la progression et les transformations, y compris lorsque la préférence change pendant la consultation.
+
+L’inspecteur règle le déclenchement, le preset et l’amplitude jusqu’à 96 px. La navigation, les formulaires et la 3D sont exclus, avec trois effets scroll maximum par page. L’opération IA structurée `updateMotion` cible un bloc sur une copie validée ; l’aperçu peut être annulé, puis l’application utilise undo/redo, la sauvegarde par révision et le snapshot de publication existants. Le mode démo ne produit cet effet que sur demande explicite et ne l’ajoute pas automatiquement aux sites existants.
+
+- `npm run verify` : TypeScript, ESLint, build et **77/77 Vitest dans 14 fichiers** réussis.
+- `npm run test:e2e` : **38/38 Playwright** sur le build de production, en Chromium. Le nouveau parcours couvre prévisualisation/annulation, application, undo/redo, rechargement, publication, scroll réel, stabilité sans événement, reduced-motion initial et dynamique, et SSR sans JavaScript.
+- Les tests structurels couvrent aussi les cibles interdites, le quatrième effet refusé, l’immutabilité avant acceptation et le retrait du motion sur copie.
+- `npm ci --no-audit --no-fund` a restauré les **483 paquets verrouillés** ; aucune dépendance, migration ou réinitialisation de base n’a été ajoutée. Aucun appel OpenAI réel ni déploiement externe n’a été effectué.
+- Les deux avertissements Turbopack de traçage filesystem dans `src/server/storage.ts` persistent sans bloquer le build.
+- Validation limitée à Chromium et à des viewports émulés : Firefox, WebKit, appareils physiques, lecteur d’écran et mesure Core Web Vitals ne sont pas validés. Il ne s’agit pas d’une timeline de scroll libre.
+
+## Incrément précédent — `surface-motion`
 
 Une couche motion native et bornée améliore l’accueil, les tarifs et le tableau de bord sans changer la direction artistique : intro séquencée du hero et de l’aperçu produit, révélations une seule fois au scroll, header compact avec progression de lecture, micro-interactions et détails du bento. Les couleurs restent celles du design existant, aucune dépendance ni animation permanente n’est ajoutée. Les pictogrammes d’écrans qui dépendaient de glyphes absents sont désormais dessinés en CSS.
 
@@ -19,14 +32,14 @@ Une couche motion native et bornée améliore l’accueil, les tarifs et le tabl
 
 La capacité procédurale est intégrée au registre, à l’orchestrateur synchrone, à l’agent prévisualisable, à l’éditeur, à la persistance, au renderer public et à la démo Atelier Ligne. Three.js est différé, borné, suspendu hors viewport et remplacé par un fallback sous reduced motion ou indisponibilité WebGL. Voir [../WOOB_SCENE3D.md](../WOOB_SCENE3D.md) pour le contrat et les limites.
 
-- Au moment de sa livraison : **74/74 Vitest**, **32/32 Playwright**, TypeScript, ESLint et build réussis ; la suite courante est désormais de 37 scénarios Playwright.
+- Au moment de sa livraison : **74/74 Vitest**, **32/32 Playwright**, TypeScript, ESLint et build réussis ; la suite courante est désormais de 38 scénarios Playwright.
 - Captures 3D réelles à 1440/390 px inspectées ; smoke HTTP et audit axe ciblé réussis.
 - `npm audit --omit=dev` : 0 vulnérabilité ; 4 alertes modérées de développement conservées sans correctif forcé.
 - Aucune migration, réinitialisation de base, modification d’environnement sensible ou publication externe pour ce lot.
 
 ## Résultats historiques du socle
 
-Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `surface-motion` ci-dessus et des guides créatifs.
+Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `scroll-motion` ci-dessus et des guides créatifs.
 
 | Vérification | Résultat constaté |
 | --- | --- |
@@ -49,6 +62,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 
 - Site marketing, catalogue de tarifs sans prix payant inventé, inscription, connexion, déconnexion, récupération et vérification email.
 - Couche `surface-motion` partagée par l’accueil, les tarifs et le dashboard : entrées bornées, révélations one-shot, header de lecture, interactions clavier/survol, fallback SSR et reduced motion, sans transformations résiduelles sur les ancêtres de modales.
+- Motion de document `scroll-motion` : parallaxe et presets de progression sur blocs compatibles, trois effets/page, inspecteur, IA `updateMotion` prévisualisable, historique, persistance et publication ; aucune boucle permanente, cible fragile ou activation automatique sur l’existant.
 - Sessions opaques hashées, cookies, CSRF double-submit, consommation atomique des jetons, RBAC serveur et isolation par workspace. Les réponses `/api/auth/me` sont limitées au profil utile et ne contiennent plus le hash du mot de passe.
 - Administration plateforme `/admin`, distincte du rôle `admin` d’un workspace : rôle persisté `users.platformRole` ou allowlist `PLATFORM_ADMIN_EMAILS`, sans promotion automatique. Statistiques SQL globales, activité sur 14 jours, utilisateurs, espaces, projets, offres, modération, attribution manuelle d’offre et journal `admin_audit_logs` transactionnel. Les valeurs de commandes restent ventilées par devise et statut, sans les assimiler à un chiffre d’affaires encaissé.
 - Espaces partagés : ajout de comptes existants, rôles owner/admin/editor/contributor/viewer, suspension/réactivation et sélecteur d’espace actif validé côté serveur.
@@ -85,6 +99,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 ## Comportements vérifiés par tests
 
 - Motion de surface : révélation et état final statique, progression/compactage du header, ancre non masquée, contenu SSR sans JavaScript, reduced motion, largeur mobile, liens accessibles avant révélation et modales fixes ouvertes depuis le header comme depuis l’état vide du dashboard.
+- Motion scroll de document : parallaxe IA annulée sans effet puis appliquée, undo/redo, amplitude conservée après rechargement, snapshot publié, progression réelle sans boucle, reduced-motion initial/dynamique et contenu SSR visible ; validation des cibles et du budget de trois effets.
 - Design system : compatibilité d’un ancien document, normalisation idempotente, héritage desktop/tablette/mobile, priorité des exceptions, états, copie/reset, références de presets, dégradés sûrs, variables expertes, entrées CSS/URL hostiles et contrastes.
 - Persistance du thème sur deux pages : exception locale et racine préservées, révision obsolète refusée, restauration avec thème actuel, preset et tokens retrouvés dans le snapshot publié.
 - Parcours navigateur de personnalisation : boutons stylés, preset partagé, copier/coller/reset, variable expert dans le padding, undo/redo, sauvegarde/rechargement, thème global, publication anonyme à 390 px et largeur mobile calculée.
@@ -124,7 +139,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - La collaboration ajoute seulement des comptes déjà inscrits ; il n’y a pas d’invitation email pour un nouvel utilisateur.
 - Réservations sans moteur de disponibilité complet ; commandes sans encaissement, taxes, expédition ou logistique. Ces modules ne remplacent pas un ERP, LMS ou une marketplace.
 - Les variantes du catalogue nommées marketplace, SaaS, LMS, portail patient, billetterie, dons ou paiement produisent seulement l’architecture éditoriale et les modules affichés comme disponibles. Leurs limites sont présentées dans le wizard ; aucun backend de ce type n’est simulé.
-- Le lot personnalisation ne comprend pas encore le chargement de fichiers de polices, les images/vidéos de fond, le parallaxe, les animations libres au scroll, le recadrage média, les carrousels/lightbox, le CSS arbitraire ou les scripts tiers. Les presets sont enregistrés par projet ; il n’existe pas encore de bibliothèque partagée entre projets ni de gestion visuelle complète de leur cycle de vie. L’application multiple cible les blocs d’un même type, pas une sélection arbitraire multiple.
+- Le lot personnalisation ne comprend pas encore le chargement de fichiers de polices, les images/vidéos de fond, le recadrage média, les carrousels/lightbox, les timelines de scroll libres, le CSS arbitraire ou les scripts tiers. La parallaxe et les presets de progression bornés du lot `scroll-motion` ne constituent pas un éditeur de timeline. Les presets sont enregistrés par projet ; il n’existe pas encore de bibliothèque partagée entre projets ni de gestion visuelle complète de leur cycle de vie. L’application multiple cible les blocs d’un même type, pas une sélection arbitraire multiple.
 - Le diagnostic de contraste couvre quatre paires par palette active, en hexadécimal. Il ne vérifie pas tous les états, images, dégradés ou composants et ne remplace pas un audit manuel.
 - Le build PDF de la documentation de référence n’est pas livré ; les neuf SVG déjà produits restent des documents de référence, pas des tests applicatifs.
 
@@ -134,4 +149,4 @@ La preview courante utilise `.woob-data-runtime-v2`, initialisée par les migrat
 
 ## Prochaine priorité
 
-Après les incréments `scene3d` et `surface-motion`, la priorité d’architecture reste une orchestration persistante et idempotente pour les tâches longues, puis des preuves navigateur produit et des corrections ciblées à cycles bornés. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.
+Après les incréments `scene3d`, `surface-motion` et `scroll-motion`, la priorité d’architecture reste une orchestration persistante et idempotente pour les tâches longues, puis des preuves navigateur produit et des corrections ciblées à cycles bornés. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.

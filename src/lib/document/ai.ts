@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { COMPONENT_TYPES, type StyleProperty } from './types';
+import { COMPONENT_TYPES, supportsScrollMotion, type StyleProperty } from './types';
 import type { PageDocument } from './types';
-import { cloneDocument, designSystemSchema, findNode, nodeStyleSchema, validatePageDocument } from './validation';
+import { cloneDocument, designSystemSchema, findNode, nodeMotionSchema, nodeStyleSchema, validatePageDocument } from './validation';
 import { createNode } from './registry';
-import { insertNode } from './operations';
+import { flattenNodes, insertNode } from './operations';
 import { setNodeStyle, withDesignSystem } from './design-system';
 import { createId } from '@/lib/id';
 import { runCreativeCapability, scene3dCapabilityOperationSchema } from '@/lib/creative/orchestrator';
@@ -15,6 +15,7 @@ export const aiProposalSchema = z.object({
     z.object({ kind: z.literal('insertComponent'), targetId: z.string().min(1).max(160), position: z.enum(['before', 'after', 'inside']), component: z.enum(COMPONENT_TYPES.filter((type) => type !== 'page')), props: z.record(z.string(), z.unknown()) }).strict(),
     z.object({ kind: z.literal('updateTheme'), designSystem: designSystemSchema }).strict(),
     z.object({ kind: z.literal('updateStyle'), nodeId: z.string().min(1).max(160), viewport: z.enum(['desktop', 'tablet', 'mobile']).default('desktop'), state: z.enum(['hover', 'focus-visible', 'active', 'disabled']).optional(), styles: nodeStyleSchema }).strict(),
+    z.object({ kind: z.literal('updateMotion'), nodeId: z.string().min(1).max(160), motion: nodeMotionSchema.nullable() }).strict(),
     scene3dCapabilityOperationSchema,
   ])).min(1).max(10),
 }).strict();
@@ -34,6 +35,16 @@ export function applyAiProposal(document: PageDocument, input: unknown): PageDoc
       if (!insertNode(next.root, node, operation.targetId, operation.position)) throw new Error('Le point d’insertion proposé est invalide.');
     } else if (operation.kind === 'updateTheme') {
       next.theme = withDesignSystem(next.theme, operation.designSystem);
+    } else if (operation.kind === 'updateMotion') {
+      const node = findNode(next.root, operation.nodeId);
+      if (!node || node.type === 'page') throw new Error('Le composant dont le motion doit être modifié est introuvable.');
+      if (operation.motion?.trigger === 'scroll') {
+        if (!supportsScrollMotion(node.type)) throw new Error('Ce composant ne prend pas en charge le motion au défilement.');
+        const scrollCount = flattenNodes(next.root).filter((candidate) => candidate.id !== node.id && candidate.motion?.trigger === 'scroll').length;
+        if (scrollCount >= 3) throw new Error('La page contient déjà trois effets liés au défilement.');
+      }
+      if (operation.motion) node.motion = { ...operation.motion };
+      else delete node.motion;
     } else if (operation.kind === 'scene3d') {
       next = runCreativeCapability(next, 'scene3d', operation);
     } else {

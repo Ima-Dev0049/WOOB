@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { creativeDirectionSchema, projectBriefSchema } from '@/lib/creative/schema';
-import { COMPONENT_TYPES, STYLE_PROPERTIES } from './types';
+import { COMPONENT_TYPES, STYLE_PROPERTIES, supportsScrollMotion } from './types';
 import type { DesignSystem, PageDocument, PageNode, SharedStyle, SiteSnapshot, StyleProperty } from './types';
 import { componentRegistry } from './registry';
 import { normalizeThemeSettings } from './design-system';
@@ -137,9 +137,11 @@ export const designSystemSchema: z.ZodType<DesignSystem> = z.object({
 }) as z.ZodType<DesignSystem>;
 
 export const nodeMotionSchema = z.object({
-  preset: z.enum(['fade', 'rise', 'reveal', 'scale']), trigger: z.literal('in-view'),
+  preset: z.enum(['fade', 'rise', 'reveal', 'scale', 'parallax']), trigger: z.enum(['in-view', 'scroll']),
   duration: z.number().int().min(100).max(1600), delay: z.number().int().min(0).max(1200), distance: z.number().int().min(0).max(96),
-}).strict();
+}).strict().superRefine((motion, context) => {
+  if (motion.preset === 'parallax' && motion.trigger !== 'scroll') context.addIssue({ code: 'custom', path: ['trigger'], message: 'La parallaxe doit être liée au défilement.' });
+});
 
 const nodeBase = z.object({
   id: safeKey,
@@ -224,6 +226,7 @@ function validateNode(node: PageNode, path: string, issues: DocumentIssue[], ids
   ids.add(node.id);
   if (depth > 16) issues.push({ path, message: 'Profondeur maximale du document dépassée.' });
   if (node.type === 'page' && path !== 'root') issues.push({ path: `${path}.type`, message: 'Le type page est réservé à la racine.' });
+  if (node.motion?.trigger === 'scroll' && !supportsScrollMotion(node.type)) issues.push({ path: `${path}.motion`, message: `Le motion au défilement n’est pas autorisé sur ${node.type}.` });
   if (node.styleId) {
     const shared = styles.find((style) => style.id === node.styleId);
     if (!shared) issues.push({ path: `${path}.styleId`, message: `Style réutilisable introuvable : ${node.styleId}` });
@@ -254,8 +257,13 @@ export function validatePageDocument(input: unknown): DocumentValidation {
   const nodeCount = validateNode(document.root, 'root', issues, ids, 0, design.styles);
   if (nodeCount > 1500) issues.push({ path: 'root', message: 'La page dépasse 1 500 composants.' });
   let scene3dCount = 0;
-  walkNodes(document.root, (node) => { if (node.type === 'scene3d') scene3dCount += 1; });
+  let scrollMotionCount = 0;
+  walkNodes(document.root, (node) => {
+    if (node.type === 'scene3d') scene3dCount += 1;
+    if (node.motion?.trigger === 'scroll') scrollMotionCount += 1;
+  });
   if (scene3dCount > 1) issues.push({ path: 'root', message: 'Une page est limitée à une scène 3D pour maîtriser le budget graphique.' });
+  if (scrollMotionCount > 3) issues.push({ path: 'root', message: 'Une page est limitée à trois effets liés au défilement pour maîtriser le budget de rendu.' });
   if (document.root.type !== 'page') issues.push({ path: 'root.type', message: 'La racine doit être de type page.' });
   if (JSON.stringify(document).length > 2_000_000) issues.push({ path: 'document', message: 'Le document dépasse la limite de 2 Mo.' });
   if (issues.length) return { success: false, issues };

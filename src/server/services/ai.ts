@@ -3,7 +3,8 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { createId } from '@/lib/id';
 import { aiProposalSchema, applyAiProposal, type AiProposal } from '@/lib/document/ai';
-import { designSystemSchema, findNode, nodeStyleSchema } from '@/lib/document/validation';
+import { designSystemSchema, findNode, nodeMotionSchema, nodeStyleSchema } from '@/lib/document/validation';
+import { supportsScrollMotion } from '@/lib/document/types';
 import { getDesignSystem } from '@/lib/document/design-system';
 import { flattenNodes } from '@/lib/document/operations';
 import { evaluateScene3DFit } from '@/lib/creative/scene3d';
@@ -37,6 +38,20 @@ function demoProposal(page: typeof pages.$inferSelect, request: AiRequest): AiPr
       return { summary: 'Configuration locale de la scène 3D existante, sans toucher aux autres blocs.', operations: [{ kind: 'scene3d', action: 'update', targetId: target.id, position: 'after', props: Object.keys(props).length ? props : { interactive: true } }] };
     }
     return { summary: 'Scène 3D procédurale bornée, proposée localement et visible avant acceptation.', operations: [{ kind: 'scene3d', action: 'insert', targetId: selected?.id || page.draftDocument.root.id, position: selected && selected.type !== 'page' ? 'after' : 'inside', props }] };
+  }
+  const motionRequested = /(?:parallax|parallaxe|scroll|d[ée]filement|mouvement|motion|animation|animer|anim[ée]e?)/i.test(request.instruction);
+  if (motionRequested) {
+    if (!selected || selected.type === 'page') throw new ApiError(422, 'MOTION_TARGET_REQUIRED', 'Sélectionnez un bloc précis avant de demander une modification de motion.');
+    const remove = /(?:d[ée]sactiv|supprim|retir|enlev)/i.test(request.instruction) || /\bsans\s+(?:animation|mouvement|motion|parallaxe)/i.test(request.instruction);
+    if (remove) return { summary: 'Suppression locale du motion du bloc sélectionné, à confirmer dans l’aperçu.', operations: [{ kind: 'updateMotion', nodeId: selected.id, motion: null }] };
+    const scroll = /(?:parallax|parallaxe|scroll|d[ée]filement)/i.test(request.instruction);
+    if (scroll && !supportsScrollMotion(selected.type)) throw new ApiError(422, 'MOTION_TARGET_UNSUPPORTED', 'La navigation, les formulaires et la 3D ne peuvent pas recevoir de motion lié au défilement.');
+    if (scroll && flattenNodes(page.draftDocument.root).filter((node) => node.id !== selected.id && node.motion?.trigger === 'scroll').length >= 3) throw new ApiError(422, 'MOTION_BUDGET_EXCEEDED', 'Cette page contient déjà trois effets liés au défilement.');
+    const distanceMatch = request.instruction.match(/(\d{1,3})\s*(?:px|pixels?)/i);
+    const distance = Math.min(96, Math.max(0, Number(distanceMatch?.[1] ?? selected.motion?.distance ?? (scroll ? 48 : 24))));
+    if (scroll) return { summary: 'Parallaxe locale bornée sur le bloc sélectionné, sans modifier les autres blocs.', operations: [{ kind: 'updateMotion', nodeId: selected.id, motion: { preset: 'parallax', trigger: 'scroll', duration: selected.motion?.duration ?? 460, delay: 0, distance } }] };
+    const preset = /fondu/i.test(request.instruction) ? 'fade' : /r[ée]v[ée]lation|reveal/i.test(request.instruction) ? 'reveal' : /[ée]chelle|scale/i.test(request.instruction) ? 'scale' : 'rise';
+    return { summary: 'Entrée animée locale sur le bloc sélectionné, à confirmer dans l’aperçu.', operations: [{ kind: 'updateMotion', nodeId: selected.id, motion: { preset, trigger: 'in-view', duration: selected.motion?.duration ?? 460, delay: selected.motion?.delay ?? 0, distance } }] };
   }
   if (/(?:th[èe]me|palette|couleur|sombre|dark mode)/i.test(request.instruction)) {
     const designSystem = structuredClone(getDesignSystem(page.draftDocument.theme));
@@ -76,6 +91,7 @@ function demoProposal(page: typeof pages.$inferSelect, request: AiRequest): AiPr
 function jsonSchema() {
   const designSystem = z.toJSONSchema(designSystemSchema, { io: 'input' });
   const nodeStyle = z.toJSONSchema(nodeStyleSchema, { io: 'input' });
+  const nodeMotion = z.toJSONSchema(nodeMotionSchema, { io: 'input' });
   return {
     type: 'object',
     additionalProperties: false,
@@ -91,6 +107,7 @@ function jsonSchema() {
             { type: 'object', additionalProperties: false, required: ['kind', 'targetId', 'position', 'component', 'props'], properties: { kind: { const: 'insertComponent' }, targetId: { type: 'string' }, position: { enum: ['before', 'after', 'inside'] }, component: { type: 'string' }, props: { type: 'object', additionalProperties: true } } },
             { type: 'object', additionalProperties: false, required: ['kind', 'designSystem'], properties: { kind: { const: 'updateTheme' }, designSystem } },
             { type: 'object', additionalProperties: false, required: ['kind', 'nodeId', 'viewport', 'styles'], properties: { kind: { const: 'updateStyle' }, nodeId: { type: 'string' }, viewport: { enum: ['desktop', 'tablet', 'mobile'] }, state: { enum: ['hover', 'focus-visible', 'active', 'disabled'] }, styles: nodeStyle } },
+            { type: 'object', additionalProperties: false, required: ['kind', 'nodeId', 'motion'], properties: { kind: { const: 'updateMotion' }, nodeId: { type: 'string' }, motion: { anyOf: [nodeMotion, { type: 'null' }] } } },
             { type: 'object', additionalProperties: false, required: ['kind', 'action', 'targetId', 'position', 'props'], properties: { kind: { const: 'scene3d' }, action: { enum: ['insert', 'update', 'remove'] }, targetId: { type: 'string' }, position: { enum: ['before', 'after', 'inside'] }, props: { type: 'object', additionalProperties: true } } },
           ],
         },
@@ -102,7 +119,7 @@ function jsonSchema() {
 async function openAiProposal(page: typeof pages.$inferSelect, request: AiRequest): Promise<{ proposal: AiProposal; model: string; inputUnits: number; outputUnits: number }> {
   if (!process.env.OPENAI_API_KEY || !process.env.OPENAI_MODEL) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'Configurez OPENAI_API_KEY et OPENAI_MODEL, ou choisissez AI_PROVIDER=demo.');
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 45_000, maxRetries: 1 });
-  const response = await client.responses.create({ model: process.env.OPENAI_MODEL, input: [{ role: 'system', content: 'Tu produis uniquement une proposition JSON pour un éditeur de site. N’invente pas d’ID. N’utilise que les composants et propriétés présents dans le document, ou la capacité structurée scene3d lorsqu’elle est explicitement demandée. Aucun HTML, script ou URL javascript.' }, { role: 'user', content: `Consigne : ${request.instruction}\nComposant sélectionné : ${request.selectedNodeId || 'racine'}\nDocument : ${JSON.stringify(page.draftDocument)}` }], text: { format: { type: 'json_schema', name: 'woob_page_proposal', strict: true, schema: jsonSchema() } } });
+  const response = await client.responses.create({ model: process.env.OPENAI_MODEL, input: [{ role: 'system', content: 'Tu produis uniquement une proposition JSON pour un éditeur de site. N’invente pas d’ID. N’utilise que les composants et propriétés présents dans le document, ou les capacités structurées scene3d et updateMotion lorsqu’elles sont explicitement demandées. Pour updateMotion, cible uniquement le composant sélectionné, utilise motion:null pour le retirer, et respecte trois effets scroll maximum par page ; jamais sur navigation, formulaire ou scene3d. Aucun HTML, script ou URL javascript.' }, { role: 'user', content: `Consigne : ${request.instruction}\nComposant sélectionné : ${request.selectedNodeId || 'racine'}\nDocument : ${JSON.stringify(page.draftDocument)}` }], text: { format: { type: 'json_schema', name: 'woob_page_proposal', strict: true, schema: jsonSchema() } } });
   const parsed = aiProposalSchema.parse(JSON.parse(response.output_text));
   return { proposal: parsed, model: process.env.OPENAI_MODEL, inputUnits: response.usage?.input_tokens || 0, outputUnits: response.usage?.output_tokens || 0 };
 }

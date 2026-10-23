@@ -1,8 +1,8 @@
 'use client';
 
 import { useId, useState } from 'react';
-import type { EditorMode, NodeMotion, PageNode, StyleProperty, StyleState, ThemeSettings, Viewport } from '@/lib/document/types';
-import type { MotionPreset } from '@/lib/creative/types';
+import { supportsScrollMotion } from '@/lib/document/types';
+import type { EditorMode, NodeMotion, NodeMotionPreset, PageNode, StyleProperty, StyleState, ThemeSettings, Viewport } from '@/lib/document/types';
 import { getDesignSystem, resolveNodeStateStyle, resolveNodeStyle } from '@/lib/document/design-system';
 import { safeCss, safeCssVariable } from '@/lib/document/validation';
 
@@ -62,19 +62,26 @@ function CssVariables({ node, onChange }: { node: PageNode; onChange: StyleActio
 
 function MotionInspector({ node, mode, onChange }: { node: PageNode; mode: EditorMode; onChange: StyleActions['onMotionChange'] }) {
   const motion = node.motion;
+  const trigger = motion?.trigger ?? 'in-view';
+  const presets: NodeMotionPreset[] = trigger === 'scroll' ? ['parallax', 'fade', 'rise', 'reveal', 'scale'] : ['fade', 'rise', 'reveal', 'scale'];
+  const labels: Record<NodeMotionPreset, string> = { fade: 'Fondu', rise: 'Montée', reveal: 'Révélation', scale: 'Échelle douce', parallax: 'Parallaxe bornée' };
   const update = (patch: Partial<NodeMotion>) => { if (motion) onChange({ ...motion, ...patch }); };
+  const changeTrigger = (value: string) => {
+    if (value === 'none') { onChange(undefined); return; }
+    if (value === 'scroll') { onChange({ preset: 'parallax', trigger: 'scroll', duration: motion?.duration ?? 460, delay: motion?.delay ?? 0, distance: motion?.distance || 48 }); return; }
+    onChange({ preset: motion?.preset === 'parallax' ? 'rise' : motion?.preset ?? 'rise', trigger: 'in-view', duration: motion?.duration ?? 460, delay: motion?.delay ?? 0, distance: motion?.distance ?? 24 });
+  };
   return <section className="inspector-section motion-inspector">
-    <h3>Entrée au viewport</h3>
-    <label>Animation<select aria-label="Entrée au viewport" value={motion ? 'in-view' : 'none'} onChange={(event) => onChange(event.target.value === 'none' ? undefined : { preset: 'rise', trigger: 'in-view', duration: 460, delay: 0, distance: 24 })}><option value="none">Aucune</option><option value="in-view">À l’entrée dans le viewport</option></select></label>
+    <h3>Motion du bloc</h3>
+    <label>Animation<select aria-label="Entrée au viewport" value={motion ? trigger : 'none'} onChange={(event) => changeTrigger(event.target.value)}><option value="none">Aucune</option><option value="in-view">À l’entrée dans le viewport</option>{supportsScrollMotion(node.type) && <option value="scroll">Lié au défilement</option>}</select></label>
     {motion && <>
-      <label>Style<select aria-label="Style d’entrée" value={motion.preset} onChange={(event) => update({ preset: event.target.value as MotionPreset })}><option value="fade">Fondu</option><option value="rise">Montée</option><option value="reveal">Révélation</option><option value="scale">Échelle douce</option></select></label>
+      <label>Style<select aria-label="Style d’entrée" value={motion.preset} onChange={(event) => update({ preset: event.target.value as NodeMotionPreset })}>{presets.map((preset) => <option key={preset} value={preset}>{labels[preset]}</option>)}</select></label>
       {mode !== 'simple' && <div className="motion-fields">
-        <label>Durée (ms)<input type="number" min={100} max={1600} step={20} value={motion.duration} onChange={(event) => update({ duration: Math.min(1600, Math.max(100, Number(event.target.value) || 100)) })} /></label>
-        <label>Délai (ms)<input type="number" min={0} max={1200} step={30} value={motion.delay} onChange={(event) => update({ delay: Math.min(1200, Math.max(0, Number(event.target.value) || 0)) })} /></label>
-        {['rise', 'reveal'].includes(motion.preset) && <label>Distance (px)<input type="number" min={0} max={96} value={motion.distance} onChange={(event) => update({ distance: Math.min(96, Math.max(0, Number(event.target.value) || 0)) })} /></label>}
+        {trigger === 'in-view' && <><label>Durée (ms)<input type="number" min={100} max={1600} step={20} value={motion.duration} onChange={(event) => update({ duration: Math.min(1600, Math.max(100, Number(event.target.value) || 100)) })} /></label><label>Délai (ms)<input type="number" min={0} max={1200} step={30} value={motion.delay} onChange={(event) => update({ delay: Math.min(1200, Math.max(0, Number(event.target.value) || 0)) })} /></label></>}
+        {['rise', 'reveal', 'parallax'].includes(motion.preset) && <label>Distance (px)<input type="number" min={0} max={96} value={motion.distance} onChange={(event) => update({ distance: Math.min(96, Math.max(0, Number(event.target.value) || 0)) })} /></label>}
       </div>}
     </>}
-    <p className="field-hint">Une seule entrée, déclenchée nativement. La réduction de motion du système est toujours respectée ; le contenu reste visible sans JavaScript.</p>
+    <p className="field-hint">{motion?.trigger === 'scroll' ? 'Progression bornée, sans boucle permanente : trois effets scroll maximum par page. La réduction des animations reste prioritaire.' : 'Une seule entrée, déclenchée nativement. La réduction de motion du système est toujours respectée ; le contenu reste visible sans JavaScript.'}</p>
   </section>;
 }
 

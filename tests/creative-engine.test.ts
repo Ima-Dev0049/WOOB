@@ -5,6 +5,8 @@ import { applyCreativeDirection } from '@/lib/creative/engine';
 import { evaluateCreativeQuality } from '@/lib/creative/quality';
 import { creativeDirectionResultSchema } from '@/lib/creative/schema';
 import { validatePageDocument } from '@/lib/document/validation';
+import { makeNode } from '@/lib/document/factory';
+import { flattenNodes } from '@/lib/document/operations';
 import type { PageDocument, PageNode } from '@/lib/document/types';
 
 const restaurant: CreationSelection = {
@@ -124,5 +126,39 @@ describe('Creative Engine local et structuré', () => {
     const invalidFont = structuredClone(draft.creative);
     invalidFont.candidates[0]!.typography.headingFont = 'Inter; background:url(https://example.com/x)';
     expect(creativeDirectionResultSchema.safeParse(invalidFont).success).toBe(false);
+  });
+});
+
+describe('Motion lié au défilement', () => {
+  const parallax = { preset: 'parallax', trigger: 'scroll', duration: 460, delay: 0, distance: 64 } as const;
+
+  it('valide une parallaxe bornée sans transformer les entrées existantes', () => {
+    const document = structuredClone(buildProjectDraft(restaurant).pages[0]!.document);
+    expect(flattenNodes(document.root).some((item) => item.motion?.trigger === 'scroll')).toBe(false);
+    node(document, 'hero').motion = parallax;
+    expect(validatePageDocument(document).success).toBe(true);
+    const incompatible = structuredClone(document);
+    node(incompatible, 'hero').motion = { ...parallax, trigger: 'in-view' };
+    expect(validatePageDocument(incompatible).success).toBe(false);
+  });
+
+  it('refuse les formulaires et un quatrième effet scroll sur une page', () => {
+    const document = structuredClone(buildProjectDraft(restaurant).pages[0]!.document);
+    const form = makeNode('contactForm');
+    form.motion = parallax;
+    document.root.children!.push(form);
+    const invalidTarget = validatePageDocument(document);
+    expect(invalidTarget.success).toBe(false);
+    expect(invalidTarget.issues.some((issue) => issue.path.endsWith('.motion'))).toBe(true);
+
+    const overBudget = structuredClone(buildProjectDraft(restaurant).pages[0]!.document);
+    for (let index = 0; index < 4; index += 1) {
+      const heading = makeNode('heading', { text: `Titre scroll ${index + 1}`, level: 2 });
+      heading.motion = { ...parallax, preset: index % 2 ? 'rise' : 'parallax' };
+      overBudget.root.children!.push(heading);
+    }
+    const result = validatePageDocument(overBudget);
+    expect(result.success).toBe(false);
+    expect(result.issues.some((issue) => issue.message.includes('trois effets'))).toBe(true);
   });
 });

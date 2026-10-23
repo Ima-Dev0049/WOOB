@@ -169,7 +169,7 @@ function NodeRenderer({ node, context }: { node: PageNode; context: RenderContex
     '--woob-motion-delay': `${Math.min(1200, Math.max(0, Number(node.motion.delay) || 0))}ms`,
     '--woob-motion-distance': `${Math.min(96, Math.max(0, Number(node.motion.distance) || 0))}px`,
   } as CSSProperties : undefined;
-  return <div className={className} data-node-id={node.id} data-node-type={node.type} data-motion-preset={node.motion?.preset} style={{ ...styles.wrapper, ...motionStyles }} onClick={context.mode === 'editor' ? (event) => { event.stopPropagation(); context.onSelect?.(node.id); } : undefined}>
+  return <div className={className} data-node-id={node.id} data-node-type={node.type} data-motion-preset={node.motion?.preset} data-motion-trigger={node.motion?.trigger} data-motion-distance={node.motion?.distance} style={{ ...styles.wrapper, ...motionStyles }} onClick={context.mode === 'editor' ? (event) => { event.stopPropagation(); context.onSelect?.(node.id); } : undefined}>
     {css && <style>{css}</style>}<NodeContent node={node} context={context} componentStyle={styles.content} />
   </div>;
 }
