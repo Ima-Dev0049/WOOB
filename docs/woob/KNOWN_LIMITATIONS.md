@@ -1,0 +1,19 @@
+# Limites connues
+
+- Aucun hébergement, PostgreSQL externe, SMTP, S3, Stripe, fournisseur IA, DNS public ou certificat TLS externe n’est vérifié depuis cet environnement.
+- Le stockage et l’email fichiers sont des pilotes locaux ; la boîte fichier n’envoie pas de messages.
+- Le mode IA démo est un gabarit local et ne doit pas être présenté comme une réponse d’un modèle distant.
+- `dns_verified` atteste seulement le TXT lu par le resolver configuré ; il ne signifie ni hôte routé ni certificat émis. Les transitions sont testées avec un resolver simulé, pas avec un domaine public.
+- Les commandes sont manuelles ; leurs montants et statuts `paid`/`unpaid`, y compris dans les statistiques admin, ne prouvent pas un encaissement bancaire ou Stripe. Aucun paiement réussi n’est affiché sans prestataire confirmé.
+- Les réservations sont des demandes en attente, sans moteur complet de disponibilité ni confirmation automatique.
+- Les registres admin sont limités aux 100 entrées récentes et le journal visible aux 50 dernières actions ; la recherche navigateur ne dépasse pas ce lot. Pagination et recherche SQL restent nécessaires pour de gros volumes.
+- Le changement manuel d’offre ne crée aucun paiement et est bloqué lorsqu’un abonnement externe est identifié. La console ne remplace pas le portail du prestataire de paiement.
+- La limitation de débit en mémoire est par instance et doit être remplacée par un mécanisme partagé en déploiement distribué.
+- Le shell, le dashboard, la création de projet, les paramètres/membres, l’authentification et la console admin ont des dictionnaires français/anglais persistés. L’éditeur, les autres écrans du back-office, le marketing, les modèles et de nombreux messages serveur restent à traduire.
+- Les audits axe automatisés passent sur l’accueil, la connexion, le dashboard, l’éditeur, l’administration et le wizard catalogue ; les parcours de focus de quatre dialogues sont testés ; cela ne remplace pas une revue manuelle complète, un lecteur d’écran ou une certification WCAG.
+- Les tests E2E locaux ne sont ni des tests de charge ni une preuve de compatibilité avec tous les navigateurs.
+- Le stockage fichier dynamique produit deux avertissements de traçage au build ; un déploiement doit choisir un volume durable ou un stockage objet et vérifier son empaquetage.
+- L’audit npm complet signale 9 alertes dans les outils de développement ; la solution automatique proposée est incompatible et n’a pas été forcée.
+- Les modules actuels ne remplacent pas un ERP, une marketplace, un LMS ou un e-commerce avec paiement/logistique complexes. Les variantes correspondantes du catalogue créent des sites éditoriaux et des formulaires/modules disponibles, jamais ces backends.
+- Les libellés du wizard sont traduits, mais de nombreuses variantes et entrées sectorielles restent en français de fallback.
+- La collaboration ajoute des comptes existants ; aucune invitation email pour un nouvel utilisateur n’est encore implémentée.

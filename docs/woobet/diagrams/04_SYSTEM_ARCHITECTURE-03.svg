@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1119.217 762" width="1119.217" height="762" style="--bg:#FFFFFF;--fg:#172033;--line:#64748B;--accent:#1D4ED8;--muted:#526075;--surface:#F3F6FB;--border:#9AA9BD;background:#FFFFFF">
+<style>text { font-family: 'DejaVu Sans', sans-serif; }</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#1D4ED8" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="#1D4ED8" stroke-width="1" />
+  </marker>
+</defs>
+<g class="block" data-type="alt" data-label="succès">
+  <rect x="30" y="508" width="736.067" height="204" rx="0" ry="0" fill="none" stroke="#9AA9BD" stroke-width="1" />
+  <rect x="30" y="508" width="77.71" height="18" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="36" y="517" font-size="11" font-weight="600" fill="#526075" dy="3.8499999999999996">alt [succès]</text>
+  <line x1="30" y1="624" x2="766.067" y2="624" stroke="#64748B" stroke-width="0.75" stroke-dasharray="6 4" />
+  <text x="38" y="638" font-size="11" text-anchor="start" font-weight="400" fill="#7B8798" dy="3.8499999999999996">[échec avant ou après activation]</text>
+</g>
+<line class="lifeline" data-actor="U" x1="80" y1="70" x2="80" y2="732" stroke="#64748B" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="A" x1="220" y1="70" x2="220" y2="732" stroke="#64748B" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="DB" x1="360" y1="70" x2="360" y2="732" stroke="#64748B" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Q" x1="503.9745" y1="70" x2="503.9745" y2="732" stroke="#64748B" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="W" x1="674.9955" y1="70" x2="674.9955" y2="732" stroke="#64748B" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="O" x1="856.3905" y1="70" x2="856.3905" y2="732" stroke="#64748B" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="R" x1="1022.9655" y1="70" x2="1022.9655" y2="732" stroke="#64748B" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="U" data-to="A" data-label="Publier(projectId, baseRevision, idempotencyKey)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="80" y1="90" x2="220" y2="90" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="150" y="80" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Publier(projectId, baseRevision, idempotencyKey)</text>
+</g>
+<g class="message" data-from="A" data-to="DB" data-label="Verrouiller intention + créer publication preparing" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="220" y1="130" x2="360" y2="130" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="290" y="120" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Verrouiller intention + créer publication preparing</text>
+</g>
+<g class="message" data-from="A" data-to="Q" data-label="Après commit, demander construction" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="220" y1="170" x2="503.9745" y2="170" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="361.98725" y="160" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Après commit, demander construction</text>
+</g>
+<g class="message" data-from="W" data-to="DB" data-label="Lire snapshot cohérent des versions à publier" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="674.9955" y1="210" x2="360" y2="210" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="517.49775" y="200" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Lire snapshot cohérent des versions à publier</text>
+</g>
+<g class="message" data-from="W" data-to="W" data-label="Valider schéma, routes, assets, capacités et SEO" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="674.9955,250 704.9955,250 704.9955,270 674.9955,270" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="712.9955" y="260" font-size="11" text-anchor="start" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Valider schéma, routes, assets, capacités et SEO</text>
+</g>
+<g class="message" data-from="W" data-to="O" data-label="Écrire documents, manifeste et artefacts sous un préfixe immutable" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="674.9955" y1="320" x2="856.3905" y2="320" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="765.693" y="310" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Écrire documents, manifeste et artefacts sous un préfixe immutable</text>
+</g>
+<g class="message" data-from="W" data-to="DB" data-label="Marquer ready avec checksums ; transaction d'activation compare l'état" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="674.9955" y1="360" x2="360" y2="360" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="517.49775" y="350" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Marquer ready avec checksums ; transaction d&#39;activation compare l&#39;état</text>
+</g>
+<g class="message" data-from="DB" data-to="W" data-label="activePublicationId basculé atomiquement" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="360" y1="400" x2="674.9955" y2="400" stroke="#64748B" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="517.49775" y="390" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">activePublicationId basculé atomiquement</text>
+</g>
+<g class="message" data-from="W" data-to="R" data-label="Invalider/étiqueter les caches par publication" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="674.9955" y1="440" x2="1022.9655" y2="440" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="848.9805" y="430" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Invalider/étiqueter les caches par publication</text>
+</g>
+<g class="message" data-from="W" data-to="R" data-label="Sonde de disponibilité de la version active" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="674.9955" y1="480" x2="1022.9655" y2="480" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="848.9805" y="470" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Sonde de disponibilité de la version active</text>
+</g>
+<g class="message" data-from="W" data-to="DB" data-label="Marquer active + audit" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="674.9955" y1="548" x2="360" y2="548" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="517.49775" y="538" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Marquer active + audit</text>
+</g>
+<g class="message" data-from="A" data-to="U" data-label="Confirmation via notification/état" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="220" y1="588" x2="80" y2="588" stroke="#64748B" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="150" y="578" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Confirmation via notification/état</text>
+</g>
+<g class="message" data-from="W" data-to="DB" data-label="Marquer failed ; restaurer le pointeur précédent si nécessaire" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="674.9955" y1="652" x2="360" y2="652" stroke="#64748B" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="517.49775" y="642" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Marquer failed ; restaurer le pointeur précédent si nécessaire</text>
+</g>
+<g class="message" data-from="A" data-to="U" data-label="Erreur actionnable ; brouillon conservé" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="220" y1="692" x2="80" y2="692" stroke="#64748B" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="150" y="682" font-size="11" text-anchor="middle" font-weight="400" fill="#7B8798" dy="3.8499999999999996">Erreur actionnable ; brouillon conservé</text>
+</g>
+<g class="actor" data-id="U" data-label="Éditeur" data-type="actor">
+  <g transform="translate(62,32) scale(1.5)">
+    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="none" stroke="#64748B" stroke-width="0.6666666666666666" />
+    <path d="M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z" fill="none" stroke="#64748B" stroke-width="0.6666666666666666" />
+    <path d="M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563" fill="none" stroke="#64748B" stroke-width="0.6666666666666666" />
+  </g>
+  <text x="80" y="84" font-size="13" text-anchor="middle" font-weight="500" fill="#172033" dy="4.55">Éditeur</text>
+</g>
+<g class="actor" data-id="A" data-label="API" data-type="participant">
+  <rect x="180" y="30" width="80" height="40" rx="4" ry="4" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="220" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#172033" dy="4.55">API</text>
+</g>
+<g class="actor" data-id="DB" data-label="PostgreSQL" data-type="participant">
+  <rect x="305.975" y="30" width="108.04999999999998" height="40" rx="4" ry="4" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="360" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#172033" dy="4.55">PostgreSQL</text>
+</g>
+<g class="actor" data-id="Q" data-label="File/outbox" data-type="participant">
+  <rect x="454.025" y="30" width="99.899" height="40" rx="4" ry="4" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="503.9745" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#172033" dy="4.55">File/outbox</text>
+</g>
+<g class="actor" data-id="W" data-label="Worker de publication" data-type="participant">
+  <rect x="593.924" y="30" width="162.14299999999997" height="40" rx="4" ry="4" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="674.9955" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#172033" dy="4.55">Worker de publication</text>
+</g>
+<g class="actor" data-id="O" data-label="Stockage objet" data-type="participant">
+  <rect x="796.067" y="30" width="120.64699999999999" height="40" rx="4" ry="4" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="856.3905" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#172033" dy="4.55">Stockage objet</text>
+</g>
+<g class="actor" data-id="R" data-label="Renderer/cache" data-type="participant">
+  <rect x="956.714" y="30" width="132.503" height="40" rx="4" ry="4" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="1022.9655" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="#172033" dy="4.55">Renderer/cache</text>
+</g>
+</svg>

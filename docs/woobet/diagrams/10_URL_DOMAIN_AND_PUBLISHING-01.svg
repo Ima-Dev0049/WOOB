@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1144.8944000000001 974.8999999999999" width="1144.8944000000001" height="974.8999999999999" style="--bg:#FFFFFF;--fg:#172033;--line:#64748B;--accent:#1D4ED8;--muted:#526075;--surface:#F3F6FB;--border:#9AA9BD;background:#FFFFFF">
+<style>text { font-family: 'DejaVu Sans', sans-serif; }</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#1D4ED8" stroke="#1D4ED8" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#1D4ED8" stroke="#1D4ED8" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="_start" data-to="pending" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="763.6173000000001,68 763.6173000000001,116" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="pending" data-to="verification_required" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="challenge créé" points="748.7216333333334,152.9 748.7216333333334,164.9 431.0292333333334,164.9 431.0292333333334,245.20000000000002" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="verification_required" data-to="dns_pending" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="propriété prouvée" points="381.0978333333334,282.1 381.0978333333334,294.1 172.74700000000007,294.1 172.74700000000004,380.40000000000003" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="verification_required" data-to="error" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="échec ou challenge expiré" points="414.3854333333335,282.1 414.3854333333335,415.00000000000006 351.37340000000006,415.00000000000006 351.37340000000006,503.6000000000001 360.67173333333335,503.6000000000001 360.67173333333335,527.6000000000001" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="error" data-to="verification_required" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="nouveau challenge" points="373.09740000000005,527.6000000000001 373.09740000000005,491.6000000000001 480.1694000000001,491.6000000000001 480.1694000000001,427.00000000000006 447.6730333333335,427.00000000000006 447.6730333333335,282.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="dns_pending" data-to="provisioning" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="DNS compatible" points="160.84560000000005,417.3 160.84560000000005,459.30000000000007 128,459.30000000000007 128,656.8 432.2950666666668,656.8 432.2950666666668,668.8" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="dns_pending" data-to="error" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="conflit ou timeout" points="184.64840000000004,417.3 184.64840000000004,459.30000000000007 181.5,459.30000000000007 181.5,503.6000000000001 335.8204,503.6000000000001 335.8204,527.6000000000001" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="error" data-to="dns_pending" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="DNS corrigé" points="348.2460666666667,527.6000000000001 348.2460666666667,491.6000000000001 269.994,491.6000000000001 269.994,447.30000000000007 208.45120000000003,447.30000000000007 208.45120000000003,417.3" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="provisioning" data-to="active" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="TLS et routage prêts" points="490.3200666666668,668.8 490.3200666666668,644.8 706.5852333333335,644.8 706.5852333333335,459.30000000000007 818.5452666666667,459.30000000000007 818.5452666666667,417.3" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="provisioning" data-to="error" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="provider ou certificat en échec" points="451.63673333333344,668.8 451.63673333333344,644.8 382.84915,644.8 382.84915,588.5 360.67173333333335,588.5 360.67173333333335,564.5" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="active" data-to="error" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="DNS perdu ou renouvellement en échec" points="803.0416666666667,417.3 803.0416666666667,447.30000000000007 588.6694000000001,447.30000000000007 588.6694000000001,503.6000000000001 385.5230666666667,503.6000000000001 385.5230666666667,527.6000000000001" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="error" data-to="provisioning" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="reprise après correction" points="379.3102333333334,564.5 379.3102333333334,576.5 534.55915,576.5 534.55915,632.8 470.9784000000001,632.8 470.9784000000001,668.8" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="active" data-to="suspended" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="abus ou action admin" points="834.0488666666668,417.3 834.0488666666668,459.30000000000007 843.0987333333334,459.30000000000007 843.0987333333335,527.6000000000001" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="suspended" data-to="provisioning" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="réactivation validée" points="824.9920666666668,564.5 824.9920666666668,612.5 800.4854000000001,612.5 800.4854000000001,656.8 509.6617333333335,656.8 509.6617333333335,668.8" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="pending" data-to="removed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="suppression" points="778.5129666666668,152.9 778.5129666666668,362.40000000000003 1045.2754000000002,362.40000000000003 1045.2754000000002,810 896.3879000000002,810 896.3879000000002,822" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="verification_required" data-to="removed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="suppression" points="480.9606333333335,282.1 480.9606333333335,374.40000000000003 998.7754000000002,374.40000000000003 998.7754000000002,798 884.6604000000002,798 884.6604000000002,822" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="dns_pending" data-to="removed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="suppression" points="137.04280000000003,417.3 137.04280000000003,447.30000000000007 75.5,447.30000000000007 75.5,810 826.0229000000002,810 826.0229000000002,822" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="provisioning" data-to="removed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="nettoyage terminé" points="470.9784000000001,705.7 470.9784000000001,786 849.4779000000002,786 849.4779000000002,822" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="active" data-to="removed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="déroutage et nettoyage" points="849.5524666666668,417.3 849.5524666666668,459.30000000000007 930.7054000000002,459.30000000000007 930.7054000000002,786 872.9329000000002,786 872.9329000000002,822" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="error" data-to="removed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="nettoyage terminé" points="342.0332333333334,564.5 342.0332333333334,588.5 292.35465000000005,588.5 292.35465000000005,644.8 239.3258166666667,644.8 239.3258166666667,798 837.7504000000002,798 837.7504000000002,822" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="suspended" data-to="removed" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="nettoyage terminé" points="861.2054000000002,564.5 861.2054000000002,822" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="removed" data-to="_end" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="861.2054000000002,858.8999999999999 861.2054000000002,906.8999999999999" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="pending" data-to="verification_required" data-label="challenge créé">
+  <rect x="386.5292333333334" y="171.9" width="88.33600000000001" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="430.69723333333343" y="187.05" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">challenge créé</text>
+</g>
+<g class="edge-label" data-from="verification_required" data-to="dns_pending" data-label="propriété prouvée">
+  <rect x="120.74700000000007" y="301.1" width="103.78000000000002" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="172.63700000000009" y="316.25" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">propriété prouvée</text>
+</g>
+<g class="edge-label" data-from="verification_required" data-to="error" data-label="échec ou challenge expiré">
+  <rect x="280.37340000000006" y="422.00000000000006" width="141.79600000000005" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="351.2714000000001" y="437.15000000000003" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">échec ou challenge expiré</text>
+</g>
+<g class="edge-label" data-from="error" data-to="verification_required" data-label="nouveau challenge">
+  <rect x="426.1694000000001" y="434.00000000000006" width="107.34400000000002" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="479.84140000000014" y="449.15000000000003" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">nouveau challenge</text>
+</g>
+<g class="edge-label" data-from="dns_pending" data-to="provisioning" data-label="DNS compatible">
+  <rect x="82.5" y="619.5" width="90.71200000000002" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="127.85600000000001" y="634.65" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">DNS compatible</text>
+</g>
+<g class="edge-label" data-from="dns_pending" data-to="error" data-label="conflit ou timeout">
+  <rect x="135" y="466.30000000000007" width="92.49400000000001" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="181.247" y="481.45000000000005" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">conflit ou timeout</text>
+</g>
+<g class="edge-label" data-from="error" data-to="dns_pending" data-label="DNS corrigé">
+  <rect x="231.49400000000003" y="454.30000000000007" width="76.45599999999999" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="269.72200000000004" y="469.45000000000005" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">DNS corrigé</text>
+</g>
+<g class="edge-label" data-from="provisioning" data-to="active" data-label="TLS et routage prêts">
+  <rect x="649.0852333333335" y="587.2" width="114.47200000000002" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="706.3212333333335" y="602.35" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">TLS et routage prêts</text>
+</g>
+<g class="edge-label" data-from="provisioning" data-to="error" data-label="provider ou certificat en échec">
+  <rect x="302.34915" y="595.5" width="160.21000000000004" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="382.45415" y="610.65" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">provider ou certificat en échec</text>
+</g>
+<g class="edge-label" data-from="active" data-to="error" data-label="DNS perdu ou renouvellement en échec">
+  <rect x="487.1694000000001" y="466.30000000000007" width="202.384" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="588.3614000000001" y="481.45000000000005" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">DNS perdu ou renouvellement en échec</text>
+</g>
+<g class="edge-label" data-from="error" data-to="provisioning" data-label="reprise après correction">
+  <rect x="466.55915000000005" y="595.5" width="135.262" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="534.19015" y="610.65" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">reprise après correction</text>
+</g>
+<g class="edge-label" data-from="active" data-to="suspended" data-label="abus ou action admin">
+  <rect x="785.5987333333334" y="466.30000000000007" width="114.47200000000002" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="842.8347333333334" y="481.45000000000005" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">abus ou action admin</text>
+</g>
+<g class="edge-label" data-from="suspended" data-to="provisioning" data-label="réactivation validée">
+  <rect x="745.4854000000001" y="619.5" width="109.72000000000003" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="800.3454000000002" y="634.65" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">réactivation validée</text>
+</g>
+<g class="edge-label" data-from="pending" data-to="removed" data-label="suppression">
+  <rect x="1005.7754000000001" y="651.8000000000002" width="78.238" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="1044.8944000000001" y="666.9500000000002" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">suppression</text>
+</g>
+<g class="edge-label" data-from="verification_required" data-to="removed" data-label="suppression">
+  <rect x="959.2754000000002" y="684.1000000000001" width="78.238" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="998.3944000000002" y="699.2500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">suppression</text>
+</g>
+<g class="edge-label" data-from="dns_pending" data-to="removed" data-label="suppression">
+  <rect x="36" y="772.7" width="78.238" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="75.119" y="787.85" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">suppression</text>
+</g>
+<g class="edge-label" data-from="provisioning" data-to="removed" data-label="nettoyage terminé">
+  <rect x="420.4784000000001" y="748.7" width="100.21600000000001" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="470.5864000000001" y="763.85" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">nettoyage terminé</text>
+</g>
+<g class="edge-label" data-from="active" data-to="removed" data-label="déroutage et nettoyage">
+  <rect x="868.2054000000002" y="716.4000000000001" width="124.57000000000001" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="930.4904000000001" y="731.5500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">déroutage et nettoyage</text>
+</g>
+<g class="edge-label" data-from="error" data-to="removed" data-label="nettoyage terminé">
+  <rect x="188.8258166666667" y="760.7" width="100.21600000000001" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="238.9338166666667" y="775.85" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">nettoyage terminé</text>
+</g>
+<g class="edge-label" data-from="suspended" data-to="removed" data-label="nettoyage terminé">
+  <rect x="810.7054000000003" y="748.7" width="100.21600000000001" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="860.8134000000002" y="763.85" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">nettoyage terminé</text>
+</g>
+<g class="node" data-id="_start" data-label="" data-shape="state-start">
+  <circle cx="763.6173000000001" cy="54" r="12" fill="#172033" stroke="none" />
+</g>
+<g class="node" data-id="pending" data-label="pending" data-shape="rounded">
+  <rect x="718.9303000000001" y="116" width="89.374" height="36.900000000000006" rx="6" ry="6" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="763.6173000000001" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">pending</text>
+</g>
+<g class="node" data-id="verification_required" data-label="verification_required" data-shape="rounded">
+  <rect x="347.81023333333343" y="245.20000000000002" width="166.43800000000005" height="36.900000000000006" rx="6" ry="6" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="431.0292333333334" y="263.65000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">verification_required</text>
+</g>
+<g class="node" data-id="dns_pending" data-label="dns_pending" data-shape="rounded">
+  <rect x="113.24000000000004" y="380.40000000000003" width="119.01400000000001" height="36.900000000000006" rx="6" ry="6" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="172.74700000000004" y="398.85" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">dns_pending</text>
+</g>
+<g class="node" data-id="error" data-label="error" data-shape="rounded">
+  <rect x="323.39473333333336" y="527.6000000000001" width="74.554" height="36.900000000000006" rx="6" ry="6" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="360.67173333333335" y="546.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">error</text>
+</g>
+<g class="node" data-id="provisioning" data-label="provisioning" data-shape="rounded">
+  <rect x="412.9534000000001" y="668.8" width="116.05" height="36.900000000000006" rx="6" ry="6" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="470.9784000000001" y="687.25" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">provisioning</text>
+</g>
+<g class="node" data-id="active" data-label="active" data-shape="rounded">
+  <rect x="787.5380666666667" y="380.40000000000003" width="77.518" height="36.900000000000006" rx="6" ry="6" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="826.2970666666668" y="398.85" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">active</text>
+</g>
+<g class="node" data-id="suspended" data-label="suspended" data-shape="rounded">
+  <rect x="788.7787333333334" y="527.6000000000001" width="108.64" height="36.900000000000006" rx="6" ry="6" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="843.0987333333335" y="546.0500000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">suspended</text>
+</g>
+<g class="node" data-id="removed" data-label="removed" data-shape="rounded">
+  <rect x="814.2954000000002" y="822" width="93.82" height="36.900000000000006" rx="6" ry="6" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="861.2054000000002" y="840.45" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">removed</text>
+</g>
+<g class="node" data-id="_end" data-label="" data-shape="state-end">
+  <circle cx="861.2054000000002" cy="920.8999999999999" r="12" fill="none" stroke="#172033" stroke-width="1.5" />
+  <circle cx="861.2054000000002" cy="920.8999999999999" r="8" fill="#172033" stroke="none" />
+</g>
+</svg>

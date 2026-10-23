@@ -1,0 +1,414 @@
+openapi: 3.1.0
+info:
+  title: WOOBET Management API — extrait de spécification
+  version: 0.1.0-proposal
+  description: |
+    Contrat proposé, non déployé. Les chemins couvrent les conventions et quelques
+    opérations critiques. Le domaine .invalid est volontairement non résoluble.
+servers:
+  - url: https://api.woobet.invalid/v1
+    description: Serveur fictif de spécification
+tags:
+  - name: System
+  - name: Projects
+  - name: Editor
+  - name: Publishing
+  - name: Domains
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Santé de l'API sans information sensible
+      security: []
+      responses:
+        '200':
+          description: Service disponible
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version]
+                properties:
+                  status: {type: string, const: ok}
+                  version: {type: string}
+  /workspaces/{workspaceId}/projects:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Projects]
+      summary: Lister les projets du workspace
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Page de projets
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProjectPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Projects]
+      summary: Créer un projet
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateProjectRequest'}
+      responses:
+        '201':
+          description: Projet créé
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Project'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /workspaces/{workspaceId}/projects/{projectId}/pages/{pageId}/draft:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PageId'
+    get:
+      tags: [Editor]
+      summary: Lire le brouillon et sa révision
+      responses:
+        '200':
+          description: Brouillon courant
+          headers:
+            ETag:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DraftResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [Editor]
+      summary: Remplacer un brouillon à une révision connue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateDraftRequest'}
+      responses:
+        '200':
+          description: Brouillon enregistré
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DraftResponse'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /workspaces/{workspaceId}/projects/{projectId}/pages/{pageId}/commands:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PageId'
+    post:
+      tags: [Editor]
+      summary: Appliquer une commande atomique
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/EditorCommandRequest'}
+      responses:
+        '200':
+          description: Commande appliquée
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DraftResponse'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /workspaces/{workspaceId}/projects/{projectId}/publications:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [Publishing]
+      summary: Demander une publication immutable
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreatePublicationRequest'}
+      responses:
+        '202':
+          description: Publication acceptée pour traitement
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Publication'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /workspaces/{workspaceId}/projects/{projectId}/publications/{publicationId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PublicationId'
+    get:
+      tags: [Publishing]
+      summary: Consulter une publication
+      responses:
+        '200':
+          description: État de la publication
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Publication'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /workspaces/{workspaceId}/projects/{projectId}/domains:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [Domains]
+      summary: Ajouter un domaine et créer son challenge
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateDomainRequest'}
+      responses:
+        '201':
+          description: Domaine créé en attente
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Domain'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /workspaces/{workspaceId}/projects/{projectId}/domains/{domainId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/DomainId'
+    get:
+      tags: [Domains]
+      summary: Consulter le domaine et ses instructions sûres
+      responses:
+        '200':
+          description: État du domaine
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Domain'}
+        '404': {$ref: '#/components/responses/NotFound'}
+components:
+  securitySchemes:
+    studioSession:
+      type: apiKey
+      in: cookie
+      name: woobet_session
+  security:
+    - studioSession: []
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    PageId:
+      name: pageId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    PublicationId:
+      name: publicationId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    DomainId:
+      name: domainId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    Limit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+    Cursor:
+      name: cursor
+      in: query
+      schema: {type: string, maxLength: 2048}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 8, maxLength: 255}
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId, retryable]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            requestId: {type: string}
+            details: {type: object, additionalProperties: true}
+            retryable: {type: boolean}
+    Project:
+      type: object
+      required: [id, workspaceId, name, slug, status, draftRevision]
+      properties:
+        id: {type: string, format: uuid}
+        workspaceId: {type: string, format: uuid}
+        name: {type: string}
+        slug: {type: string}
+        status: {type: string, enum: [draft, active, archived, deleting, deleted]}
+        draftRevision: {type: integer, format: int64, minimum: 0}
+        activePublicationId: {type: [string, 'null'], format: uuid}
+    ProjectPage:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Project'}
+        page:
+          type: object
+          required: [hasMore]
+          properties:
+            nextCursor: {type: [string, 'null']}
+            hasMore: {type: boolean}
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [name, slug, origin]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 160}
+        slug: {type: string, pattern: '^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$'}
+        origin: {type: string, enum: [blank, template, ai]}
+        templateVersionId: {type: string, format: uuid}
+        initialLocale: {type: string, default: fr, maxLength: 35}
+    DraftResponse:
+      type: object
+      required: [pageId, revision, schemaVersion, document, checksum, savedAt]
+      properties:
+        pageId: {type: string, format: uuid}
+        revision: {type: integer, format: int64, minimum: 0}
+        schemaVersion: {type: string}
+        document: {type: object, additionalProperties: true}
+        checksum: {type: string}
+        savedAt: {type: string, format: date-time}
+    UpdateDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [baseRevision, document]
+      properties:
+        baseRevision: {type: integer, format: int64, minimum: 0}
+        document: {type: object, additionalProperties: true}
+    EditorCommandRequest:
+      type: object
+      additionalProperties: false
+      required: [baseRevision, commandId, type, scope, payload]
+      properties:
+        baseRevision: {type: integer, format: int64, minimum: 0}
+        commandId: {type: string, minLength: 1, maxLength: 128}
+        type: {type: string, enum: [insertNode, moveNode, removeNode, duplicateNode, updateProps, setStyle, resetStyle, setBreakpointOverride, applyAiPatch]}
+        scope:
+          type: object
+          required: [nodeIds]
+          properties:
+            nodeIds:
+              type: array
+              maxItems: 1000
+              items: {type: string}
+        payload: {type: object, additionalProperties: true}
+    CreatePublicationRequest:
+      type: object
+      additionalProperties: false
+      required: [sourceRevision]
+      properties:
+        sourceRevision: {type: integer, format: int64, minimum: 0}
+        note: {type: string, maxLength: 500}
+    Publication:
+      type: object
+      required: [id, number, state, sourceRevision, createdAt]
+      properties:
+        id: {type: string, format: uuid}
+        number: {type: integer, format: int64}
+        state: {type: string, enum: [preparing, validating, building, ready, activating, active, superseded, failed, cancelled]}
+        sourceRevision: {type: integer, format: int64}
+        createdAt: {type: string, format: date-time}
+        activatedAt: {type: [string, 'null'], format: date-time}
+        errorCode: {type: [string, 'null']}
+    CreateDomainRequest:
+      type: object
+      additionalProperties: false
+      required: [hostname, kind]
+      properties:
+        hostname: {type: string, minLength: 3, maxLength: 253}
+        kind: {type: string, enum: [platform, custom]}
+    Domain:
+      type: object
+      required: [id, hostname, asciiHostname, kind, state, stateVersion, isCanonical]
+      properties:
+        id: {type: string, format: uuid}
+        hostname: {type: string}
+        asciiHostname: {type: string}
+        kind: {type: string, enum: [platform, custom]}
+        state: {type: string, enum: [pending, verification_required, dns_pending, provisioning, active, error, suspended, removed]}
+        stateVersion: {type: integer, format: int64}
+        isCanonical: {type: boolean}
+        instructions:
+          type: array
+          items:
+            type: object
+            required: [type, recordName, recordValue]
+            properties:
+              type: {type: string, enum: [TXT, CNAME, A, AAAA, ALIAS]}
+              recordName: {type: string}
+              recordValue: {type: string}
+              ttl: {type: integer}
+        lastError:
+          type: [object, 'null']
+          properties:
+            code: {type: string}
+            retryable: {type: boolean}
+            checkedAt: {type: string, format: date-time}
+  responses:
+    Unauthorized:
+      description: Authentification requise
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Forbidden:
+      description: Permission ou appartenance insuffisante
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    NotFound:
+      description: Ressource absente ou non visible
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Conflict:
+      description: Révision, unicité ou état en conflit
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    ValidationError:
+      description: Entrée ou document invalide
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    RateLimited:
+      description: Quota ou limite atteint
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}

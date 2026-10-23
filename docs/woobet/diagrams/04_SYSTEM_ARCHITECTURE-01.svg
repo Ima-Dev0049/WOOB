@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1670.0149999999999 982" width="1670.0149999999999" height="982" style="--bg:#FFFFFF;--fg:#172033;--line:#64748B;--accent:#1D4ED8;--muted:#526075;--surface:#F3F6FB;--border:#9AA9BD;background:#FFFFFF">
+<style>text { font-family: 'DejaVu Sans', sans-serif; }</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#1D4ED8" stroke="#1D4ED8" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#1D4ED8" stroke="#1D4ED8" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="Users" data-label="Utilisateurs et visiteurs">
+  <rect x="990.6103333333333" y="40" width="536.185" height="96.9" rx="0" ry="0" fill="#FFFFFF" stroke="#9AA9BD" stroke-width="1" />
+  <rect x="990.6103333333333" y="40" width="536.185" height="28" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="1002.6103333333333" y="54" font-size="12" font-weight="600" fill="#526075" dy="4.199999999999999">Utilisateurs et visiteurs</text>
+</g>
+<g class="subgraph" data-id="Edge" data-label="Frontière edge et routage">
+  <rect x="1136.16625" y="310.3999999999999" width="478.83199999999994" height="96.9" rx="0" ry="0" fill="#FFFFFF" stroke="#9AA9BD" stroke-width="1" />
+  <rect x="1136.16625" y="310.3999999999999" width="478.83199999999994" height="28" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="1148.16625" y="324.3999999999999" font-size="12" font-weight="600" fill="#526075" dy="4.199999999999999">Frontière edge et routage</text>
+</g>
+<g class="subgraph" data-id="Product" data-label="Plan de gestion - confiance contrôlée">
+  <rect x="611.505073809524" y="241.2" width="331.3222333333333" height="351.6" rx="0" ry="0" fill="#FFFFFF" stroke="#9AA9BD" stroke-width="1" />
+  <rect x="611.505073809524" y="241.2" width="331.3222333333333" height="28" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="623.505073809524" y="255.2" font-size="12" font-weight="600" fill="#526075" dy="4.199999999999999">Plan de gestion - confiance contrôlée</text>
+</g>
+<g class="subgraph" data-id="Public" data-label="Plan public - contenu publié">
+  <rect x="1328.01075" y="467.29999999999995" width="274.02" height="181.8" rx="0" ry="0" fill="#FFFFFF" stroke="#9AA9BD" stroke-width="1" />
+  <rect x="1328.01075" y="467.29999999999995" width="274.02" height="28" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="1340.01075" y="481.29999999999995" font-size="12" font-weight="600" fill="#526075" dy="4.199999999999999">Plan public - contenu publié</text>
+</g>
+<g class="subgraph" data-id="Data" data-label="Données et fournisseurs">
+  <rect x="92" y="709.1" width="1538.0149999999999" height="206.9" rx="0" ry="0" fill="#FFFFFF" stroke="#9AA9BD" stroke-width="1" />
+  <rect x="92" y="709.1" width="1538.0149999999999" height="28" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="1" />
+  <text x="104" y="723.1" font-size="12" font-weight="600" fill="#526075" dy="4.199999999999999">Données et fournisseurs</text>
+</g>
+<polyline class="edge" data-from="U" data-to="CDN" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1270.9293333333333,120.9 1270.9293333333333,292.3999999999999 1252.7509166666666,292.3999999999999 1252.7509166666666,362.25" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CDN" data-to="ST" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1227.60475,399.15000000000003 1227.60475,655.0999999999999 1114.16625,655.0999999999999 1114.16625,223.2 866.2088071428573,223.2 866.2088071428573,285.2" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="V" data-to="DR" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1446.8423333333333,120.9 1446.8423333333333,292.3999999999999 1465.02075,292.3999999999999 1465.02075,362.25" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DR" data-to="PC" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1465.02075,399.15000000000003 1465.02075,525.6" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SR" data-to="CDN" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1501.39185,633.0999999999999 1501.39185,667.0999999999999 1126.16625,667.0999999999999 1126.16625,292.3999999999999 1202.4585833333333,292.3999999999999 1202.4585833333333,362.25" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="API" data-to="PG" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="712.206073809524,399.15 712.206073809524,427.075 477.83700000000005,427.075 477.83700000000005,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="API" data-to="RD" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="712.206073809524,399.15 712.206073809524,427.075 146.018,427.075 146.018,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="WK" data-to="PG" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="793.195973809524,562.5 793.195973809524,697.1 477.83700000000005,697.1 477.83700000000005,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="WK" data-to="OB" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="793.195973809524,562.5 793.195973809524,697.1 1540.4289999999999,697.1 1540.4289999999999,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="WK" data-to="AI" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="793.195973809524,562.5 793.195973809524,697.1 692.6525000000001,697.1 692.6525000000001,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="WK" data-to="DNS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="793.195973809524,562.5 793.195973809524,697.1 1151.1825000000001,697.1 1151.1825000000001,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="WK" data-to="MAIL" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="793.195973809524,562.5 793.195973809524,697.1 1358.9585000000002,697.1 1358.9585000000002,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SR" data-to="OB" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1465.02075,633.0999999999999 1465.02075,697.1 1540.4289999999999,697.1 1540.4289999999999,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SR" data-to="PG" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1465.02075,633.0999999999999 1465.02075,697.1 477.83700000000005,697.1 477.83700000000005,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PAY" data-to="API" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="webhook vérifié" points="301.92400000000004,893 301.924,934 82,934 82,223.20000000000005 669.855573809524,223.20000000000005 669.855573809524,362.25" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="EXT" data-to="API" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="API ou webhook vérifié" points="1082.7898333333333,120.9 1082.7898333333333,154.9 712.206073809524,154.9 712.206073809524,362.25" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="API" data-to="OBS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="712.206073809524,399.15 712.206073809524,427.075 936.3670000000001,427.075 936.3670000000001,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="WK" data-to="OBS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="793.195973809524,562.5 793.195973809524,697.1 936.3670000000001,697.1 936.3670000000001,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SR" data-to="OBS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1465.02075,633.0999999999999 1465.02075,697.1 936.3670000000001,697.1 936.3670000000001,856.1" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="ST" data-to="OBS" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-label="erreurs pseudonymisées" points="886.414973809524,322.1 886.414973809524,610.8 1039.43425,610.8 1039.43425,679.0999999999999 1161.3551499999999,679.0999999999999 1161.3551499999999,789.1 953.7518000000001,789.1 953.7518000000001,856.1000000000001" fill="none" stroke="#64748B" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="ST" data-to="API" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="846.0026404761907,322.1 846.0026404761907,334.1 754.556573809524,334.1 754.556573809524,362.25" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="API" data-to="Q" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="712.206073809524,399.15 712.206073809524,427.075 793.1959738095239,427.075 793.1959738095239,455" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Q" data-to="WK" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="793.1959738095239,491.9 793.1959738095239,525.6" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PC" data-to="SR" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1465.02075,562.5 1465.02075,596.1999999999999" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="PAY" data-to="API" data-label="webhook vérifié">
+  <rect x="36.00000000000001" y="629.8000000000001" width="91.90000000000002" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="81.95000000000002" y="644.95" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">webhook vérifié</text>
+</g>
+<g class="edge-label" data-from="EXT" data-to="API" data-label="API ou webhook vérifié">
+  <rect x="650.206073809524" y="161.9" width="123.976" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="712.1940738095241" y="177.05" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">API ou webhook vérifié</text>
+</g>
+<g class="edge-label" data-from="ST" data-to="OBS" data-label="erreurs pseudonymisées">
+  <rect x="969.93425" y="617.8000000000001" width="138.23199999999997" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#D7DEE8" stroke-width="1" />
+  <text x="1039.05025" y="632.95" text-anchor="middle" font-size="11" font-weight="400" fill="#526075" dy="3.8499999999999996">erreurs pseudonymisées</text>
+</g>
+<g class="node" data-id="U" data-label="Équipe du workspace" data-shape="rectangle">
+  <rect x="1186.9693333333332" y="84" width="167.92" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="1270.9293333333333" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Équipe du workspace</text>
+</g>
+<g class="node" data-id="V" data-label="Visiteur du site" data-shape="rectangle">
+  <rect x="1382.8893333333333" y="84" width="127.906" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="1446.8423333333333" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Visiteur du site</text>
+</g>
+<g class="node" data-id="EXT" data-label="Intégration externe" data-shape="rectangle">
+  <rect x="1006.6103333333333" y="84" width="152.359" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="1082.7898333333333" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Intégration externe</text>
+</g>
+<g class="node" data-id="CDN" data-label="CDN / WAF / cache" data-shape="rectangle">
+  <rect x="1152.16625" y="362.25" width="150.877" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="1227.60475" y="380.7" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">CDN / WAF / cache</text>
+</g>
+<g class="node" data-id="DR" data-label="Routeur de domaines et résolution Host" data-shape="rectangle">
+  <rect x="1331.04325" y="362.25" width="267.9549999999999" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="1465.02075" y="380.7" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Routeur de domaines et résolution Host</text>
+</g>
+<g class="node" data-id="ST" data-label="Studio Next.js" data-shape="rectangle">
+  <rect x="805.5903071428572" y="285.2" width="121.23700000000001" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="866.2088071428573" y="303.65" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Studio Next.js</text>
+</g>
+<g class="node" data-id="API" data-label="API NestJS modulaire" data-shape="rectangle">
+  <rect x="627.505073809524" y="362.25" width="169.402" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="712.206073809524" y="380.7" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">API NestJS modulaire</text>
+</g>
+<g class="node" data-id="WK" data-label="Workers idempotents" data-shape="rectangle">
+  <rect x="709.976973809524" y="525.6" width="166.438" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="793.195973809524" y="544.0500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Workers idempotents</text>
+</g>
+<g class="node" data-id="Q" data-label="File Redis / BullMQ" data-shape="rectangle">
+  <rect x="717.757473809524" y="455" width="150.877" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="793.1959738095239" y="473.45" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">File Redis / BullMQ</text>
+</g>
+<g class="node" data-id="SR" data-label="Site renderer" data-shape="rectangle">
+  <rect x="1404.4022499999999" y="596.1999999999999" width="121.23700000000001" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="1465.02075" y="614.65" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Site renderer</text>
+</g>
+<g class="node" data-id="PC" data-label="Cache de publications et domaines" data-shape="rectangle">
+  <rect x="1344.01075" y="525.6" width="242.01999999999998" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="1465.02075" y="544.0500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Cache de publications et domaines</text>
+</g>
+<g class="node" data-id="PG" data-label="PostgreSQL" data-shape="cylinder">
+  <rect x="419.81200000000007" y="863.1" width="116.04999999999998" height="36.900000000000006" fill="#F3F6FB" stroke="none" />
+  <line x1="419.81200000000007" y1="863.1" x2="419.81200000000007" y2="900" stroke="#9AA9BD" stroke-width="0.75" />
+  <line x1="535.8620000000001" y1="863.1" x2="535.8620000000001" y2="900" stroke="#9AA9BD" stroke-width="0.75" />
+  <ellipse cx="477.83700000000005" cy="900" rx="58.02499999999999" ry="7" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <ellipse cx="477.83700000000005" cy="863.1" rx="58.02499999999999" ry="7" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="477.83700000000005" y="881.5500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">PostgreSQL</text>
+</g>
+<g class="node" data-id="OB" data-label="Stockage objet S3" data-shape="cylinder">
+  <rect x="1466.8429999999998" y="863.1" width="147.172" height="36.900000000000006" fill="#F3F6FB" stroke="none" />
+  <line x1="1466.8429999999998" y1="863.1" x2="1466.8429999999998" y2="900" stroke="#9AA9BD" stroke-width="0.75" />
+  <line x1="1614.0149999999999" y1="863.1" x2="1614.0149999999999" y2="900" stroke="#9AA9BD" stroke-width="0.75" />
+  <ellipse cx="1540.4289999999999" cy="900" rx="73.586" ry="7" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <ellipse cx="1540.4289999999999" cy="863.1" rx="73.586" ry="7" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="1540.4289999999999" y="881.5500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Stockage objet S3</text>
+</g>
+<g class="node" data-id="RD" data-label="Redis" data-shape="cylinder">
+  <rect x="108" y="863.1" width="76.036" height="36.900000000000006" fill="#F3F6FB" stroke="none" />
+  <line x1="108" y1="863.1" x2="108" y2="900" stroke="#9AA9BD" stroke-width="0.75" />
+  <line x1="184.036" y1="863.1" x2="184.036" y2="900" stroke="#9AA9BD" stroke-width="0.75" />
+  <ellipse cx="146.018" cy="900" rx="38.018" ry="7" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <ellipse cx="146.018" cy="863.1" rx="38.018" ry="7" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="146.018" y="881.5500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Redis</text>
+</g>
+<g class="node" data-id="AI" data-label="Fournisseurs IA derrière adaptateur" data-shape="rectangle">
+  <rect x="563.8620000000001" y="856.1" width="257.581" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="692.6525000000001" y="874.5500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Fournisseurs IA derrière adaptateur</text>
+</g>
+<g class="node" data-id="DNS" data-label="DNS et service ACME/TLS" data-shape="rectangle">
+  <rect x="1051.2910000000002" y="856.1" width="199.78299999999996" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="1151.1825000000001" y="874.5500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">DNS et service ACME/TLS</text>
+</g>
+<g class="node" data-id="PAY" data-label="Prestataire de paiement" data-shape="rectangle">
+  <rect x="212.03600000000003" y="856.1" width="179.77599999999998" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="301.92400000000004" y="874.5500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Prestataire de paiement</text>
+</g>
+<g class="node" data-id="MAIL" data-label="Email transactionnel" data-shape="rectangle">
+  <rect x="1279.074" y="856.1" width="159.769" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="1358.9585000000002" y="874.5500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Email transactionnel</text>
+</g>
+<g class="node" data-id="OBS" data-label="Logs métriques traces" data-shape="rectangle">
+  <rect x="849.4430000000001" y="856.1" width="173.848" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="936.3670000000001" y="874.5500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">Logs métriques traces</text>
+</g>
+</svg>

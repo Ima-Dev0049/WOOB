@@ -1,0 +1,409 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schema.woobet.invalid/page-document/v1.schema.json",
+  "title": "WOOBET PageDocument v1 — proposition de spécification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "documentId",
+    "pageId",
+    "revision",
+    "metadata",
+    "theme",
+    "root",
+    "assets",
+    "dataBindings",
+    "interactions",
+    "capabilities"
+  ],
+  "properties": {
+    "schema": {
+      "const": "https://schema.woobet.invalid/page-document/v1"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "documentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "pageId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "metadata": {
+      "$ref": "#/$defs/PageMetadata"
+    },
+    "theme": {
+      "$ref": "#/$defs/ThemeReference"
+    },
+    "root": {
+      "$ref": "#/$defs/PageNode"
+    },
+    "assets": {
+      "type": "object",
+      "maxProperties": 1000,
+      "propertyNames": {
+        "$ref": "#/$defs/SafeKey"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/AssetReference"
+      }
+    },
+    "dataBindings": {
+      "type": "object",
+      "maxProperties": 250,
+      "propertyNames": {
+        "$ref": "#/$defs/SafeKey"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/DataBinding"
+      }
+    },
+    "interactions": {
+      "type": "object",
+      "maxProperties": 500,
+      "propertyNames": {
+        "$ref": "#/$defs/SafeKey"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/Interaction"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$",
+        "maxLength": 128
+      }
+    }
+  },
+  "$defs": {
+    "SafeKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "not": {
+        "enum": ["__proto__", "prototype", "constructor"]
+      }
+    },
+    "LocalizedText": {
+      "type": "object",
+      "maxProperties": 50,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
+        "maxLength": 35
+      },
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 100000
+      }
+    },
+    "PageMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "description", "path", "robots"],
+      "properties": {
+        "title": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "description": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "path": {
+          "type": "object",
+          "maxProperties": 50,
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^/",
+            "maxLength": 2048
+          }
+        },
+        "robots": {
+          "type": "string",
+          "enum": ["index,follow", "noindex,follow", "noindex,nofollow"]
+        },
+        "socialImageAssetKey": {
+          "$ref": "#/$defs/SafeKey"
+        }
+      }
+    },
+    "ThemeReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["themeId", "version", "overrides"],
+      "properties": {
+        "themeId": {
+          "$ref": "#/$defs/SafeKey"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+        },
+        "overrides": {
+          "type": "object",
+          "maxProperties": 500,
+          "propertyNames": {
+            "$ref": "#/$defs/StyleKey"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/StyleValue"
+          }
+        }
+      }
+    },
+    "StyleKey": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$",
+      "not": {
+        "enum": ["__proto__", "prototype", "constructor"]
+      }
+    },
+    "StyleValue": {
+      "type": ["string", "number", "null"],
+      "maxLength": 512
+    },
+    "BreakpointOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["breakpoint", "styles"],
+      "properties": {
+        "breakpoint": {
+          "$ref": "#/$defs/SafeKey"
+        },
+        "styles": {
+          "type": "object",
+          "maxProperties": 100,
+          "propertyNames": {
+            "$ref": "#/$defs/StyleKey"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/StyleValue"
+          }
+        },
+        "props": {
+          "type": "object",
+          "maxProperties": 100,
+          "propertyNames": {
+            "$ref": "#/$defs/SafeKey"
+          }
+        }
+      }
+    },
+    "VisibilityRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["always", "never", "expression"]
+        },
+        "expression": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {"const": "expression"}
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["expression"]
+          }
+        }
+      ]
+    },
+    "PageNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "version", "props", "styles"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/SafeKey"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$",
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+        },
+        "props": {
+          "type": "object",
+          "maxProperties": 250,
+          "propertyNames": {
+            "$ref": "#/$defs/SafeKey"
+          }
+        },
+        "styles": {
+          "type": "object",
+          "maxProperties": 100,
+          "propertyNames": {
+            "$ref": "#/$defs/StyleKey"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/StyleValue"
+          }
+        },
+        "children": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/PageNode"
+          }
+        },
+        "slots": {
+          "type": "object",
+          "maxProperties": 20,
+          "propertyNames": {
+            "$ref": "#/$defs/SafeKey"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/$defs/PageNode"
+            }
+          }
+        },
+        "overrides": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/BreakpointOverride"
+          }
+        },
+        "visibility": {
+          "$ref": "#/$defs/VisibilityRule"
+        },
+        "interactions": {
+          "type": "array",
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/SafeKey"
+          }
+        }
+      }
+    },
+    "AssetReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetId", "kind"],
+      "properties": {
+        "assetId": {
+          "$ref": "#/$defs/SafeKey"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["image", "video", "icon", "document", "font"]
+        },
+        "publishedUri": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "alt": {
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        }
+      }
+    },
+    "DataBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "collectionKey", "fields", "limit"],
+      "properties": {
+        "kind": {
+          "const": "collectionQuery"
+        },
+        "collectionKey": {
+          "$ref": "#/$defs/SafeKey"
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/SafeKey"
+          }
+        },
+        "filter": {
+          "type": "object",
+          "maxProperties": 50,
+          "propertyNames": {
+            "$ref": "#/$defs/SafeKey"
+          }
+        },
+        "sort": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field", "direction"],
+            "properties": {
+              "field": {"$ref": "#/$defs/SafeKey"},
+              "direction": {"enum": ["asc", "desc"]}
+            }
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "Interaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "arguments"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["navigate", "scrollTo", "openDialog", "submitForm", "setLocalState"]
+        },
+        "arguments": {
+          "type": "object",
+          "maxProperties": 30,
+          "propertyNames": {
+            "$ref": "#/$defs/SafeKey"
+          }
+        }
+      }
+    }
+  }
+}

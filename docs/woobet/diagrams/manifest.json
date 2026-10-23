@@ -1,0 +1,83 @@
+[
+  {
+    "id": "01_PRODUCT_VISION-01",
+    "source": "01_PRODUCT_VISION.md",
+    "index": 1,
+    "section": "5. Parcours utilisateur de référence",
+    "file": "diagrams/01_PRODUCT_VISION-01.svg",
+    "status": "rendered",
+    "bytes": 16052
+  },
+  {
+    "id": "04_SYSTEM_ARCHITECTURE-01",
+    "source": "04_SYSTEM_ARCHITECTURE.md",
+    "index": 1,
+    "section": "3. Diagramme d'architecture",
+    "file": "diagrams/04_SYSTEM_ARCHITECTURE-01.svg",
+    "status": "rendered",
+    "bytes": 20916
+  },
+  {
+    "id": "04_SYSTEM_ARCHITECTURE-02",
+    "source": "04_SYSTEM_ARCHITECTURE.md",
+    "index": 2,
+    "section": "7. Frontières de sécurité",
+    "file": "diagrams/04_SYSTEM_ARCHITECTURE-02.svg",
+    "status": "rendered",
+    "bytes": 11862
+  },
+  {
+    "id": "04_SYSTEM_ARCHITECTURE-03",
+    "source": "04_SYSTEM_ARCHITECTURE.md",
+    "index": 3,
+    "section": "8. Cycle de publication",
+    "file": "diagrams/04_SYSTEM_ARCHITECTURE-03.svg",
+    "status": "rendered",
+    "bytes": 11883
+  },
+  {
+    "id": "09_AI_ARCHITECTURE-01",
+    "source": "09_AI_ARCHITECTURE.md",
+    "index": 1,
+    "section": "3. Architecture logique",
+    "file": "diagrams/09_AI_ARCHITECTURE-01.svg",
+    "status": "rendered",
+    "bytes": 16570
+  },
+  {
+    "id": "10_URL_DOMAIN_AND_PUBLISHING-01",
+    "source": "10_URL_DOMAIN_AND_PUBLISHING.md",
+    "index": 1,
+    "section": "Machine à états",
+    "file": "diagrams/10_URL_DOMAIN_AND_PUBLISHING-01.svg",
+    "status": "rendered",
+    "bytes": 21363
+  },
+  {
+    "id": "12_DATABASE_SCHEMA-01",
+    "source": "12_DATABASE_SCHEMA.md",
+    "index": 1,
+    "section": "3. Diagramme ERD principal",
+    "file": "diagrams/12_DATABASE_SCHEMA-01.svg",
+    "status": "rendered",
+    "bytes": 62680
+  },
+  {
+    "id": "21_DEPLOYMENT_AND_DISASTER_RECOVERY-01",
+    "source": "21_DEPLOYMENT_AND_DISASTER_RECOVERY.md",
+    "index": 1,
+    "section": "1. Chaîne de livraison",
+    "file": "diagrams/21_DEPLOYMENT_AND_DISASTER_RECOVERY-01.svg",
+    "status": "rendered",
+    "bytes": 11189
+  },
+  {
+    "id": "22_ROADMAP-01",
+    "source": "22_ROADMAP.md",
+    "index": 1,
+    "section": "9. Chemin critique et parallélisation",
+    "file": "diagrams/22_ROADMAP-01.svg",
+    "status": "rendered",
+    "bytes": 14536
+  }
+]

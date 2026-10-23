@@ -1,0 +1,7 @@
+reportlab==5.1.0
+jsonschema==4.26.0
+PyYAML==6.0.3
+openapi-spec-validator==0.9.0
+pypdf==6.21.2
+markdown-it-py==4.2.0
+svglib==2.3.1

@@ -1,0 +1,10 @@
+{
+  "name": "woobet-documentation-tools",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Outillage de rendu des diagrammes du cahier des charges WOOBET ; aucune dépendance applicative.",
+  "dependencies": {
+    "beautiful-mermaid": "1.1.3"
+  }
+}

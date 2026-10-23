@@ -1,0 +1,157 @@
+{
+  "schema": "https://schema.woobet.invalid/page-document/v1",
+  "schemaVersion": "1.0.0",
+  "documentId": "doc_01JEXAMPLEHOME",
+  "pageId": "01JEXAMPLEPAGEHOME",
+  "revision": 12,
+  "metadata": {
+    "title": {
+      "fr": "Maison Safran — Restaurant",
+      "en": "Maison Safran — Restaurant"
+    },
+    "description": {
+      "fr": "Une cuisine de saison au cœur de la ville.",
+      "en": "Seasonal cuisine in the heart of the city."
+    },
+    "path": {
+      "fr": "/",
+      "en": "/en/"
+    },
+    "robots": "index,follow",
+    "socialImageAssetKey": "heroImage"
+  },
+  "theme": {
+    "themeId": "theme_safran",
+    "version": "1.0.0",
+    "overrides": {
+      "color.action.primary": "#7A2E2E",
+      "space.section": "space.8"
+    }
+  },
+  "root": {
+    "id": "node_root",
+    "type": "core.page",
+    "version": "1.0.0",
+    "props": {},
+    "styles": {},
+    "children": [
+      {
+        "id": "node_hero",
+        "type": "core.hero",
+        "version": "1.0.0",
+        "props": {
+          "eyebrow": {
+            "fr": "Cuisine de saison",
+            "en": "Seasonal cuisine"
+          },
+          "title": {
+            "fr": "Le goût du moment",
+            "en": "A taste of the season"
+          },
+          "body": {
+            "fr": "Des produits locaux, une table accueillante.",
+            "en": "Local produce and a warm welcome."
+          },
+          "mediaAssetKey": "heroImage",
+          "layout": "media-end"
+        },
+        "styles": {
+          "layout.maxWidth": "container.lg",
+          "space.block": "space.8"
+        },
+        "children": [
+          {
+            "id": "node_hero_action",
+            "type": "core.button",
+            "version": "1.0.0",
+            "props": {
+              "label": {
+                "fr": "Découvrir le menu",
+                "en": "Explore the menu"
+              },
+              "variant": "primary"
+            },
+            "styles": {},
+            "interactions": ["navigateMenu"]
+          }
+        ],
+        "overrides": [
+          {
+            "breakpoint": "mobile",
+            "styles": {
+              "layout.maxWidth": "container.full",
+              "space.block": "space.5"
+            },
+            "props": {
+              "layout": "stacked"
+            }
+          }
+        ]
+      },
+      {
+        "id": "node_menu_teaser",
+        "type": "core.section",
+        "version": "1.0.0",
+        "props": {
+          "accessibleName": {
+            "fr": "Notre menu",
+            "en": "Our menu"
+          }
+        },
+        "styles": {
+          "space.block": "space.6"
+        },
+        "children": [
+          {
+            "id": "node_menu_heading",
+            "type": "core.heading",
+            "version": "1.0.0",
+            "props": {
+              "level": 2,
+              "text": {
+                "fr": "Notre menu",
+                "en": "Our menu"
+              }
+            },
+            "styles": {}
+          },
+          {
+            "id": "node_menu_text",
+            "type": "core.text",
+            "version": "1.0.0",
+            "props": {
+              "text": {
+                "fr": "Le menu évolue avec les arrivages.",
+                "en": "Our menu changes with seasonal deliveries."
+              }
+            },
+            "styles": {}
+          }
+        ]
+      }
+    ]
+  },
+  "assets": {
+    "heroImage": {
+      "assetId": "01JEXAMPLEASSET",
+      "kind": "image",
+      "alt": {
+        "fr": "Assiette de légumes de saison",
+        "en": "A plate of seasonal vegetables"
+      },
+      "width": 1600,
+      "height": 1067
+    }
+  },
+  "dataBindings": {},
+  "interactions": {
+    "navigateMenu": {
+      "type": "navigate",
+      "arguments": {
+        "kind": "page",
+        "pageId": "01JEXAMPLEPAGEMENU"
+      }
+    }
+  },
+  "capabilities": ["media.read"]
+}

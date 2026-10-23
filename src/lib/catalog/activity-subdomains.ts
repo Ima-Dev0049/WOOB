@@ -1,0 +1,230 @@
+import { activityDomains } from './activity-domains';
+import type { ActivityDomain } from './types';
+
+type Row = [id: string, name: string, siteTypeIds?: string[], keywords?: string[]];
+function rows(parentId: string, values: Row[]): ActivityDomain[] {
+  const parent = activityDomains.find((domain) => domain.id === parentId)!;
+  return values.map(([id, name, siteTypeIds, keywords = []]) => ({
+    id: `${parentId}-${id}`, parentId,
+    name: { fr: name },
+    description: { fr: `${name} — sous-domaine de ${parent.name.fr.toLowerCase()}.` },
+    keywords: [...new Set([name.toLowerCase(), ...keywords])],
+    siteTypeIds: siteTypeIds || [...parent.siteTypeIds],
+  }));
+}
+
+/** Domaines feuilles : mêmes contrats et relations que leurs parents, jamais de simples facettes d’interface. */
+export const activitySubdomains: ActivityDomain[] = [
+  ...rows('commerce-distribution', [
+    ['fashion', 'Mode et accessoires', ['ecommerce-fashion', 'beauty-clothing-brand', 'ecommerce-multi-brand']],
+    ['electronics', 'Électronique et informatique', ['ecommerce-multi-brand', 'ecommerce-b2b', 'ecommerce-quote-catalogue']],
+    ['home', 'Mobilier et décoration', ['ecommerce-multi-brand', 'ecommerce-crafts', 'ecommerce-quote-catalogue']],
+    ['wholesale', 'Grossiste et import-export', ['ecommerce-b2b', 'ecommerce-quote-catalogue']],
+    ['crafts', 'Distribution artisanale', ['ecommerce-crafts', 'ecommerce-single-product']],
+  ]),
+  ...rows('technology', [
+    ['ai', 'Intelligence artificielle', ['saas-ai-tool', 'saas-dashboard', 'showcase-agency']],
+    ['software', 'Développement logiciel', ['portfolio-developer', 'showcase-agency', 'saas-vertical']],
+    ['cybersecurity', 'Cybersécurité', ['showcase-business', 'saas-management', 'media-niche']],
+    ['hosting', 'Hébergement et télécommunications', ['showcase-business', 'saas-dashboard']],
+    ['mobile', 'Applications mobiles', ['saas-productivity', 'showcase-agency', 'landing-launch']],
+  ]),
+  ...rows('marketing', [
+    ['seo', 'SEO et acquisition', ['showcase-agency', 'landing-advertising', 'media-blog']],
+    ['social', 'Réseaux sociaux', ['portfolio-content-creator', 'showcase-agency', 'landing-capture']],
+    ['branding', 'Branding et publicité', ['showcase-agency', 'portfolio-creative-agency', 'landing-capture']],
+    ['content', 'Création de contenu', ['portfolio-content-creator', 'media-newsletter', 'showcase-agency']],
+    ['research', 'Études et relations publiques', ['showcase-firm', 'media-review', 'landing-capture']],
+  ]),
+  ...rows('education', [
+    ['schools', 'Écoles et crèches', ['education-school', 'education-teacher-space']],
+    ['universities', 'Universités et campus', ['education-university', 'community-alumni']],
+    ['languages', 'Apprentissage des langues', ['education-online-course', 'education-tutoring']],
+    ['professional', 'Formation professionnelle', ['education-training-center', 'education-certification']],
+    ['tutoring', 'Cours particuliers et tutorat', ['education-tutoring', 'education-online-course']],
+  ]),
+  ...rows('health-sciences', [
+    ['medical', 'Médecine et paramédical', ['health-medical-practice', 'health-appointments', 'health-physiotherapy']],
+    ['dental', 'Soins dentaires', ['health-dentist', 'health-appointments']],
+    ['laboratories', 'Laboratoires et biotechnologie', ['health-laboratory', 'media-scientific']],
+    ['nutrition', 'Nutrition et prévention', ['health-nutrition', 'health-wellness-center']],
+    ['mental', 'Santé mentale', ['health-psychology', 'health-appointments']],
+  ]),
+  ...rows('finance-insurance', [
+    ['accounting', 'Comptabilité et fiscalité', ['finance-accountant', 'finance-tax-expert']],
+    ['insurance', 'Assurance et courtage', ['finance-insurance', 'finance-broker']],
+    ['fintech', 'Fintech et services financiers', ['finance-regulated', 'saas-invoicing', 'showcase-firm']],
+    ['microfinance', 'Microfinance', ['finance-regulated', 'showcase-institution']],
+    ['wealth', 'Gestion de patrimoine réglementée', ['finance-investment', 'finance-advisory']],
+  ]),
+  ...rows('legal-admin', [
+    ['lawyers', 'Avocats et conseils juridiques', ['finance-law-firm', 'finance-advisory']],
+    ['notaries', 'Notaires et actes', ['finance-notary', 'showcase-firm']],
+    ['formalities', 'Formalités d’entreprise', ['showcase-firm', 'finance-consultant']],
+    ['mediation', 'Médiation', ['finance-law-firm', 'showcase-institution']],
+    ['compliance', 'Conformité et administration', ['finance-advisory', 'showcase-firm']],
+  ]),
+  ...rows('real-estate-housing', [
+    ['sales', 'Vente de biens', ['realestate-homes', 'realestate-agency']],
+    ['rentals', 'Location et gestion locative', ['realestate-rentals', 'realestate-property-management']],
+    ['architecture', 'Architecture et décoration', ['realestate-architect', 'portfolio-architect']],
+    ['renovation', 'Rénovation et matériaux', ['realestate-renovation', 'realestate-builder']],
+    ['development', 'Promotion immobilière', ['realestate-developer', 'realestate-commercial']],
+  ]),
+  ...rows('transport-logistics', [
+    ['delivery', 'Livraison et coursiers', ['local-delivery', 'showcase-business']],
+    ['freight', 'Fret et logistique internationale', ['showcase-business', 'ecommerce-b2b']],
+    ['moving', 'Déménagement', ['local-moving', 'local-delivery']],
+    ['warehousing', 'Entreposage', ['showcase-business', 'ecommerce-b2b']],
+    ['rental', 'Location de véhicules', ['tourism-car-rental', 'marketplace-vehicles']],
+  ]),
+  ...rows('tourism-hospitality', [
+    ['hotels', 'Hôtels et hébergements', ['tourism-hotel', 'tourism-guest-house', 'tourism-vacation-rental']],
+    ['agencies', 'Agences de voyage', ['tourism-travel-agency', 'tourism-tours']],
+    ['local', 'Tourisme local et guides', ['tourism-guide', 'tourism-excursions']],
+    ['guesthouses', 'Maisons d’hôtes', ['tourism-guest-house', 'tourism-vacation-rental']],
+    ['activities', 'Activités et loisirs', ['tourism-excursions', 'tourism-tours', 'sports-leisure']],
+  ]),
+  ...rows('food-agriculture', [
+    ['restaurants', 'Restaurants et cafés', ['restaurant-classic', 'restaurant-cafe', 'restaurant-fast-food']],
+    ['catering', 'Traiteurs et chef à domicile', ['restaurant-catering', 'restaurant-home-chef']],
+    ['farming', 'Agriculture, élevage et pêche', ['restaurant-producer', 'ecommerce-crafts']],
+    ['producers', 'Producteurs et transformation locale', ['restaurant-producer', 'ecommerce-single-product']],
+    ['grocery', 'Épiceries et distribution alimentaire', ['restaurant-grocery', 'ecommerce-multi-brand']],
+  ]),
+  ...rows('industry-engineering', [
+    ['manufacturing', 'Fabrication et sous-traitance', ['showcase-business', 'ecommerce-b2b']],
+    ['mechanical', 'Mécanique industrielle', ['local-mechanic', 'showcase-business']],
+    ['equipment', 'Équipements et automatisation', ['ecommerce-b2b', 'showcase-subsidiary']],
+    ['energy', 'Énergie industrielle', ['showcase-business', 'saas-dashboard']],
+    ['maintenance', 'Maintenance industrielle', ['local-mechanic', 'showcase-business']],
+  ]),
+  ...rows('construction-crafts', [
+    ['plumbing', 'Plomberie et dépannage', ['local-plumber', 'local-home-care']],
+    ['electrical', 'Électricité et climatisation', ['local-electrician', 'realestate-renovation']],
+    ['masonry', 'Maçonnerie et peinture', ['realestate-builder', 'realestate-renovation']],
+    ['carpentry', 'Menuiserie', ['ecommerce-crafts', 'realestate-renovation']],
+    ['roofing', 'Toiture et jardinage', ['realestate-builder', 'local-gardening']],
+  ]),
+  ...rows('beauty-personal-care', [
+    ['hair', 'Coiffure et soins capillaires', ['beauty-hair-salon', 'beauty-aesthetic-care']],
+    ['barber', 'Barbier', ['beauty-barber', 'beauty-hair-salon']],
+    ['cosmetics', 'Cosmétique et parfumerie', ['ecommerce-fashion', 'beauty-institute']],
+    ['spa', 'Spa et esthétique', ['beauty-spa', 'beauty-institute']],
+    ['styling', 'Conseil en image', ['beauty-personal-styling', 'beauty-fashion-designer']],
+  ]),
+  ...rows('sports-fitness', [
+    ['fitness', 'Fitness et salles de sport', ['sports-gym', 'sports-facility-booking']],
+    ['clubs', 'Clubs sportifs', ['sports-club', 'events-sports']],
+    ['coaching', 'Coaching et nutrition sportive', ['sports-personal-coach', 'health-sports-coaching']],
+    ['yoga', 'Yoga et danse', ['sports-yoga', 'sports-dance']],
+    ['martial', 'Arts martiaux', ['sports-martial-arts', 'sports-club']],
+  ]),
+  ...rows('culture-entertainment', [
+    ['music', 'Musique et streaming', ['portfolio-musician', 'events-concert', 'media-niche']],
+    ['cinema', 'Cinéma et vidéo', ['portfolio-videographer', 'events-festival']],
+    ['theatre', 'Théâtre et spectacles', ['events-program', 'nonprofit-cultural']],
+    ['photography', 'Photographie', ['portfolio-photographer', 'local-event-photography']],
+    ['literature', 'Littérature et jeux vidéo', ['portfolio-writer', 'media-review', 'media-niche']],
+  ]),
+  ...rows('media-publishing', [
+    ['press', 'Presse et audiovisuel', ['media-online-newspaper', 'media-news']],
+    ['blogs', 'Blogs et magazines', ['media-blog', 'media-magazine']],
+    ['podcasts', 'Podcasts', ['media-niche', 'portfolio-content-creator']],
+    ['newsletters', 'Newsletters', ['media-newsletter', 'landing-capture']],
+    ['publishing', 'Maisons d’édition et revues', ['media-review', 'media-scientific']],
+  ]),
+  ...rows('employment-hr', [
+    ['recruitment', 'Recrutement et cabinets RH', ['jobs-board', 'jobs-recruiter-directory']],
+    ['temporary', 'Intérim', ['jobs-temp', 'jobs-local']],
+    ['specialist', 'Emploi spécialisé', ['jobs-specialist', 'jobs-freelance']],
+    ['talent', 'Gestion des talents et formation RH', ['education-training-center', 'showcase-firm']],
+    ['career', 'Carrière et stages', ['jobs-career', 'jobs-internships']],
+  ]),
+  ...rows('social-impact', [
+    ['ngo', 'ONG et fondations', ['nonprofit-ngo', 'nonprofit-foundation']],
+    ['solidarity', 'Solidarité et développement local', ['nonprofit-association', 'nonprofit-community-project']],
+    ['environment', 'Environnement et mobilisation', ['nonprofit-campaign', 'nonprofit-community-project']],
+    ['inclusion', 'Inclusion', ['nonprofit-association', 'community-sharing']],
+    ['fundraising', 'Collecte de dons', ['nonprofit-fundraising', 'nonprofit-campaign']],
+  ]),
+  ...rows('events', [
+    ['weddings', 'Mariages et événements privés', ['events-wedding', 'local-event-photography']],
+    ['concerts', 'Concerts et festivals', ['events-concert', 'events-festival']],
+    ['conferences', 'Conférences', ['events-conference', 'events-program']],
+    ['tradeshows', 'Salons professionnels', ['events-trade-show', 'events-ticketing']],
+    ['seminars', 'Séminaires et ateliers', ['events-seminar', 'events-workshop']],
+  ]),
+  ...rows('automotive-mobility', [
+    ['dealerships', 'Concessionnaires et annonces', ['marketplace-vehicles', 'showcase-business']],
+    ['garages', 'Garages et réparation', ['local-garage', 'local-mechanic']],
+    ['parts', 'Pièces détachées', ['ecommerce-b2b', 'ecommerce-multi-brand']],
+    ['rental', 'Location automobile', ['tourism-car-rental', 'marketplace-rentals']],
+    ['electric', 'Mobilité électrique', ['showcase-business', 'media-niche']],
+  ]),
+  ...rows('business-services', [
+    ['consulting', 'Conseil et gestion', ['showcase-consultant', 'finance-consultant']],
+    ['secretarial', 'Secrétariat et domiciliation', ['showcase-firm', 'local-printing']],
+    ['cyber', 'Cyberservices', ['showcase-agency', 'local-computer-repair']],
+    ['maintenance', 'Maintenance B2B', ['showcase-business', 'local-mechanic']],
+    ['procurement', 'Fournisseurs et achats B2B', ['ecommerce-b2b', 'ecommerce-quote-catalogue']],
+  ]),
+  ...rows('consumer-services', [
+    ['cleaning', 'Ménage et nettoyage', ['local-cleaning', 'local-home-care']],
+    ['childcare', 'Garde d’enfants', ['local-home-care', 'education-tutoring']],
+    ['homecare', 'Aide à domicile', ['local-home-care', 'local-gardening']],
+    ['repairs', 'Réparation et assistance', ['local-computer-repair', 'local-mechanic']],
+    ['lessons', 'Cours et services à la personne', ['education-tutoring', 'beauty-personal-styling']],
+  ]),
+  ...rows('environment-energy', [
+    ['solar', 'Solaire et énergies renouvelables', ['showcase-business', 'realestate-renovation']],
+    ['recycling', 'Recyclage', ['nonprofit-campaign', 'showcase-business']],
+    ['waste', 'Gestion des déchets', ['showcase-business', 'nonprofit-campaign']],
+    ['water', 'Traitement de l’eau', ['showcase-business', 'media-niche']],
+    ['agriculture', 'Agriculture durable', ['restaurant-producer', 'education-online-course']],
+  ]),
+  ...rows('international-travel', [
+    ['tourism', 'Tourisme international', ['tourism-travel-agency', 'tourism-platform']],
+    ['expatriation', 'Expatriation', ['community-sharing', 'education-online-course']],
+    ['immigration', 'Accompagnement juridique à l’immigration', ['finance-law-firm', 'finance-advisory']],
+    ['exchange', 'Échanges culturels', ['community-sharing', 'nonprofit-cultural']],
+    ['travellers', 'Services aux voyageurs', ['tourism-guide', 'tourism-travel-agency']],
+  ]),
+  ...rows('art-crafts', [
+    ['artists', 'Artistes et galeries', ['portfolio-artist', 'events-festival']],
+    ['jewellery', 'Bijoux et joaillerie', ['beauty-jewellery', 'ecommerce-crafts']],
+    ['handmade', 'Objets faits main', ['ecommerce-crafts', 'ecommerce-print-demand']],
+    ['decoration', 'Décoration artisanale', ['ecommerce-crafts', 'portfolio-designer']],
+    ['sewing', 'Couture et créations personnalisées', ['beauty-fashion-designer', 'ecommerce-crafts']],
+  ]),
+  ...rows('religion-spirituality', [
+    ['communities', 'Communautés religieuses', ['nonprofit-religious', 'community-private']],
+    ['worship', 'Lieux de culte', ['nonprofit-religious', 'showcase-institution']],
+    ['events', 'Événements confessionnels', ['events-conference', 'nonprofit-religious']],
+    ['teaching', 'Enseignement spirituel', ['education-online-course', 'media-blog']],
+    ['associations', 'Associations confessionnelles', ['nonprofit-religious', 'nonprofit-association']],
+  ]),
+  ...rows('public-services', [
+    ['municipalities', 'Mairies et collectivités', ['nonprofit-public-body', 'showcase-institution']],
+    ['administrations', 'Administrations', ['showcase-institution', 'nonprofit-public-body']],
+    ['municipal', 'Services municipaux', ['nonprofit-public-body', 'community-member-directory']],
+    ['information', 'Information publique', ['media-news', 'showcase-institution']],
+    ['citizens', 'Portails citoyens de présentation', ['nonprofit-public-body', 'community-member-directory']],
+  ]),
+  ...rows('creator-economy', [
+    ['influencers', 'Influenceurs et marques personnelles', ['portfolio-content-creator', 'landing-capture']],
+    ['streamers', 'Streamers', ['portfolio-content-creator', 'community-creators']],
+    ['ugc', 'Créateurs UGC', ['portfolio-content-creator', 'showcase-agency']],
+    ['communities', 'Communautés payantes de présentation', ['community-paid', 'community-creators']],
+    ['digital', 'Produits numériques', ['ecommerce-digital', 'media-newsletter']],
+  ]),
+  ...rows('science-research', [
+    ['laboratories', 'Laboratoires de recherche', ['health-laboratory', 'showcase-institution']],
+    ['publications', 'Publications scientifiques', ['media-scientific', 'media-review']],
+    ['teams', 'Équipes de recherche', ['showcase-institution', 'education-university']],
+    ['conferences', 'Conférences académiques', ['events-conference', 'education-university']],
+    ['knowledge', 'Diffusion des connaissances', ['media-scientific', 'education-online-course']],
+  ]),
+];
+
+export const allActivityDomains: ActivityDomain[] = [...activityDomains, ...activitySubdomains];

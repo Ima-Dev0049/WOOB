@@ -1,0 +1,40 @@
+/* Version history and fully functional editor drawers on narrow screens. */
+.mobile-panel-buttons, .panel-close, .editor-panel-backdrop { display: none; }
+.version-modal { width: min(700px, 94vw); max-height: 88vh; overflow: auto; }
+.version-modal > header p { margin: 6px 0 0; color: var(--muted); }
+.version-list { display: grid; gap: 12px; margin-top: 20px; }
+.version-list article { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
+.version-list article > div { display: flex; align-items: center; gap: 10px; }
+.version-list article p { grid-column: 1; margin: 0; color: var(--muted); font-size: 12px; }
+.version-list article > button { grid-column: 2; grid-row: 1 / 3; }
+@media (max-width: 980px) {
+  .mobile-panel-buttons { display: flex; align-items: center; gap: 4px; }
+  .mobile-panel-buttons button { min-height: 30px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--text); font-size: 9px; }
+  .editor-panel-backdrop { display: block; position: fixed; inset: 0; z-index: 55; border: 0; background: rgb(19 27 23 / 45%); backdrop-filter: blur(2px); }
+  .editor-right.mobile-open { display: block; position: fixed; z-index: 60; top: 0; right: 0; bottom: 0; width: min(370px, 94vw); overflow-y: auto; background: #fff; box-shadow: -18px 0 50px rgb(20 28 24 / 20%); }
+  .editor-right.mobile-open .panel-close { display: grid; place-items: center; position: absolute; z-index: 3; top: 10px; right: 10px; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 50%; background: #fff; font-size: 20px; }
+}
+@media (max-width: 760px) {
+  .editor-left.mobile-open { display: grid; grid-template-columns: 54px minmax(0, 1fr); position: fixed; z-index: 60; top: 0; bottom: 0; left: 0; width: min(380px, 96vw); background: #fff; box-shadow: 18px 0 50px rgb(20 28 24 / 20%); }
+  .editor-left.mobile-open .editor-left-content { display: block; overflow-y: auto; }
+  .editor-left.mobile-open .panel-close { display: grid; place-items: center; position: absolute; z-index: 3; top: 8px; right: 8px; width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 50%; background: #fff; font-size: 18px; }
+  .version-list article { grid-template-columns: 1fr; }
+  .version-list article > button { grid-column: 1; grid-row: auto; justify-self: start; }
+}
+
+.asset-library-open { margin-top: 8px; padding: 6px 0; border: 0; background: transparent; color: var(--accent); font-size: 11px; font-weight: 700; text-align: left; }
+.asset-library-modal { width: min(920px, 95vw); max-height: 90vh; overflow: auto; }
+.asset-library-modal > header p { margin: 6px 0 0; color: var(--muted); }
+.asset-library-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 14px; margin: 20px 0; }
+.asset-library-actions > label:first-child { display: grid; gap: 6px; }
+.asset-upload-action { position: relative; overflow: hidden; cursor: pointer; }
+.asset-upload-action input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.asset-library-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.asset-library-grid > button { overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--text); text-align: left; transition: border-color .15s, transform .15s; }
+.asset-library-grid > button:hover { border-color: var(--accent); transform: translateY(-1px); }
+.asset-library-grid img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--surface-muted); }
+.asset-library-grid button > span { display: block; padding: 11px; }
+.asset-library-grid strong, .asset-library-grid small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-library-grid strong { font-size: 12px; }
+.asset-library-grid small { margin-top: 4px; color: var(--muted); font-size: 10px; }
+@media (max-width: 600px) { .asset-library-actions { grid-template-columns: 1fr; } .asset-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

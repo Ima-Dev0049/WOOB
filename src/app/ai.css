@@ -1,0 +1,14 @@
+@layer pages {
+  .ai-modal { max-width: 1050px; }
+  .ai-modal form { gap: 14px; }
+  .ai-privacy { color: #7c867f; font-size: 11px; }
+  .ai-modal form .button { justify-self: start; }
+  .ai-result { border-top: 1px solid #e0e4dd; display: grid; gap: 15px; margin-top: 22px; padding-top: 20px; }
+  .ai-result-heading { align-items: center; display: flex; gap: 20px; justify-content: space-between; }
+  .ai-result-heading > div { display: flex; flex-direction: column; gap: 6px; }
+  .ai-result-heading small { color: #859087; }
+  .ai-provider { align-self: start; background: #e6f3eb; border-radius: 12px; color: #176d4b; font-size: 8px; font-weight: 800; letter-spacing: .1em; padding: 4px 7px; }
+  .ai-provider.demo { background: #fff0df; color: #9a5427; }
+  .ai-preview { border: 1px solid #dce1da; border-radius: 8px; max-height: 480px; overflow: auto; }
+  .ai-preview .wb-page { transform-origin: top left; }
+}

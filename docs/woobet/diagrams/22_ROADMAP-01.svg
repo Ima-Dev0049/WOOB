@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 699.893 1305.5" width="699.893" height="1305.5" style="--bg:#FFFFFF;--fg:#172033;--line:#64748B;--accent:#1D4ED8;--muted:#526075;--surface:#F3F6FB;--border:#9AA9BD;background:#FFFFFF">
+<style>text { font-family: 'DejaVu Sans', sans-serif; }</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#1D4ED8" stroke="#1D4ED8" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#1D4ED8" stroke="#1D4ED8" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="P0" data-to="P1" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="294.09425,76.9 294.09425000000005,124.9" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P1" data-to="P2" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="294.09425000000005,161.8 294.09425,209.8" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P2" data-to="P3" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="294.09425,246.70000000000002 294.09425000000005,294.70000000000005" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P3" data-to="P4" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="294.09425000000005,331.6 294.09425000000005,349.6 294.09425,349.6 294.09425,367.6" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P4" data-to="P5" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="294.09425,404.5 294.09425,428.5 203.7295,428.5 203.7295,537.4" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P4" data-to="P7" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="294.09425,404.5 294.09425,428.5 384.459,428.5 384.459,452.5" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P3" data-to="P6" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="294.09425000000005,331.6 294.09425000000005,349.6 560.7425,349.6 560.7425,367.6" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P6" data-to="P8" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="560.7425,404.5 560.7425000000001,452.5" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P7" data-to="P9" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="384.459,489.4 384.459,513.4 543.8708333333334,513.4 543.8708333333334,537.4" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P8" data-to="P9" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="560.7425000000001,489.4 560.7425000000001,537.4" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P7" data-to="P10" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="384.459,489.4 384.459,513.4 356.8428333333333,513.4 356.8428333333333,537.4" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P10" data-to="P11" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="356.8428333333333,574.3 356.8428333333334,634.3" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P11" data-to="P12" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="356.8428333333334,671.1999999999999 356.8428333333334,719.1999999999999" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P3" data-to="P13" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="294.09425000000005,331.6 294.09425000000005,349.6 122.8485,349.6 122.8485,719.1999999999999" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P12" data-to="P14" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="356.8428333333334,756.0999999999999 356.8428333333334,780.0999999999999 239.8456666666667,780.0999999999999 239.8456666666667,804.0999999999999" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P13" data-to="P14" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="122.8485,756.0999999999999 122.8485,780.0999999999999 239.8456666666667,780.0999999999999 239.8456666666667,804.0999999999999" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P14" data-to="P15" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.8456666666667,840.9999999999999 239.8456666666667,888.9999999999999" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P15" data-to="P16" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.8456666666667,925.8999999999999 239.84566666666666,973.8999999999999" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P16" data-to="P17" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.84566666666666,1010.7999999999998 239.8456666666667,1058.7999999999997" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P17" data-to="P18" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.8456666666667,1095.6999999999998 239.8456666666667,1143.6999999999998" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="P18" data-to="P19" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.8456666666667,1180.6 239.84566666666666,1228.6" fill="none" stroke="#64748B" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="node" data-id="P0" data-label="0 Décisions et spikes" data-shape="rectangle">
+  <rect x="211.24575" y="40" width="165.697" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="294.09425" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">0 Décisions et spikes</text>
+</g>
+<g class="node" data-id="P1" data-label="1 Fondation" data-shape="rectangle">
+  <rect x="240.88575000000003" y="124.9" width="106.417" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="294.09425000000005" y="143.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">1 Fondation</text>
+</g>
+<g class="node" data-id="P2" data-label="2 Identité et tenants" data-shape="rectangle">
+  <rect x="218.65575" y="209.8" width="150.877" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="294.09425" y="228.25" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">2 Identité et tenants</text>
+</g>
+<g class="node" data-id="P3" data-label="3 Schéma et renderer" data-shape="rectangle">
+  <rect x="209.76375000000002" y="294.70000000000005" width="168.66100000000003" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="294.09425000000005" y="313.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">3 Schéma et renderer</text>
+</g>
+<g class="node" data-id="P4" data-label="4 Éditeur simple" data-shape="rectangle">
+  <rect x="227.91825" y="367.6" width="132.35199999999998" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="294.09425" y="386.05" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">4 Éditeur simple</text>
+</g>
+<g class="node" data-id="P5" data-label="5 Éditeur avancé" data-shape="rectangle">
+  <rect x="133.8485" y="537.4" width="139.762" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="203.7295" y="555.85" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">5 Éditeur avancé</text>
+</g>
+<g class="node" data-id="P7" data-label="7 Versions et reprise" data-shape="rectangle">
+  <rect x="301.6105" y="452.5" width="165.697" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="384.459" y="470.95" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">7 Versions et reprise</text>
+</g>
+<g class="node" data-id="P6" data-label="6 Templates et composants" data-shape="rectangle">
+  <rect x="461.592" y="367.6" width="198.301" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="560.7425" y="386.05" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">6 Templates et composants</text>
+</g>
+<g class="node" data-id="P8" data-label="8 Génération IA" data-shape="rectangle">
+  <rect x="495.3075" y="452.5" width="130.87" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="560.7425000000001" y="470.95" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">8 Génération IA</text>
+</g>
+<g class="node" data-id="P9" data-label="9 IA ciblée" data-shape="rectangle">
+  <rect x="493.2558333333334" y="537.4" width="101.22999999999999" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="543.8708333333334" y="555.85" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">9 IA ciblée</text>
+</g>
+<g class="node" data-id="P10" data-label="10 Publication" data-shape="rectangle">
+  <rect x="296.9653333333333" y="537.4" width="119.75500000000001" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="356.8428333333333" y="555.85" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">10 Publication</text>
+</g>
+<g class="node" data-id="P11" data-label="11 Domaines custom" data-shape="rectangle">
+  <rect x="281.03383333333335" y="634.3" width="151.618" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="356.8428333333334" y="652.75" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">11 Domaines custom</text>
+</g>
+<g class="node" data-id="P12" data-label="12 Edge et hébergement durci" data-shape="rectangle">
+  <rect x="251.39383333333336" y="719.1999999999999" width="210.89799999999997" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="356.8428333333334" y="737.65" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">12 Edge et hébergement durci</text>
+</g>
+<g class="node" data-id="P13" data-label="13 Internationalisation" data-shape="rectangle">
+  <rect x="40" y="719.1999999999999" width="165.697" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="122.8485" y="737.65" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">13 Internationalisation</text>
+</g>
+<g class="node" data-id="P14" data-label="14 Durcissement" data-shape="rectangle">
+  <rect x="171.81716666666668" y="804.0999999999999" width="136.05700000000002" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="239.8456666666667" y="822.55" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">14 Durcissement</text>
+</g>
+<g class="node" data-id="P15" data-label="15 Facturation" data-shape="rectangle">
+  <rect x="178.4861666666667" y="888.9999999999999" width="122.71900000000001" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="239.8456666666667" y="907.4499999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">15 Facturation</text>
+</g>
+<g class="node" data-id="P16" data-label="16 Extensions et formulaires" data-shape="rectangle">
+  <rect x="138.47216666666668" y="973.8999999999999" width="202.74699999999996" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="239.84566666666666" y="992.3499999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">16 Extensions et formulaires</text>
+</g>
+<g class="node" data-id="P17" data-label="17 Bêta privée" data-shape="rectangle">
+  <rect x="178.85666666666668" y="1058.7999999999997" width="121.978" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="239.8456666666667" y="1077.2499999999998" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">17 Bêta privée</text>
+</g>
+<g class="node" data-id="P18" data-label="18 Lancement" data-shape="rectangle">
+  <rect x="179.9681666666667" y="1143.6999999999998" width="119.755" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="239.8456666666667" y="1162.1499999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">18 Lancement</text>
+</g>
+<g class="node" data-id="P19" data-label="19 Scale et modules" data-shape="rectangle">
+  <rect x="163.66616666666667" y="1228.6" width="152.359" height="36.900000000000006" rx="0" ry="0" fill="#F3F6FB" stroke="#9AA9BD" stroke-width="0.75" />
+  <text x="239.84566666666666" y="1247.05" text-anchor="middle" font-size="13" font-weight="500" fill="#172033" dy="4.55">19 Scale et modules</text>
+</g>
+</svg>

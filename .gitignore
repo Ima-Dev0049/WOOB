@@ -1,0 +1,24 @@
+# Environnements et dépendances locaux
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+
+# Artefacts applicatifs et locaux — ne pas versionner
+.next/
+.woob-data/
+.woob-data-*/
+.woob-storage/
+.woob-uploads/
+.woob-outbox/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+
+# Fichiers temporaires de génération documentaire
+*.tmp
+*.pdf.tmp
+.DS_Store
