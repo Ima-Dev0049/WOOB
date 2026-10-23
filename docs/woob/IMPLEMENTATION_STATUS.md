@@ -2,7 +2,19 @@
 
 Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-## Incrément courant — `ai-idempotency`
+## Incrément courant — `font-catalog-500`
+
+L’éditeur propose désormais **500 styles typographiques réellement sélectionnables : 50 familles variables × 10 graisses adaptées à leur axe `wght` réel**. Le sélecteur du texte et celui des titres comprennent recherche, catégories, aperçu à la demande et graisse ; la pile CSS personnalisée reste disponible. Les compteurs et options viennent du catalogue de données, sans duplication dans les composants.
+
+Les 50 WOFF2 latin et leurs licences OFL sont locaux, avec paquet, version et SHA-256 consignés dans [FONT_CATALOG.md](FONT_CATALOG.md). Le document ne contient que famille et graisse : les `@font-face` et chemins sont générés depuis le catalogue, jamais depuis une URL utilisateur. Les poids sont optionnels dans le schéma `1.0.0`, donc les anciens thèmes restent valides et sans nouvelle requête. Une page publiée ne charge que les familles choisies, dédupliquées, et non le catalogue entier.
+
+- `npm run verify` : TypeScript, ESLint, build et **86/86 Vitest dans 15 fichiers** réussis.
+- `npm run test:e2e` : **40/40 Playwright** sur build de production en Chromium. Le parcours vérifie sélection, canvas, sauvegarde, rechargement, publication anonyme, deux WOFF2 200 et leurs `FontFace` à l’état `loaded`, sans troisième fonte dans le contexte public.
+- Les tests couvrent les 500 identifiants uniques, les limites d’axes, les 50 signatures WOFF2 et licences, la déduplication CSS, les entrées hostiles et la compatibilité historique. Les audits axe du catalogue ouvert et des panneaux avancés/expert passent sans exclusion.
+- Aucune nouvelle dépendance runtime, migration SQL, réinitialisation de base ou modification d’environnement sensible. Les deux avertissements Turbopack de stockage fichier et l’avertissement de configuration Vite restent non bloquants.
+- **Limites :** style normal et sous-ensemble latin uniquement ; pas d’italiques, d’upload arbitraire ni de couverture universelle des scripts. Les glyphes absents utilisent le fallback. Validation navigateur limitée à Chromium, sans lecteur d’écran.
+
+## Incrément précédent — `ai-idempotency`
 
 Les générations IA `page_edit` acceptent désormais un `requestId` ou l’en-tête `Idempotency-Key`. Une empreinte SHA-256 lie la clé à la page, la consigne et le bloc ; la réutiliser pour une autre demande est refusée. Une réponse terminée est relue et validée puis renvoyée avec le même identifiant et le même résultat, sans nouvelle ligne ni nouveau décompte de quota. La route renvoie 200 pour ce replay et conserve 201 pour une nouvelle exécution.
 
@@ -44,14 +56,14 @@ Une couche motion native et bornée améliore l’accueil, les tarifs et le tabl
 
 La capacité procédurale est intégrée au registre, à l’orchestrateur synchrone, à l’agent prévisualisable, à l’éditeur, à la persistance, au renderer public et à la démo Atelier Ligne. Three.js est différé, borné, suspendu hors viewport et remplacé par un fallback sous reduced motion ou indisponibilité WebGL. Voir [../WOOB_SCENE3D.md](../WOOB_SCENE3D.md) pour le contrat et les limites.
 
-- Au moment de sa livraison : **74/74 Vitest**, **32/32 Playwright**, TypeScript, ESLint et build réussis ; la suite courante est désormais de 39 scénarios Playwright.
+- Au moment de sa livraison : **74/74 Vitest**, **32/32 Playwright**, TypeScript, ESLint et build réussis ; la suite courante est désormais de 40 scénarios Playwright.
 - Captures 3D réelles à 1440/390 px inspectées ; smoke HTTP et audit axe ciblé réussis.
 - `npm audit --omit=dev` : 0 vulnérabilité ; 4 alertes modérées de développement conservées sans correctif forcé.
 - Aucune migration, réinitialisation de base, modification d’environnement sensible ou publication externe pour ce lot.
 
 ## Résultats historiques du socle
 
-Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `ai-idempotency` ci-dessus et des guides créatifs.
+Le tableau ci-dessous conserve les mesures du socle antérieur ; les totaux courants sont ceux de la section `font-catalog-500` ci-dessus et des guides créatifs.
 
 | Vérification | Résultat constaté |
 | --- | --- |
@@ -83,6 +95,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - **Parcours de création en six étapes** : type, domaine, fonctionnalités, style, description/langue, prévisualisation puis éditeur. Le site sur mesure, l’absence de domaine et le raccourci direct vers la description ne bloquent jamais la création. Les recommandations restent indicatives et les combinaisons libres sont acceptées.
 - Génération de projet : le brief, le type, le domaine, les modules, les pages et les limites forment un contexte structuré. Seuls quatre champs textuels sont acceptés du fournisseur ; les documents, pages et composants viennent du registre. La prévisualisation utilise le renderer de l’éditeur. La sélection est persistée dans `projects.catalog_selection` par la migration `0005` ; les anciens appels `templateId` restent fonctionnels.
 - Éditeur visuel : sélection, inspecteur, structure, ajout/déplacement/duplication, collections, styles responsive, thèmes, médias, undo/redo, points de restauration et sauvegarde avec révision optimiste.
+- **Catalogue typographique local** : 50 familles variables et 500 couples famille/graisse, recherche et filtres, graisses bornées par axe, piles personnalisées conservées, assets OFL locaux, chargement à la demande et rendu commun du brouillon au site publié.
 - Édition mobile utilisable à 390 px : tiroirs de blocs/propriétés, aperçu responsive et sauvegarde conservée dans la barre d’actions.
 - Document canonique versionné et validé ; registre de composants ; renderer commun sans HTML arbitraire ni `dangerouslySetInnerHTML` ; contrôle des clés de prototype et des URL dangereuses, y compris dans les propriétés imbriquées.
 - Aperçu privé, multipage, publication par `SiteSnapshot`, dépublication, historique et rollback sans mélanger brouillon et version publique.
@@ -115,6 +128,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - Motion de surface : révélation et état final statique, progression/compactage du header, ancre non masquée, contenu SSR sans JavaScript, reduced motion, largeur mobile, liens accessibles avant révélation et modales fixes ouvertes depuis le header comme depuis l’état vide du dashboard.
 - Motion scroll de document : parallaxe IA annulée sans effet puis appliquée, undo/redo, amplitude conservée après rechargement, snapshot publié, progression réelle sans boucle, reduced-motion initial/dynamique et contenu SSR visible ; validation des cibles et du budget de trois effets.
 - Design system : compatibilité d’un ancien document, normalisation idempotente, héritage desktop/tablette/mobile, priorité des exceptions, états, copie/reset, références de presets, dégradés sûrs, variables expertes, entrées CSS/URL hostiles et contrastes.
+- Typographie : 50 familles et 500 styles uniques, dix graisses dans chaque plage réelle, signatures et licences des 50 assets, anciens thèmes sans requête, déduplication des `@font-face`, rejet d’URL injectée ; parcours Fraunces 600/Playfair Display 800 persisté et publié avec fontes réellement chargées.
 - Persistance du thème sur deux pages : exception locale et racine préservées, révision obsolète refusée, restauration avec thème actuel, preset et tokens retrouvés dans le snapshot publié.
 - Parcours navigateur de personnalisation : boutons stylés, preset partagé, copier/coller/reset, variable expert dans le padding, undo/redo, sauvegarde/rechargement, thème global, publication anonyme à 390 px et largeur mobile calculée.
 - IA de thème : aperçu local sans mutation, annulation sans effet, application, undo/redo, sauvegarde/rechargement et mode sombre retrouvé. Scan axe sur toutes les sections avancées/expert et la palette automatique ouvertes.
@@ -154,7 +168,7 @@ Incident local conservé : après un arrêt interne de PGlite sur l’ancien `.w
 - La collaboration ajoute seulement des comptes déjà inscrits ; il n’y a pas d’invitation email pour un nouvel utilisateur.
 - Réservations sans moteur de disponibilité complet ; commandes sans encaissement, taxes, expédition ou logistique. Ces modules ne remplacent pas un ERP, LMS ou une marketplace.
 - Les variantes du catalogue nommées marketplace, SaaS, LMS, portail patient, billetterie, dons ou paiement produisent seulement l’architecture éditoriale et les modules affichés comme disponibles. Leurs limites sont présentées dans le wizard ; aucun backend de ce type n’est simulé.
-- Le lot personnalisation ne comprend pas encore le chargement de fichiers de polices, les images/vidéos de fond, le recadrage média, les carrousels/lightbox, les timelines de scroll libres, le CSS arbitraire ou les scripts tiers. La parallaxe et les presets de progression bornés du lot `scroll-motion` ne constituent pas un éditeur de timeline. Les presets sont enregistrés par projet ; il n’existe pas encore de bibliothèque partagée entre projets ni de gestion visuelle complète de leur cycle de vie. L’application multiple cible les blocs d’un même type, pas une sélection arbitraire multiple.
+- Le catalogue typographique local couvre seulement le style normal et le sous-ensemble latin ; l’upload de fontes, les italiques et les autres sous-ensembles ne sont pas implémentés. Le lot personnalisation ne comprend pas encore les images/vidéos de fond, le recadrage média, les carrousels/lightbox, les timelines de scroll libres, le CSS arbitraire ou les scripts tiers. La parallaxe et les presets de progression bornés du lot `scroll-motion` ne constituent pas un éditeur de timeline. Les presets sont enregistrés par projet ; il n’existe pas encore de bibliothèque partagée entre projets ni de gestion visuelle complète de leur cycle de vie. L’application multiple cible les blocs d’un même type, pas une sélection arbitraire multiple.
 - Le diagnostic de contraste couvre quatre paires par palette active, en hexadécimal. Il ne vérifie pas tous les états, images, dégradés ou composants et ne remplace pas un audit manuel.
 - Le build PDF de la documentation de référence n’est pas livré ; les neuf SVG déjà produits restent des documents de référence, pas des tests applicatifs.
 
@@ -164,4 +178,4 @@ La preview courante utilise `.woob-data-runtime-v2`, initialisée par les migrat
 
 ## Prochaine priorité
 
-Après les incréments `scene3d`, `surface-motion`, `scroll-motion` et `ai-idempotency`, la priorité d’architecture est d’étendre la reprise idempotente à `project_create`, puis d’évaluer un worker durable si une exécution sans requête devient nécessaire. Les preuves navigateur produit et corrections ciblées à cycles bornés restent nécessaires. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.
+Après les incréments `scene3d`, `surface-motion`, `scroll-motion`, `ai-idempotency` et `font-catalog-500`, la priorité d’architecture est d’étendre la reprise idempotente à `project_create`, puis d’évaluer un worker durable si une exécution sans requête devient nécessaire. Les preuves navigateur produit et corrections ciblées à cycles bornés restent nécessaires. La 3D reste limitée à deux presets procéduraux, sans timeline, modèles importés ni mesure Core Web Vitals. Les travaux déjà recensés restent ouverts : pagination/recherche SQL admin, traduction de l’éditeur et du reste du back-office, revue avec lecteur d’écran. Avec autorisation et comptes externes, un staging PostgreSQL/SMTP/S3 reste nécessaire pour tester sauvegardes et restauration, puis Stripe/OpenAI en sandbox et une plateforme DNS/TLS. Aucune dépense, publication ou validation externe n’est implicite.

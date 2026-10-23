@@ -83,6 +83,9 @@ export interface DesignSystem {
     typography: {
       bodyFont: string;
       headingFont: string;
+      /** Explicit catalog opt-in; legacy themes keep their historical browser weights. */
+      bodyFontWeight?: number | undefined;
+      headingFontWeight?: number | undefined;
       uiFont: string;
       monoFont: string;
       baseFontSize: number;

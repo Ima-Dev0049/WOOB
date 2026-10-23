@@ -111,6 +111,7 @@ export const designSystemSchema: z.ZodType<DesignSystem> = z.object({
     darkColors: colorTokensSchema,
     typography: z.object({
       bodyFont: fontSchema, headingFont: fontSchema, uiFont: fontSchema, monoFont: fontSchema,
+      bodyFontWeight: numberIn(1, 1000).optional(), headingFontWeight: numberIn(1, 1000).optional(),
       baseFontSize: numberIn(12, 24), scale: numberIn(1.05, 1.618), bodyLineHeight: numberIn(1.1, 2.2), headingLineHeight: numberIn(0.9, 1.8),
       letterSpacing: z.string().max(30).refine((value) => safeCssText(value)), paragraphMaxWidth: numberIn(280, 1400),
     }).strict(),

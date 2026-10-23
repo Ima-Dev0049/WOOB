@@ -14,6 +14,7 @@ import {
   type ThemeSettings,
   type Viewport,
 } from './types';
+import { selectedFontFaceCss } from '@/lib/fonts/catalog';
 
 const SHADOWS: Record<ShadowToken, string> = {
   none: 'none',
@@ -137,6 +138,8 @@ export function themeCssVariables(theme: ThemeSettings, forcedMode?: 'light' | '
     '--site-heading-font': typography.headingFont,
     '--site-ui-font': typography.uiFont,
     '--site-mono-font': typography.monoFont,
+    '--site-body-font-weight': String(typography.bodyFontWeight ?? 400),
+    '--site-heading-font-weight': String(typography.headingFontWeight ?? 700),
     '--site-base-font-size': `${typography.baseFontSize}px`,
     '--site-font-size-sm': size(-1),
     '--site-font-size-h3': size(2),
@@ -191,6 +194,11 @@ function declarations(variables: Record<string, string>, important = false): str
 /** Controlled global CSS: every value originates in the validated token model. */
 export function themeGlobalCss(theme: ThemeSettings): string {
   const design = getDesignSystem(theme);
+  const { typography } = design.tokens;
+  const fontFaces = selectedFontFaceCss([
+    { font: typography.bodyFont, weight: typography.bodyFontWeight },
+    { font: typography.headingFont, weight: typography.headingFontWeight },
+  ]);
   const dark = design.colorMode === 'auto'
     ? `@media (prefers-color-scheme:dark){.woob-theme{${declarations(themeCssVariables(theme, 'dark'), true)}}}`
     : '';
@@ -200,10 +208,11 @@ export function themeGlobalCss(theme: ThemeSettings): string {
   const entrance = design.motion.entrance === 'none' ? '' : `.woob-theme .wb-node{animation:woob-${design.motion.entrance} var(--site-motion-duration) var(--site-motion-easing) both}`;
   const reduced = '.woob-theme *,.woob-theme *::before,.woob-theme *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0ms!important}.woob-theme [data-motion-preset]{animation:none!important;clip-path:none!important;scale:none!important;translate:none!important}.woob-theme [data-motion-state="pending"]{opacity:1!important}';
   return `
-    .woob-theme{color-scheme:light dark}
+    ${fontFaces}
+    .woob-theme{color-scheme:light dark;font-family:var(--site-font);font-weight:var(--site-body-font-weight)}
     .woob-theme .wb-page{padding-left:var(--site-gutter);padding-right:var(--site-gutter)}
     .woob-theme .published-site,.woob-theme.canvas-document{font-size:var(--site-base-font-size);line-height:var(--site-body-line-height)}
-    .woob-theme h1,.woob-theme h2,.woob-theme h3{color:var(--site-heading);line-height:var(--site-heading-line-height);letter-spacing:var(--site-heading-letter-spacing)}
+    .woob-theme h1,.woob-theme h2,.woob-theme h3{color:var(--site-heading);font-family:var(--site-heading-font);font-weight:var(--site-heading-font-weight);line-height:var(--site-heading-line-height);letter-spacing:var(--site-heading-letter-spacing)}
     .woob-theme h1{font-size:var(--site-font-size-h1)}.woob-theme h2{font-size:var(--site-font-size-h2)}.woob-theme h3{font-size:var(--site-font-size-h3)}
     .woob-theme a{color:var(--site-link)}.woob-theme .eyebrow{color:var(--site-primary)}.woob-theme .muted{color:var(--site-muted)}
     .woob-theme .button.primary{color:#fff}.woob-theme .button.light{color:#17231f}.woob-theme .creative-mode-dark .button.primary{color:var(--site-bg)}.woob-theme .wb-cta .eyebrow{color:#fff}
