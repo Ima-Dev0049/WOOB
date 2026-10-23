@@ -83,10 +83,13 @@ export function MotionSurface({ children, scrollHeader = false, motionKey = 'sur
     const update = () => {
       frame = 0;
       let sceneProgress = 0;
-      if (scene && sceneMedia.matches) {
+      if (scene) {
         const bounds = scene.getBoundingClientRect();
-        const travel = Math.max(1, Math.min(bounds.height, window.innerHeight));
-        sceneProgress = Math.min(1, Math.max(0, -bounds.top / travel));
+        scene.dataset.surfaceActive = bounds.bottom > 0 && bounds.top < window.innerHeight ? 'true' : 'false';
+        if (sceneMedia.matches) {
+          const travel = Math.max(1, Math.min(bounds.height, window.innerHeight));
+          sceneProgress = Math.min(1, Math.max(0, -bounds.top / travel));
+        }
       }
       const top = Math.max(0, window.scrollY);
       if (header) {
@@ -112,7 +115,10 @@ export function MotionSurface({ children, scrollHeader = false, motionKey = 'sur
         header.classList.remove('is-scrolled');
         header.style.removeProperty('--surface-progress');
       }
-      if (scene) scene.style.removeProperty('--surface-scene-progress');
+      if (scene) {
+        scene.style.removeProperty('--surface-scene-progress');
+        delete scene.dataset.surfaceActive;
+      }
     };
   }, [scrollHeader, motionKey]);
 

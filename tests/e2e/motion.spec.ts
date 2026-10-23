@@ -45,7 +45,8 @@ test('le marketing révèle ses sections une fois et le header suit le scroll', 
   await revealEntireSurface(page);
   await expect(page.locator('[data-surface-state="pending"]')).toHaveCount(0);
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: 'test-results/motion-desktop-full.png', fullPage: true });
+  // Freeze ambient loops only for the traced full-page image; behavior is asserted separately.
+  await page.screenshot({ path: 'test-results/motion-desktop-full.png', fullPage: true, animations: 'disabled' });
 
   await page.goto('/pricing');
   await expectRevealed(page, '.pricing-intro');

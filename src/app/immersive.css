@@ -42,6 +42,47 @@
     z-index: -1;
   }
   .immersive-home .marketing-hero > * { position: relative; z-index: 1; }
+  .immersive-home .hero-floats { inset: 0; overflow: hidden; pointer-events: none; position: absolute; z-index: 0; }
+  .immersive-home .hero-float { display: block; position: absolute; }
+  .immersive-home .hero-float-orb {
+    aspect-ratio: 1;
+    background: radial-gradient(circle at 35% 30%, #c8bcff80, #6d4aff42 46%, #6d4aff08 72%);
+    border: 1px solid #c9bcff24;
+    border-radius: 50%;
+    box-shadow: 0 0 76px #6d4aff1c;
+    left: 4.5%;
+    opacity: .68;
+    top: 28%;
+    width: clamp(100px, 11vw, 160px);
+  }
+  .immersive-home .hero-float-ring {
+    aspect-ratio: 1;
+    border: 1px solid #ef835463;
+    border-radius: 43% 57% 55% 45% / 52% 43% 57% 48%;
+    box-shadow: inset 0 0 34px #ef83540b, 0 0 48px #ef83540a;
+    opacity: .72;
+    right: 6%;
+    top: 23%;
+    width: clamp(88px, 9vw, 132px);
+  }
+  .immersive-home .hero-float-tile {
+    background: linear-gradient(145deg, #ffffff10, #ffffff02);
+    border: 1px solid #ffffff24;
+    border-radius: 22px;
+    height: 76px;
+    left: 9%;
+    opacity: .64;
+    top: 65%;
+    transform: rotate(8deg);
+    width: 76px;
+  }
+  @media (min-width: 761px) and (prefers-reduced-motion: no-preference) {
+    .immersive-home .hero-float-orb { animation: hero-float-orb 15s ease-in-out infinite alternate; }
+    .immersive-home .hero-float-ring { animation: hero-float-ring 18s ease-in-out infinite alternate; }
+    .immersive-home .hero-float-tile { animation: hero-float-tile 16s ease-in-out infinite alternate; }
+    .immersive-home .hero-float { animation-play-state: paused; }
+    .immersive-home .marketing-hero[data-surface-active='true'] .hero-float { animation-play-state: running; }
+  }
   .immersive-home .hero-kicker { background: #ffffff08; border: 1px solid #ffffff24; border-radius: 999px; color: #d9e0da; font-size: 10px; letter-spacing: .14em; padding: 8px 13px; }
   .immersive-home .hero-kicker span { box-shadow: 0 0 0 4px #ef835417; }
   .immersive-home .marketing-hero > h1 { font-size: clamp(54px, 6.6vw, 94px); font-weight: 680; letter-spacing: -.068em; line-height: .98; margin: 28px auto 26px; max-width: 1060px; }
@@ -126,8 +167,22 @@
 
   @media (prefers-reduced-motion: reduce) {
     .immersive-home .hero-stage { transform: none !important; }
+    .immersive-home .hero-float { animation: none !important; }
     .immersive-home .marketing-hero::after { translate: -50% 0; }
   }
+}
+
+@keyframes hero-float-orb {
+  from { transform: translate3d(0, 0, 0) scale(.96); }
+  to { transform: translate3d(18px, -26px, 0) scale(1.04); }
+}
+@keyframes hero-float-ring {
+  from { transform: translate3d(0, 0, 0) rotate(-8deg); }
+  to { transform: translate3d(-22px, 24px, 0) rotate(14deg); }
+}
+@keyframes hero-float-tile {
+  from { transform: translate3d(0, 0, 0) rotate(8deg); }
+  to { transform: translate3d(14px, -20px, 0) rotate(23deg); }
 }
 
 @layer responsive {
@@ -139,6 +194,10 @@
     .immersive-home .marketing-hero { min-height: 0; padding: 118px 20px 64px; }
     .immersive-home .marketing-hero::before { background-size: 46px 46px; opacity: .22; }
     .immersive-home .marketing-hero::after { height: 480px; top: -190px; translate: -50% 0; width: 480px; }
+    .immersive-home .hero-floats { opacity: .55; }
+    .immersive-home .hero-float-orb { left: -34px; top: 27%; width: 96px; }
+    .immersive-home .hero-float-ring { right: -24px; top: 19%; width: 78px; }
+    .immersive-home .hero-float-tile { display: none; }
     .immersive-home .hero-kicker { font-size: 9px; letter-spacing: .11em; }
     .immersive-home .marketing-hero > h1 { font-size: clamp(40px, 11.8vw, 52px); line-height: 1.02; margin-top: 23px; }
     .immersive-home .marketing-lead { font-size: 15px; }
