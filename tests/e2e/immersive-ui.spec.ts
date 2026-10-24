@@ -11,8 +11,14 @@ test('le hero immersif suit le scroll et ne boucle que ses formes décoratives',
   await expect(hero).toHaveAttribute('data-surface-active', 'true');
   await expect(page.locator('.hero-float')).toHaveCount(3);
   const orb = page.locator('.hero-float-orb');
-  const initialOrbTransform = await orb.evaluate((element) => getComputedStyle(element).transform);
-  await expect.poll(() => orb.evaluate((element) => getComputedStyle(element).transform)).not.toBe(initialOrbTransform);
+  const initialOrbPosition = await orb.evaluate((element) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(element).transform);
+    return { x: matrix.m41, y: matrix.m42 };
+  });
+  await expect.poll(() => orb.evaluate((element, initial) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(element).transform);
+    return Math.hypot(matrix.m41 - initial.x, matrix.m42 - initial.y);
+  }, initialOrbPosition), { timeout: 5000 }).toBeGreaterThan(18);
   const progress = () => hero.evaluate((element) => Number(element.style.getPropertyValue('--surface-scene-progress')));
   expect(await progress()).toBe(0);
   const initialTransform = await stage.evaluate((element) => getComputedStyle(element).transform);

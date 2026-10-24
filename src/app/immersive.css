@@ -77,9 +77,9 @@
     width: 76px;
   }
   @media (min-width: 761px) and (prefers-reduced-motion: no-preference) {
-    .immersive-home .hero-float-orb { animation: hero-float-orb 15s ease-in-out infinite alternate; }
-    .immersive-home .hero-float-ring { animation: hero-float-ring 18s ease-in-out infinite alternate; }
-    .immersive-home .hero-float-tile { animation: hero-float-tile 16s ease-in-out infinite alternate; }
+    .immersive-home .hero-float-orb { animation: hero-float-orb 8s ease-in-out infinite alternate; }
+    .immersive-home .hero-float-ring { animation: hero-float-ring 10s ease-in-out infinite alternate; }
+    .immersive-home .hero-float-tile { animation: hero-float-tile 9s ease-in-out infinite alternate; }
     .immersive-home .hero-float { animation-play-state: paused; }
     .immersive-home .marketing-hero[data-surface-active='true'] .hero-float { animation-play-state: running; }
   }
@@ -173,16 +173,16 @@
 }
 
 @keyframes hero-float-orb {
-  from { transform: translate3d(0, 0, 0) scale(.96); }
-  to { transform: translate3d(18px, -26px, 0) scale(1.04); }
+  from { transform: translate3d(0, 0, 0) scale(.94); }
+  to { transform: translate3d(38px, -52px, 0) scale(1.08); }
 }
 @keyframes hero-float-ring {
-  from { transform: translate3d(0, 0, 0) rotate(-8deg); }
-  to { transform: translate3d(-22px, 24px, 0) rotate(14deg); }
+  from { transform: translate3d(0, 0, 0) rotate(-12deg); }
+  to { transform: translate3d(-46px, 38px, 0) rotate(24deg); }
 }
 @keyframes hero-float-tile {
-  from { transform: translate3d(0, 0, 0) rotate(8deg); }
-  to { transform: translate3d(14px, -20px, 0) rotate(23deg); }
+  from { transform: translate3d(0, 0, 0) rotate(6deg); }
+  to { transform: translate3d(28px, -42px, 0) rotate(30deg); }
 }
 
 @layer responsive {
