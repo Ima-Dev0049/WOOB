@@ -27,10 +27,14 @@ export async function requireMembership(userId: string, workspaceId: string, per
   return member;
 }
 
-export async function requireProject(userId: string, projectId: string, permission: Permission = 'read', db?: Db): Promise<Project> {
+export async function requireProjectAccess(userId: string, projectId: string, permission: Permission = 'read', db?: Db) {
   const database = db ?? await getDb();
   const project = (await database.select().from(projects).where(and(eq(projects.id, projectId), isNull(projects.deletedAt), ne(projects.status, 'suspended'))).limit(1))[0];
   if (!project) throw new ApiError(404, 'PROJECT_NOT_FOUND', 'Projet introuvable.');
-  await requireMembership(userId, project.workspaceId, permission, database);
-  return project;
+  const member = await requireMembership(userId, project.workspaceId, permission, database);
+  return { project, member };
+}
+
+export async function requireProject(userId: string, projectId: string, permission: Permission = 'read', db?: Db): Promise<Project> {
+  return (await requireProjectAccess(userId, projectId, permission, db)).project;
 }

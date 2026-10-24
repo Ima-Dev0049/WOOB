@@ -50,6 +50,13 @@
       "when": 1792783964544,
       "tag": "0007_blushing_the_spike",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792832379764,
+      "tag": "0008_soft_amazoness",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,7 @@ import {
 import type { PageDocument, SiteSnapshot, ThemeSettings } from '@/lib/document/types';
 import type { CatalogSelectionSnapshot } from '@/lib/catalog/types';
 import type { ProjectBrief } from '@/lib/creative/types';
+import type { ApplicationModel, ApplicationRecordData } from '@/lib/application/model';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey(),
@@ -311,6 +312,44 @@ export const projectModules = pgTable('project_modules', {
   uniqueIndex('project_modules_project_key_unique').on(table.projectId, table.key),
 ]);
 
+export const applicationModels = pgTable('application_models', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  version: integer('version').notNull(),
+  current: boolean('current').notNull().default(true),
+  model: jsonb('model').$type<ApplicationModel>().notNull(),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.workspaceId, table.projectId],
+    foreignColumns: [projects.workspaceId, projects.id],
+    name: 'application_models_project_tenant_fk',
+  }).onDelete('cascade'),
+  uniqueIndex('application_models_project_version_unique').on(table.projectId, table.version),
+  index('application_models_project_current_idx').on(table.projectId, table.current),
+]);
+
+export const applicationRecords = pgTable('application_records', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  objectKey: text('object_key').notNull(),
+  data: jsonb('data').$type<ApplicationRecordData>().notNull(),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.workspaceId, table.projectId],
+    foreignColumns: [projects.workspaceId, projects.id],
+    name: 'application_records_project_tenant_fk',
+  }).onDelete('cascade'),
+  index('application_records_project_object_idx').on(table.projectId, table.objectKey, table.createdAt),
+  index('application_records_workspace_idx').on(table.workspaceId, table.projectId),
+]);
+
 export const formSubmissions = pgTable('form_submissions', {
   id: uuid('id').primaryKey(),
   workspaceId: uuid('workspace_id').notNull(),
@@ -459,6 +498,8 @@ export type Plan = typeof plans.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Post = typeof posts.$inferSelect;
 export type ProjectModule = typeof projectModules.$inferSelect;
+export type ApplicationModelRow = typeof applicationModels.$inferSelect;
+export type ApplicationRecordRow = typeof applicationRecords.$inferSelect;
 export type FormSubmission = typeof formSubmissions.$inferSelect;
 export type Reservation = typeof reservations.$inferSelect;
 export type Order = typeof orders.$inferSelect;

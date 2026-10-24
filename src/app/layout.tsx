@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './app.css';
 import './business.css';
+import './application.css';
 import './ai.css';
 import './admin.css';
 import './catalog.css';
