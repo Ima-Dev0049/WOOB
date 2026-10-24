@@ -181,16 +181,24 @@ test('la pagination et les relations recherchables fonctionnent au-delà du cach
   await relationForm.getByRole('textbox', { name: 'Nom complet', exact: true }).fill(student);
   await relationForm.getByRole('textbox', { name: 'Email', exact: true }).fill(`relation-${suffix}@example.com`);
   const createDossierResponse = page.waitForResponse((response) => response.url().includes('/application/objects/dossiers') && response.request().method() === 'POST' && response.status() === 201);
+  const createdLabelResponse = page.waitForResponse((response) => {
+    if (!response.url().includes('/application/objects/filieres?') || response.status() !== 200) return false;
+    return new URL(response.url()).searchParams.getAll('id').includes(outside.id);
+  });
   await relationForm.getByRole('button', { name: 'Créer l’enregistrement' }).click();
   await createDossierResponse;
+  await createdLabelResponse;
   const relatedRow = page.locator('.application-table tbody tr').filter({ hasText: student });
-  await expect(relatedRow).toBeVisible();
+  await expect(relatedRow).toContainText(outside.name);
 
+  const reloadedLabelResponse = page.waitForResponse((response) => {
+    if (!response.url().includes('/application/objects/filieres?') || response.status() !== 200) return false;
+    return new URL(response.url()).searchParams.getAll('id').includes(outside.id);
+  });
   await page.reload();
-  await expect(relatedRow).toBeVisible();
-  const exactRelationResponse = page.waitForResponse((response) => response.url().includes(`/application/objects/filieres/${outside.id}`) && response.request().method() === 'GET' && response.status() === 200);
+  await reloadedLabelResponse;
+  await expect(relatedRow).toContainText(outside.name);
   await page.getByRole('button', { name: `Modifier : ${student}`, exact: true }).click();
-  await exactRelationResponse;
   await expect(relationSelect).toHaveValue(outside.id);
   await expect(relationSelect.getByRole('option', { name: outside.name, exact: true })).toHaveCount(1);
   await page.setViewportSize({ width: 390, height: 844 });

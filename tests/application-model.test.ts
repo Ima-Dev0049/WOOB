@@ -77,6 +77,10 @@ describe('modèle d’application géré', () => {
     const otherProject = await createProject(account.user.id, account.workspace.id, { name: 'Autre projet applicatif', description: '', templateId: 'studio-business' }, context.db);
     await saveApplicationModel(account.user.id, otherProject.project.id, { model: schoolApplicationModel, baseVersion: null }, context.db);
     const otherFiliere = await createFiliere(account.user.id, otherProject.project.id, 'DROIT');
+    const resolvedByIds = await listApplicationRecords(account.user.id, details.project.id, 'filieres', { ids: [filiere.id, otherFiliere.id], limit: 100, offset: 0 }, context.db);
+    expect(resolvedByIds.records.map((record) => record.id)).toEqual([filiere.id]);
+    expect(resolvedByIds.total).toBe(1);
+    expect((await listApplicationRecords(account.user.id, details.project.id, 'dossiers', { ids: [filiere.id] }, context.db)).total).toBe(0);
     await expect(createApplicationRecord(account.user.id, details.project.id, 'dossiers', dossierInput(otherFiliere.id, 'B'), context.db)).rejects.toMatchObject({ status: 422, code: 'APPLICATION_RELATION_INVALID' });
   });
 

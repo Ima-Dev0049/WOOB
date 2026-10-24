@@ -23,7 +23,8 @@ function notFound(): never {
 function listOptions(request: Request) {
   const params = new URL(request.url).searchParams;
   const numberParam = (key: string) => params.has(key) ? Number(params.get(key)) : undefined;
-  return { q: params.get('q') || undefined, status: params.get('status') || undefined, limit: numberParam('limit'), offset: numberParam('offset') };
+  const ids = params.getAll('id');
+  return { q: params.get('q') || undefined, status: params.get('status') || undefined, ids: ids.length ? ids : undefined, limit: numberParam('limit'), offset: numberParam('offset') };
 }
 
 export async function GET(request: Request, context: RouteContext) {

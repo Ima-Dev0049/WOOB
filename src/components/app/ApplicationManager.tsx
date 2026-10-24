@@ -19,6 +19,7 @@ import { schoolApplicationModel } from '@/lib/application/school-model';
 const PAGE_SIZE = 25;
 const RELATION_OPTION_LIMIT = 100;
 const RELATION_SEARCH_LIMIT = 50;
+const RELATION_CACHE_LIMIT = 250;
 
 export type ManagedRecord = { id: string; objectKey: string; data: ApplicationRecordData; createdAt: string; updatedAt: string };
 export type ManagedObjectData = { object: ApplicationObject; total: number; records: ManagedRecord[] };
@@ -27,6 +28,14 @@ type FormState = { objectKey: string; record?: ManagedRecord };
 function pageFromParam(value: string | null): number {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed - 1 : 0;
+}
+
+function applicationColumns(object: ApplicationObject): ApplicationField[] {
+  return (object.columns ?? [object.titleField, ...object.fields.map((field) => field.key)])
+    .filter((key, index, values) => values.indexOf(key) === index)
+    .slice(0, 6)
+    .map((key) => object.fields.find((field) => field.key === key)!)
+    .filter(Boolean);
 }
 
 export function ApplicationManager({ projectId, model, version, role, canManage, initialObjects }: {
@@ -65,12 +74,14 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
   const [reloadKey, setReloadKey] = useState(0);
   const [form, setForm] = useState<FormState | null>(null);
   const routes = useMemo(() => model ? buildApplicationRoutes(model) : [], [model]);
+  const activeColumns = useMemo(() => activeObject ? applicationColumns(activeObject) : [], [activeObject]);
+  const visibleRecords = useMemo(() => activeObject ? records[activeObject.key] ?? [] : [], [activeObject, records]);
   const baseUrl = `/api/projects/${projectId}/application`;
   const cacheRelationRecord = useCallback((record: ManagedRecord) => {
     setRelationRecords((current) => {
       const existing = current[record.objectKey] ?? [];
       if (existing.some((candidate) => candidate.id === record.id)) return current;
-      return { ...current, [record.objectKey]: [record, ...existing].slice(0, RELATION_OPTION_LIMIT) };
+      return { ...current, [record.objectKey]: [record, ...existing].slice(0, RELATION_CACHE_LIMIT) };
     });
   }, []);
   const total = activeObject ? totals[activeObject.key] ?? 0 : 0;
@@ -97,6 +108,52 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
     }, 180);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [activeObject, baseUrl, currentPage, readableObjects, reloadKey, search, statusFilter]);
+
+  useEffect(() => {
+    const missingByTarget = new Map<string, Set<string>>();
+    for (const field of activeColumns) {
+      if (field.type !== 'relation') continue;
+      const targetKey = field.targetObject!;
+      const knownIds = new Set((relationRecords[targetKey] ?? []).map((record) => record.id));
+      for (const record of visibleRecords) {
+        const relationId = record.data[field.key];
+        if (typeof relationId !== 'string' || knownIds.has(relationId)) continue;
+        const missing = missingByTarget.get(targetKey) ?? new Set<string>();
+        missing.add(relationId);
+        missingByTarget.set(targetKey, missing);
+      }
+    }
+    const requests: { targetKey: string; params: URLSearchParams }[] = [];
+    for (const [targetKey, identifiers] of missingByTarget) {
+      const ids = [...identifiers];
+      for (let index = 0; index < ids.length; index += RELATION_OPTION_LIMIT) {
+        const params = new URLSearchParams({ limit: String(RELATION_OPTION_LIMIT), offset: '0' });
+        for (const id of ids.slice(index, index + RELATION_OPTION_LIMIT)) params.append('id', id);
+        requests.push({ targetKey, params });
+      }
+    }
+    if (!requests.length) return;
+    const controller = new AbortController();
+    void Promise.all(requests.map(async ({ targetKey, params }) => {
+      const result = await apiFetch<{ records: ManagedRecord[] }>(`${baseUrl}/objects/${targetKey}?${params}`, { signal: controller.signal });
+      return result.records;
+    })).then((groups) => {
+      if (controller.signal.aborted) return;
+      const resolved = groups.flat();
+      if (!resolved.length) return;
+      setRelationRecords((current) => {
+        const next = { ...current };
+        for (const record of resolved) {
+          const existing = next[record.objectKey] ?? [];
+          next[record.objectKey] = [record, ...existing.filter((candidate) => candidate.id !== record.id)].slice(0, RELATION_CACHE_LIMIT);
+        }
+        return next;
+      });
+    }).catch((error: unknown) => {
+      if (error instanceof Error && error.name !== 'AbortError') setMessage('Les enregistrements sont chargés, mais certains libellés de relation n’ont pas pu être actualisés.');
+    });
+    return () => controller.abort();
+  }, [activeColumns, baseUrl, relationRecords, visibleRecords]);
 
   useEffect(() => {
     if (!reloadKey) return;
@@ -225,7 +282,7 @@ function ApplicationRecordTable({ object, model, role, records, loading, display
   onAction: (record: ManagedRecord, actionKey: string, actionLabel: string) => Promise<void>;
 }) {
   const titleField = object.fields.find((field) => field.key === object.titleField)!;
-  const columns = (object.columns ?? [object.titleField, ...object.fields.map((field) => field.key)]).filter((key, index, values) => values.indexOf(key) === index).slice(0, 6).map((key) => object.fields.find((field) => field.key === key)!).filter(Boolean);
+  const columns = applicationColumns(object);
   return <div className="application-table-wrap" aria-busy={loading}><table className="application-table"><caption>{object.pluralLabel} gérés par le modèle</caption><thead><tr>{columns.map((field) => <th key={field.key} scope="col">{field.label}</th>)}<th scope="col">Actions</th></tr></thead><tbody>{records.map((record) => {
     const status = object.statusField ? record.data[object.statusField] : undefined;
     const actions = object.actions.filter((action) => typeof status === 'string' && action.from.includes(status) && roleCanAction(model, role, object.key, action.key));

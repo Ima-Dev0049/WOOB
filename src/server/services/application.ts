@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, ne, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { createId } from '@/lib/id';
 import {
@@ -23,6 +23,7 @@ import { ApiError } from '@/server/http';
 const listOptionsSchema = z.object({
   q: z.string().trim().max(120).optional(),
   status: z.string().trim().max(48).optional(),
+  ids: z.array(z.string().uuid()).min(1).max(100).optional(),
   limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).max(100_000).default(0),
 });
@@ -121,6 +122,7 @@ async function listFromContext(context: ObjectContext, input: unknown, db: Db) {
   )!];
   if (options.q) conditions.push(sql`${applicationRecords.data}::text ILIKE ${`%${options.q}%`}`);
   if (options.status && context.object.statusField) conditions.push(sql`${applicationRecords.data} ->> ${context.object.statusField} = ${options.status}`);
+  if (options.ids) conditions.push(inArray(applicationRecords.id, options.ids));
   const where = and(...conditions);
   const [records, count] = await Promise.all([
     db.select().from(applicationRecords).where(where).orderBy(desc(applicationRecords.createdAt), desc(applicationRecords.id)).limit(options.limit).offset(options.offset),
