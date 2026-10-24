@@ -104,8 +104,8 @@ test('le modèle géré exécute un portail scolaire avec relations, processus e
   expect(browserErrors).toEqual([]);
 });
 
-test('la consultation paginée restaure son URL et reste utilisable sur mobile sans mouvement imposé', async ({ page }) => {
-  test.setTimeout(120_000);
+test('la pagination et les relations recherchables fonctionnent au-delà du cache, sur mobile et sans mouvement', async ({ page }) => {
+  test.setTimeout(180_000);
   const browserErrors: string[] = [];
   page.on('pageerror', (error) => browserErrors.push(error.message));
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -122,12 +122,16 @@ test('la consultation paginée restaure son URL et reste utilisable sur mobile s
   const projectId = /\/dashboard\/projects\/([^/]+)\/application/.exec(applicationPath)?.[1];
   const csrf = (await page.context().cookies()).find((cookie) => cookie.name === 'woob_csrf')?.value;
   if (!projectId || !csrf) throw new Error('Le projet ou le jeton CSRF de test est introuvable.');
-  for (let index = 0; index < 26; index += 1) {
+  const seededFilieres: { id: string; name: string }[] = [];
+  for (let index = 0; index < 101; index += 1) {
+    const name = `Filière ${String(index).padStart(2, '0')}`;
     const response = await page.request.post(`/api/projects/${projectId}/application/objects/filieres`, {
       headers: { 'x-csrf-token': csrf },
-      data: { data: { nom: `Filière ${String(index).padStart(2, '0')}`, code: `P${String(index).padStart(2, '0')}`, description: 'Donnée de pagination E2E.' } },
+      data: { data: { nom: name, code: `P${String(index).padStart(2, '0')}`, description: index < 26 ? 'Donnée de pagination E2E.' : 'Donnée de relation E2E.' } },
     });
     expect(response.status()).toBe(201);
+    const body = await response.json() as { record: { id: string } };
+    seededFilieres.push({ id: body.record.id, name });
   }
 
   await page.goto(`${applicationPath}?objet=filieres`);
@@ -135,15 +139,81 @@ test('la consultation paginée restaure son URL et reste utilisable sur mobile s
   const pagination = page.getByRole('navigation', { name: 'Pagination Filières', exact: true });
   const search = page.getByRole('textbox', { name: 'Rechercher dans Filières', exact: true });
   await expect(rows).toHaveCount(25);
+  await expect(pagination).toContainText('Page 1 / 5');
+  await expect(pagination).toContainText('1–25 sur 101');
+
+  await page.getByRole('button', { name: /^Dossiers/ }).click();
+  await page.getByRole('button', { name: 'Ajouter : Dossier', exact: true }).click();
+  const relationForm = page.locator('.application-record-form');
+  const relationSelect = relationForm.getByRole('combobox', { name: 'Filière', exact: true });
+  const relationSearch = relationForm.getByRole('searchbox', { name: 'Rechercher : Filières', exact: true });
+  await expect(relationSelect.locator('option')).toHaveCount(101);
+  const initialOptionIds = await relationSelect.locator('option').evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value).filter(Boolean));
+  const outside = seededFilieres.find((item) => !initialOptionIds.includes(item.id));
+  const inside = seededFilieres.find((item) => initialOptionIds.includes(item.id));
+  if (!outside || !inside) throw new Error('Les fixtures ne distinguent pas le cache initial et la relation externe.');
+  await expect(relationSelect.getByRole('option', { name: outside.name, exact: true })).toHaveCount(0);
+
+  const outsideResponse = page.waitForResponse((response) => {
+    if (!response.url().includes('/application/objects/filieres?') || response.status() !== 200) return false;
+    const params = new URL(response.url()).searchParams;
+    return params.get('q') === outside.name && params.get('limit') === '50';
+  });
+  await relationSearch.fill(outside.name);
+  await outsideResponse;
+  await expect(relationSelect.getByRole('option', { name: outside.name, exact: true })).toHaveCount(1);
+  await relationSelect.selectOption(outside.id);
+  await expect(relationSelect).toHaveValue(outside.id);
+
+  const insideResponse = page.waitForResponse((response) => {
+    if (!response.url().includes('/application/objects/filieres?') || response.status() !== 200) return false;
+    return new URL(response.url()).searchParams.get('q') === inside.name;
+  });
+  await relationSearch.fill(inside.name);
+  await insideResponse;
+  await expect(relationSelect.getByRole('option', { name: inside.name, exact: true })).toHaveCount(1);
+  await expect(relationSelect.getByRole('option', { name: outside.name, exact: true })).toHaveCount(1);
+  await expect(relationSelect).toHaveValue(outside.id);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: 'test-results/application-relation-search-desktop.png', fullPage: true, animations: 'disabled' });
+
+  const student = `Dossier relation ${suffix}`;
+  await relationForm.getByRole('textbox', { name: 'Nom complet', exact: true }).fill(student);
+  await relationForm.getByRole('textbox', { name: 'Email', exact: true }).fill(`relation-${suffix}@example.com`);
+  const createDossierResponse = page.waitForResponse((response) => response.url().includes('/application/objects/dossiers') && response.request().method() === 'POST' && response.status() === 201);
+  await relationForm.getByRole('button', { name: 'Créer l’enregistrement' }).click();
+  await createDossierResponse;
+  const relatedRow = page.locator('.application-table tbody tr').filter({ hasText: student });
+  await expect(relatedRow).toBeVisible();
+
+  await page.reload();
+  await expect(relatedRow).toBeVisible();
+  const exactRelationResponse = page.waitForResponse((response) => response.url().includes(`/application/objects/filieres/${outside.id}`) && response.request().method() === 'GET' && response.status() === 200);
+  await page.getByRole('button', { name: `Modifier : ${student}`, exact: true }).click();
+  await exactRelationResponse;
+  await expect(relationSelect).toHaveValue(outside.id);
+  await expect(relationSelect.getByRole('option', { name: outside.name, exact: true })).toHaveCount(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const relationDimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+  expect(relationDimensions.document).toBeLessThanOrEqual(relationDimensions.viewport + 1);
+  expect((await relationSearch.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  expect((await relationSelect.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: 'test-results/application-relation-search-mobile.png', fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await relationForm.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await expect(relatedRow).toContainText(outside.name);
+
+  await page.getByRole('button', { name: /^Filières/ }).click();
+  const pageQuery = 'Donnée de pagination';
+  await search.fill(pageQuery);
+  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe(pageQuery);
   await expect(pagination).toContainText('Page 1 / 2');
   await expect(pagination).toContainText('1–25 sur 26');
-  await search.fill('Filière');
-  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('Filière');
 
   const nextPageResponse = page.waitForResponse((response) => {
     if (!response.url().includes('/application/objects/filieres?') || response.status() !== 200) return false;
     const params = new URL(response.url()).searchParams;
-    return params.get('offset') === '25' && params.get('q') === 'Filière';
+    return params.get('offset') === '25' && params.get('q') === pageQuery;
   });
   await page.getByRole('button', { name: 'Suivant', exact: true }).click();
   await nextPageResponse;
@@ -154,7 +224,7 @@ test('la consultation paginée restaure son URL et reste utilisable sur mobile s
   await expect.poll(() => new URL(page.url()).searchParams.get('page')).toBe('2');
 
   await page.reload();
-  await expect(search).toHaveValue('Filière');
+  await expect(search).toHaveValue(pageQuery);
   await expect(rows).toHaveCount(1);
   await expect(pagination).toContainText('Page 2 / 2');
   expect(new URL(page.url()).searchParams.get('objet')).toBe('filieres');

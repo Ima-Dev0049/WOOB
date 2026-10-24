@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, errorMessage } from '@/lib/client-api';
 import {
@@ -18,6 +18,7 @@ import { schoolApplicationModel } from '@/lib/application/school-model';
 
 const PAGE_SIZE = 25;
 const RELATION_OPTION_LIMIT = 100;
+const RELATION_SEARCH_LIMIT = 50;
 
 export type ManagedRecord = { id: string; objectKey: string; data: ApplicationRecordData; createdAt: string; updatedAt: string };
 export type ManagedObjectData = { object: ApplicationObject; total: number; records: ManagedRecord[] };
@@ -65,6 +66,13 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
   const [form, setForm] = useState<FormState | null>(null);
   const routes = useMemo(() => model ? buildApplicationRoutes(model) : [], [model]);
   const baseUrl = `/api/projects/${projectId}/application`;
+  const cacheRelationRecord = useCallback((record: ManagedRecord) => {
+    setRelationRecords((current) => {
+      const existing = current[record.objectKey] ?? [];
+      if (existing.some((candidate) => candidate.id === record.id)) return current;
+      return { ...current, [record.objectKey]: [record, ...existing].slice(0, RELATION_OPTION_LIMIT) };
+    });
+  }, []);
   const total = activeObject ? totals[activeObject.key] ?? 0 : 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
@@ -174,7 +182,7 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
         {activeObject.statusField && <label>Statut<select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(0); }} aria-label="Filtrer par statut"><option value="">Tous les statuts</option>{activeObject.fields.find((field) => field.key === activeObject.statusField)?.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>}
         <span role="status" aria-atomic="true">{loading ? 'Actualisation…' : `${total} résultat${total > 1 ? 's' : ''}`}</span>
       </div>
-      {form?.objectKey === activeObject.key && <ApplicationRecordForm key={`${form.objectKey}-${form.record?.id ?? 'new'}`} object={activeObject} record={form.record} records={relationRecords} model={model} pending={pending} onCancel={() => setForm(null)} onSubmit={async (data) => {
+      {form?.objectKey === activeObject.key && <ApplicationRecordForm key={`${form.objectKey}-${form.record?.id ?? 'new'}`} object={activeObject} record={form.record} records={relationRecords} model={model} baseUrl={baseUrl} onRelationResolved={cacheRelationRecord} pending={pending} onCancel={() => setForm(null)} onSubmit={async (data) => {
         const creating = !form.record;
         const saved = await run(() => apiFetch(form.record ? `${baseUrl}/objects/${activeObject.key}/${form.record!.id}` : `${baseUrl}/objects/${activeObject.key}`, { method: form.record ? 'PATCH' : 'POST', body: JSON.stringify({ data }) }), form.record ? 'Enregistrement modifié.' : 'Enregistrement créé.');
         if (saved) { setForm(null); if (creating) setPage(0); }
@@ -226,11 +234,13 @@ function ApplicationRecordTable({ object, model, role, records, loading, display
   })}{!records.length && <tr className="application-empty-row"><td colSpan={columns.length + 1}><div className="application-no-results">{loading ? 'Chargement des enregistrements…' : 'Aucun enregistrement ne correspond à ces critères.'}</div></td></tr>}</tbody></table></div>;
 }
 
-function ApplicationRecordForm({ object, model, record, records, pending, onCancel, onSubmit }: {
+function ApplicationRecordForm({ object, model, record, records, baseUrl, onRelationResolved, pending, onCancel, onSubmit }: {
   object: ApplicationObject;
   model: ApplicationModel;
   record?: ManagedRecord | undefined;
   records: Record<string, ManagedRecord[]>;
+  baseUrl: string;
+  onRelationResolved: (record: ManagedRecord) => void;
   pending: boolean;
   onCancel: () => void;
   onSubmit: (data: ApplicationRecordData) => Promise<void>;
@@ -249,10 +259,18 @@ function ApplicationRecordForm({ object, model, record, records, pending, onCanc
     }
     await onSubmit(data);
   }
-  return <form className="application-record-form" onSubmit={submit}><header><h3>{record ? `Modifier : ${object.label}` : `Ajouter : ${object.label}`}</h3><button type="button" className="button ghost small" onClick={onCancel}>Fermer</button></header><div className="application-form-grid">{object.fields.filter((field) => field.key !== object.statusField).map((field) => <ApplicationFieldInput key={field.key} field={field} object={object} model={model} record={record} records={records} />)}</div>{object.statusField && <p className="field-hint">Le statut initial et ses changements sont contrôlés par les actions du processus, jamais par ce formulaire.</p>}<div className="button-row"><button className="button coral small" disabled={pending}>{record ? 'Enregistrer les modifications' : 'Créer l’enregistrement'}</button><button type="button" className="button secondary small" onClick={onCancel}>Annuler</button></div></form>;
+  return <form className="application-record-form" onSubmit={submit}><header><h3>{record ? `Modifier : ${object.label}` : `Ajouter : ${object.label}`}</h3><button type="button" className="button ghost small" onClick={onCancel}>Fermer</button></header><div className="application-form-grid">{object.fields.filter((field) => field.key !== object.statusField).map((field) => <ApplicationFieldInput key={field.key} field={field} object={object} model={model} record={record} records={records} baseUrl={baseUrl} onRelationResolved={onRelationResolved} />)}</div>{object.statusField && <p className="field-hint">Le statut initial et ses changements sont contrôlés par les actions du processus, jamais par ce formulaire.</p>}<div className="button-row"><button className="button coral small" disabled={pending}>{record ? 'Enregistrer les modifications' : 'Créer l’enregistrement'}</button><button type="button" className="button secondary small" onClick={onCancel}>Annuler</button></div></form>;
 }
 
-function ApplicationFieldInput({ field, object, model, record, records }: { field: ApplicationField; object: ApplicationObject; model: ApplicationModel; record?: ManagedRecord | undefined; records: Record<string, ManagedRecord[]> }) {
+function ApplicationFieldInput({ field, object, model, record, records, baseUrl, onRelationResolved }: {
+  field: ApplicationField;
+  object: ApplicationObject;
+  model: ApplicationModel;
+  record?: ManagedRecord | undefined;
+  records: Record<string, ManagedRecord[]>;
+  baseUrl: string;
+  onRelationResolved: (record: ManagedRecord) => void;
+}) {
   const id = `application-${object.key}-${field.key}`;
   const value = record?.data[field.key] ?? field.defaultValue;
   const common = { id, name: field.key, required: field.required, 'aria-describedby': field.help ? `${id}-help` : undefined };
@@ -261,11 +279,109 @@ function ApplicationFieldInput({ field, object, model, record, records }: { fiel
   if (field.type === 'boolean') return <label className="application-checkbox" htmlFor={id}>{label}<input {...common} type="checkbox" defaultChecked={value === true} />{help}</label>;
   if (field.type === 'textarea') return <label htmlFor={id}>{label}<textarea {...common} rows={4} maxLength={field.maxLength ?? 10_000} defaultValue={typeof value === 'string' ? value : ''} />{help}</label>;
   if (field.type === 'enum') return <label htmlFor={id}>{label}<select {...common} defaultValue={typeof value === 'string' ? value : ''}>{!field.required && <option value="">Non renseigné</option>}{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{help}</label>;
-  if (field.type === 'relation') {
-    const targetObject = model.objects.find((candidate) => candidate.key === field.targetObject);
-    const options = records[field.targetObject!] ?? [];
-    return <label htmlFor={id}>{label}<select {...common} defaultValue={typeof value === 'string' ? value : ''}><option value="" disabled={field.required}>Sélectionner : {targetObject?.label ?? field.targetObject}</option>{options.map((option) => <option key={option.id} value={option.id}>{String(option.data[targetObject?.titleField ?? ''] ?? option.id)}</option>)}</select>{help}{!options.length && <small>Ajoutez d’abord un enregistrement dans {targetObject?.pluralLabel ?? field.targetObject}.</small>}</label>;
-  }
+  if (field.type === 'relation') return <ApplicationRelationInput id={id} field={field} model={model} value={typeof value === 'string' ? value : ''} records={records} baseUrl={baseUrl} onRelationResolved={onRelationResolved} />;
   const type = field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : field.type === 'integer' || field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text';
   return <label htmlFor={id}>{label}<input {...common} type={type} maxLength={['text', 'email', 'phone'].includes(field.type) ? field.maxLength : undefined} min={field.min} max={field.max} step={field.type === 'number' ? 'any' : undefined} defaultValue={typeof value === 'string' || typeof value === 'number' ? value : ''} />{help}</label>;
+}
+
+function ApplicationRelationInput({ id, field, model, value, records, baseUrl, onRelationResolved }: {
+  id: string;
+  field: ApplicationField;
+  model: ApplicationModel;
+  value: string;
+  records: Record<string, ManagedRecord[]>;
+  baseUrl: string;
+  onRelationResolved: (record: ManagedRecord) => void;
+}) {
+  const targetKey = field.targetObject!;
+  const targetObject = model.objects.find((candidate) => candidate.key === targetKey);
+  const initialOptions = records[targetKey] ?? [];
+  const [selectedId, setSelectedId] = useState(value);
+  const [selectedRecord, setSelectedRecord] = useState<ManagedRecord | undefined>(() => initialOptions.find((option) => option.id === value));
+  const [query, setQuery] = useState('');
+  const [searchResult, setSearchResult] = useState<{ query: string; records: ManagedRecord[] } | null>(null);
+  const [error, setError] = useState('');
+  const normalizedQuery = query.trim();
+  const cachedSelection = initialOptions.find((option) => option.id === selectedId);
+  const effectiveSelection = selectedRecord?.id === selectedId ? selectedRecord : cachedSelection;
+  const currentSearchResult = normalizedQuery && searchResult?.query === normalizedQuery ? searchResult : null;
+  const resultOptions = normalizedQuery ? currentSearchResult?.records ?? [] : initialOptions;
+  const options = effectiveSelection && !resultOptions.some((option) => option.id === effectiveSelection.id) ? [effectiveSelection, ...resultOptions] : resultOptions;
+  const searching = Boolean(normalizedQuery && !currentSearchResult && !error);
+  const statusId = `${id}-relation-status`;
+  const targetTitle = (option: ManagedRecord) => String(option.data[targetObject?.titleField ?? ''] ?? option.id);
+
+  useEffect(() => {
+    if (!selectedId || effectiveSelection) return;
+    const controller = new AbortController();
+    void apiFetch<{ record: ManagedRecord }>(`${baseUrl}/objects/${targetKey}/${selectedId}`, { signal: controller.signal })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setSelectedRecord(result.record);
+        setError('');
+        onRelationResolved(result.record);
+      })
+      .catch((reason: unknown) => { if (reason instanceof Error && reason.name !== 'AbortError') setError(errorMessage(reason)); });
+    return () => controller.abort();
+  }, [baseUrl, effectiveSelection, onRelationResolved, selectedId, targetKey]);
+
+  useEffect(() => {
+    if (!normalizedQuery) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({ limit: String(RELATION_SEARCH_LIMIT), offset: '0', q: normalizedQuery });
+      void apiFetch<{ records: ManagedRecord[] }>(`${baseUrl}/objects/${targetKey}?${params}`, { signal: controller.signal })
+        .then((result) => {
+          if (controller.signal.aborted) return;
+          setSearchResult({ query: normalizedQuery, records: result.records });
+          setError('');
+        })
+        .catch((reason: unknown) => { if (reason instanceof Error && reason.name !== 'AbortError') setError(errorMessage(reason)); });
+    }, 180);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [baseUrl, normalizedQuery, targetKey]);
+
+  const status = normalizedQuery
+    ? currentSearchResult
+      ? `${currentSearchResult.records.length} relation${currentSearchResult.records.length > 1 ? 's' : ''} trouvée${currentSearchResult.records.length > 1 ? 's' : ''}.`
+      : 'Recherche des relations…'
+    : initialOptions.length >= RELATION_OPTION_LIMIT
+      ? `${RELATION_OPTION_LIMIT} premières options chargées. Recherchez pour accéder aux autres enregistrements.`
+      : initialOptions.length
+        ? 'Vous pouvez rechercher pour affiner les options.'
+        : 'Aucune option chargée. Vous pouvez lancer une recherche.';
+
+  return <div className="application-relation-field" aria-busy={searching}>
+    <label htmlFor={id}>{field.label}{field.required && <span aria-hidden="true"> *</span>}</label>
+    <input
+      type="search"
+      value={query}
+      maxLength={120}
+      placeholder={`Rechercher dans ${targetObject?.pluralLabel ?? targetKey}`}
+      aria-label={`Rechercher : ${targetObject?.pluralLabel ?? targetKey}`}
+      aria-describedby={statusId}
+      onChange={(event) => { setQuery(event.target.value); setError(''); }}
+    />
+    <select
+      id={id}
+      name={field.key}
+      required={field.required}
+      value={selectedId}
+      aria-describedby={`${field.help ? `${id}-help ` : ''}${statusId}`}
+      onChange={(event) => {
+        const nextId = event.target.value;
+        const nextRecord = options.find((option) => option.id === nextId);
+        setSelectedId(nextId);
+        setSelectedRecord(nextRecord);
+        setError('');
+        if (nextRecord) onRelationResolved(nextRecord);
+      }}
+    >
+      <option value="" disabled={field.required}>Sélectionner : {targetObject?.label ?? targetKey}</option>
+      {selectedId && !effectiveSelection && <option value={selectedId}>Référence liée</option>}
+      {options.map((option) => <option key={option.id} value={option.id}>{targetTitle(option)}</option>)}
+    </select>
+    {field.help && <small id={`${id}-help`}>{field.help}</small>}
+    <small id={statusId} className="application-relation-status" role={error ? 'alert' : 'status'} aria-atomic="true">{error || status}</small>
+  </div>;
 }

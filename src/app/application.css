@@ -80,9 +80,12 @@
   .application-record-form > header { align-items: center; display: flex; justify-content: space-between; }
   .application-record-form h3 { font-size: 17px; }
   .application-form-grid { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .application-form-grid > label { color: var(--application-form-label); display: grid; font-size: 11px; gap: 7px; }
+  .application-form-grid > label, .application-form-grid > .application-relation-field { color: var(--application-form-label); display: grid; font-size: 11px; gap: 7px; }
   .application-form-grid > label:has(textarea) { grid-column: 1 / -1; }
   .application-form-grid small { color: var(--application-muted); font-size: 10px; }
+  .application-relation-field { min-width: 0; }
+  .application-relation-field input, .application-relation-field select { min-width: 0; width: 100%; }
+  .application-relation-status { line-height: 1.5; }
   .application-checkbox { align-items: center; display: flex !important; gap: 10px !important; }
   .application-checkbox input { min-height: 20px; order: -1; width: 20px; }
   .application-route-list { background: var(--application-surface); border: 1px solid var(--application-border); border-radius: 12px; display: grid; }
@@ -117,7 +120,7 @@
     .application-route-list article > p { grid-column: 2; }
     .application-filters { border-radius: 12px; margin-bottom: 12px; }
     .application-filters > span { margin-left: 0; padding-bottom: 0; }
-    .application-manager .button, .application-tabs button, .application-filters input, .application-filters select { min-height: 44px; }
+    .application-manager .button, .application-tabs button, .application-filters input, .application-filters select, .application-relation-field input, .application-relation-field select { min-height: 44px; }
     .application-table-wrap { background: transparent; border: 0; border-radius: 0; overflow: visible; }
     .application-table { display: block; min-width: 0; }
     .application-table thead { clip: rect(0 0 0 0); height: 1px; overflow: hidden; position: absolute; width: 1px; }
