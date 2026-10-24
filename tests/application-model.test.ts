@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import type { DatabaseContext } from '@/server/db';
-import { applicationModels } from '@/server/db/schema';
+import { applicationModels, applicationRecords } from '@/server/db/schema';
 import { createAccount, testDatabase } from './helpers/database';
 import { createProject } from '@/server/services/projects';
 import { addExistingMember } from '@/server/services/members';
@@ -78,6 +78,34 @@ describe('modèle d’application géré', () => {
     await saveApplicationModel(account.user.id, otherProject.project.id, { model: schoolApplicationModel, baseVersion: null }, context.db);
     const otherFiliere = await createFiliere(account.user.id, otherProject.project.id, 'DROIT');
     await expect(createApplicationRecord(account.user.id, details.project.id, 'dossiers', dossierInput(otherFiliere.id, 'B'), context.db)).rejects.toMatchObject({ status: 422, code: 'APPLICATION_RELATION_INVALID' });
+  });
+
+  it('pagine sans doublon avec un départage stable lorsque les dates sont identiques', async () => {
+    const { account, details } = await setup('pagination-application@example.com');
+    for (let index = 0; index < 27; index += 1) {
+      await createFiliere(account.user.id, details.project.id, `P${String(index).padStart(2, '0')}`);
+    }
+    const sameCreationDate = new Date('2026-10-24T12:00:00.000Z');
+    await context.db.update(applicationRecords).set({ createdAt: sameCreationDate }).where(and(
+      eq(applicationRecords.projectId, details.project.id),
+      eq(applicationRecords.workspaceId, account.workspace.id),
+      eq(applicationRecords.objectKey, 'filieres'),
+    ));
+
+    const all = await listApplicationRecords(account.user.id, details.project.id, 'filieres', { limit: 100, offset: 0 }, context.db);
+    const expectedIds = all.records.map((record) => record.id).sort((left, right) => left < right ? 1 : left > right ? -1 : 0);
+    expect(all.records.map((record) => record.id)).toEqual(expectedIds);
+
+    const first = await listApplicationRecords(account.user.id, details.project.id, 'filieres', { limit: 25, offset: 0 }, context.db);
+    const second = await listApplicationRecords(account.user.id, details.project.id, 'filieres', { limit: 25, offset: 25 }, context.db);
+    const repeatedFirst = await listApplicationRecords(account.user.id, details.project.id, 'filieres', { limit: 25, offset: 0 }, context.db);
+    expect(first.total).toBe(27);
+    expect(first.records).toHaveLength(25);
+    expect(second.records).toHaveLength(2);
+    expect(repeatedFirst.records.map((record) => record.id)).toEqual(first.records.map((record) => record.id));
+    expect([...first.records, ...second.records].map((record) => record.id)).toEqual(expectedIds);
+    expect(new Set([...first.records, ...second.records].map((record) => record.id)).size).toBe(27);
+    expect((await listApplicationRecords(account.user.id, details.project.id, 'filieres', { limit: 25, offset: 50 }, context.db)).records).toEqual([]);
   });
 
   it('applique les transitions et les permissions du rôle à chaque opération', async () => {

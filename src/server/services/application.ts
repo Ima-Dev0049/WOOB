@@ -123,7 +123,7 @@ async function listFromContext(context: ObjectContext, input: unknown, db: Db) {
   if (options.status && context.object.statusField) conditions.push(sql`${applicationRecords.data} ->> ${context.object.statusField} = ${options.status}`);
   const where = and(...conditions);
   const [records, count] = await Promise.all([
-    db.select().from(applicationRecords).where(where).orderBy(desc(applicationRecords.createdAt)).limit(options.limit).offset(options.offset),
+    db.select().from(applicationRecords).where(where).orderBy(desc(applicationRecords.createdAt), desc(applicationRecords.id)).limit(options.limit).offset(options.offset),
     db.select({ value: sql<number>`count(*)::int` }).from(applicationRecords).where(where),
   ]);
   return { records, total: count[0]?.value ?? 0, limit: options.limit, offset: options.offset };

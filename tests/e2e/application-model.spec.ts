@@ -79,6 +79,15 @@ test('le modèle géré exécute un portail scolaire avec relations, processus e
   await expect(page.getByText('Aucun enregistrement ne correspond à ces critères.', { exact: true })).toBeVisible();
   await search.fill(student);
   await expect(row).toBeVisible();
+  const status = page.getByRole('combobox', { name: 'Filtrer par statut', exact: true });
+  await status.selectOption('accepte');
+  await expect(row).toBeVisible();
+  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe(student);
+  await expect.poll(() => new URL(page.url()).searchParams.get('statut')).toBe('accepte');
+  await page.reload();
+  await expect(search).toHaveValue(student);
+  await expect(status).toHaveValue('accepte');
+  await expect(row).toBeVisible();
 
   await page.getByRole('button', { name: /Routes & droits/ }).click();
   await expect(page.getByRole('heading', { name: 'Plan d’exécution et permissions' })).toBeVisible();
@@ -92,5 +101,87 @@ test('le modèle géré exécute un portail scolaire avec relations, processus e
   const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);
   await page.screenshot({ path: 'test-results/application-model-mobile.png', fullPage: true, animations: 'disabled' });
+  expect(browserErrors).toEqual([]);
+});
+
+test('la consultation paginée restaure son URL et reste utilisable sur mobile sans mouvement imposé', async ({ page }) => {
+  test.setTimeout(120_000);
+  const browserErrors: string[] = [];
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  await page.setExtraHTTPHeaders({ 'x-forwarded-for': `10.82.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}` });
+  await register(page, `pagination-${suffix}@example.com`);
+  await createProjectThroughWizard(page, `Pagination ${suffix}`);
+  await page.getByRole('link', { name: 'Modèle d’application →' }).click();
+  const setupResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await page.getByRole('button', { name: 'Initialiser un portail scolaire' }).click();
+  await setupResponse;
+  await expect(page.getByRole('heading', { name: 'Portail scolaire', exact: true })).toBeVisible();
+
+  const applicationPath = new URL(page.url()).pathname;
+  const projectId = /\/dashboard\/projects\/([^/]+)\/application/.exec(applicationPath)?.[1];
+  const csrf = (await page.context().cookies()).find((cookie) => cookie.name === 'woob_csrf')?.value;
+  if (!projectId || !csrf) throw new Error('Le projet ou le jeton CSRF de test est introuvable.');
+  for (let index = 0; index < 26; index += 1) {
+    const response = await page.request.post(`/api/projects/${projectId}/application/objects/filieres`, {
+      headers: { 'x-csrf-token': csrf },
+      data: { data: { nom: `Filière ${String(index).padStart(2, '0')}`, code: `P${String(index).padStart(2, '0')}`, description: 'Donnée de pagination E2E.' } },
+    });
+    expect(response.status()).toBe(201);
+  }
+
+  await page.goto(`${applicationPath}?objet=filieres`);
+  const rows = page.locator('.application-table tbody tr:not(.application-empty-row)');
+  const pagination = page.getByRole('navigation', { name: 'Pagination Filières', exact: true });
+  const search = page.getByRole('textbox', { name: 'Rechercher dans Filières', exact: true });
+  await expect(rows).toHaveCount(25);
+  await expect(pagination).toContainText('Page 1 / 2');
+  await expect(pagination).toContainText('1–25 sur 26');
+  await search.fill('Filière');
+  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('Filière');
+
+  const nextPageResponse = page.waitForResponse((response) => {
+    if (!response.url().includes('/application/objects/filieres?') || response.status() !== 200) return false;
+    const params = new URL(response.url()).searchParams;
+    return params.get('offset') === '25' && params.get('q') === 'Filière';
+  });
+  await page.getByRole('button', { name: 'Suivant', exact: true }).click();
+  await nextPageResponse;
+  await expect(rows).toHaveCount(1);
+  await expect(pagination).toContainText('Page 2 / 2');
+  await expect(pagination).toContainText('26–26 sur 26');
+  await expect(page.getByRole('button', { name: 'Suivant', exact: true })).toBeDisabled();
+  await expect.poll(() => new URL(page.url()).searchParams.get('page')).toBe('2');
+
+  await page.reload();
+  await expect(search).toHaveValue('Filière');
+  await expect(rows).toHaveCount(1);
+  await expect(pagination).toContainText('Page 2 / 2');
+  expect(new URL(page.url()).searchParams.get('objet')).toBe('filieres');
+  expect(new URL(page.url()).searchParams.get('page')).toBe('2');
+
+  const firstRow = rows.first();
+  await expect.poll(() => firstRow.evaluate((element) => getComputedStyle(element).animationName)).toBe('application-record-enter');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => firstRow.evaluate((element) => getComputedStyle(element).display)).toBe('grid');
+  const dimensions = await page.evaluate(() => ({
+    document: document.documentElement.scrollWidth,
+    viewport: window.innerWidth,
+    table: document.querySelector('.application-table-wrap')?.scrollWidth ?? 0,
+    tableClient: document.querySelector('.application-table-wrap')?.clientWidth ?? 0,
+  }));
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);
+  expect(dimensions.table).toBeLessThanOrEqual(dimensions.tableClient + 1);
+  const previousBox = await page.getByRole('button', { name: 'Précédent', exact: true }).boundingBox();
+  expect(previousBox?.height).toBeGreaterThanOrEqual(44);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(() => firstRow.evaluate((element) => getComputedStyle(element).animationName)).toBe('none');
+  await page.getByRole('button', { name: 'Ajouter : Filière', exact: true }).click();
+  const form = page.locator('.application-record-form');
+  await expect(form).toBeVisible();
+  await expect.poll(() => form.evaluate((element) => getComputedStyle(element).animationName)).toBe('none');
+  await form.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await page.screenshot({ path: 'test-results/application-pagination-mobile.png', fullPage: true, animations: 'disabled' });
   expect(browserErrors).toEqual([]);
 });
