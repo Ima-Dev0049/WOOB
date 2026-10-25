@@ -9,7 +9,7 @@ async function save(page: Page, pageId: string) {
 }
 
 const HERO_LAYOUT: Record<string, string> = {
-  'editorial-ritual': 'editorial', 'immersive-atlas': 'immersive', 'monumental-signal': 'monumental', 'product-stage': 'product-stage', 'clear-conversation': 'split',
+  'editorial-ritual': 'editorial', 'immersive-atlas': 'immersive', 'monumental-signal': 'monumental', 'product-stage': 'product-stage', 'operations-pulse': 'operations', 'clear-conversation': 'split',
 };
 
 test('le concept choisi, le motion édité et le responsive survivent jusqu’au site publié', async ({ page, browser }) => {

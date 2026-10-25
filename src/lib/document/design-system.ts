@@ -340,6 +340,21 @@ export function contrastRatio(foreground: string, background: string): number | 
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }
 
+function mixHexColors(left: string, right: string, amount: number): string {
+  const channels = (value: string) => [1, 3, 5].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16));
+  const a = channels(left); const b = channels(right);
+  return `#${a.map((channel, index) => Math.round(channel + (b[index]! - channel) * amount).toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+}
+
+/** Lightens or darkens a validated hex colour only as much as the requested contrast requires. */
+export function readableColor(base: string, background: string, minimum = 4.5): string {
+  if (!/^#[\da-f]{6}$/i.test(base) || !/^#[\da-f]{6}$/i.test(background)) return base;
+  const target = (contrastRatio('#FFFFFF', background) ?? 0) >= (contrastRatio('#000000', background) ?? 0) ? '#FFFFFF' : '#000000';
+  let result = base;
+  for (let step = 0; step < 20 && (contrastRatio(result, background) ?? 0) < minimum; step += 1) result = mixHexColors(result, target, 0.12);
+  return (contrastRatio(result, background) ?? 0) >= minimum ? result : target;
+}
+
 export function auditThemeContrast(theme: ThemeSettings) {
   const design = getDesignSystem(theme);
   const palettes = design.colorMode === 'light' ? [['Clair', design.tokens.colors] as const] : design.colorMode === 'dark' ? [['Sombre', design.tokens.darkColors] as const] : [['Clair', design.tokens.colors] as const, ['Sombre', design.tokens.darkColors] as const];

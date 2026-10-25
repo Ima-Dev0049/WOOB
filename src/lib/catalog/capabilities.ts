@@ -59,4 +59,10 @@ export const designStyles: DesignStyle[] = [
     description: { fr: 'Une palette végétale et douce pour les produits et projets durables.', en: 'A soft botanical palette for products and sustainable projects.' },
     keywords: ['nature', 'bio', 'durable', 'agriculture'], theme: theme('#426B46', '#203426', '#8B6426', '#F8FAF2', '#203426', '#5D6E60', 22),
   },
+  {
+    id: 'pulse-management', name: { fr: 'Pulse métrique', en: 'Metric pulse' },
+    description: { fr: 'Des panneaux modulaires et un contraste encre/lime pour piloter une activité.', en: 'Modular panels and an ink/lime contrast designed for managing an activity.' },
+    keywords: ['gestion', 'dashboard', 'opérations', 'bento', 'modulaire'],
+    theme: theme('#4D6C00', '#171B26', '#A74328', '#F4F3ED', '#141821', '#59606C', 20, '"Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif'),
+  },
 ];

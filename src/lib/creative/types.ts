@@ -1,7 +1,7 @@
-export type HeroLayout = 'split' | 'editorial' | 'immersive' | 'monumental' | 'product-stage';
-export type FeaturesLayout = 'cards' | 'editorial' | 'minimal';
+export type HeroLayout = 'split' | 'editorial' | 'immersive' | 'monumental' | 'product-stage' | 'operations';
+export type FeaturesLayout = 'cards' | 'editorial' | 'minimal' | 'bento';
 export type GalleryLayout = 'grid' | 'editorial' | 'filmstrip';
-export type VisualTreatment = 'plain' | 'organic' | 'framed' | 'orbital' | 'duotone' | 'product';
+export type VisualTreatment = 'plain' | 'organic' | 'framed' | 'orbital' | 'duotone' | 'product' | 'ledger';
 export type MotionPreset = 'fade' | 'rise' | 'reveal' | 'scale';
 
 export interface ProjectBrief {

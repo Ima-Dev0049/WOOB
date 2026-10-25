@@ -15,7 +15,7 @@ afterAll(async () => { await context.close(); });
 
 describe('catalogue universel typé', () => {
   it('garantit les identifiants uniques, les relations et les capacités réellement disponibles', () => {
-    expect(getCatalogStats()).toEqual({ categories: 20, siteTypes: 212, domains: 30, subdomains: 150, domainEntries: 180, styles: 6, modules: 4, blueprints: 21 });
+    expect(getCatalogStats()).toEqual({ categories: 20, siteTypes: 212, domains: 30, subdomains: 150, domainEntries: 180, styles: 7, modules: 4, blueprints: 21 });
     expect(validateCatalog()).toEqual([]);
     for (const entries of [siteCategories, siteTypes, allActivityDomains, designStyles, functionalModules]) {
       expect(new Set(entries.map((entry) => entry.id)).size).toBe(entries.length);

@@ -5,17 +5,17 @@ import { createLocalProjectBrief } from './brief';
 import { creativeDirectionResultSchema } from './schema';
 import type { CreativeDirection, CreativeDirectionResult, CreativeEvaluation, HeroLayout, MotionPreset, ProjectBrief } from './types';
 
-type PaletteRecipe = 'origin' | 'tinted' | 'nocturne';
+type PaletteRecipe = 'origin' | 'tinted' | 'nocturne' | 'pulse';
 type Archetype = {
   id: string;
   name: { fr: string; en: string };
   concept: { fr: string; en: string };
   personality: { fr: string[]; en: string[] };
   heroLayout: HeroLayout;
-  featuresLayout: 'cards' | 'editorial' | 'minimal';
+  featuresLayout: 'cards' | 'editorial' | 'minimal' | 'bento';
   galleryLayout: 'grid' | 'editorial' | 'filmstrip';
   rhythm: 'compact' | 'balanced' | 'airy';
-  treatment: 'plain' | 'organic' | 'framed' | 'orbital' | 'duotone' | 'product';
+  treatment: 'plain' | 'organic' | 'framed' | 'orbital' | 'duotone' | 'product' | 'ledger';
   motion: MotionPreset;
   intensity: 'subtle' | 'expressive';
   palette: PaletteRecipe;
@@ -26,6 +26,7 @@ type Archetype = {
 
 const SYSTEM_FONT = 'Inter, Avenir, "Segoe UI", Helvetica, Arial, sans-serif';
 const EDITORIAL_FONT = 'Georgia, "Times New Roman", serif';
+const SPACE_FONT = '"Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif';
 const ARCHETYPES: Archetype[] = [
   {
     id: 'editorial-ritual', name: { fr: 'Rituel éditorial', en: 'Editorial ritual' },
@@ -57,11 +58,18 @@ const ARCHETYPES: Archetype[] = [
     personality: { fr: ['clair', 'utile', 'accessible'], en: ['clear', 'useful', 'accessible'] },
     heroLayout: 'split', featuresLayout: 'cards', galleryLayout: 'grid', rhythm: 'balanced', treatment: 'orbital', motion: 'rise', intensity: 'subtle', palette: 'origin', headingFont: SYSTEM_FONT, scale: 'balanced', keywords: ['service', 'conseil', 'consulting', 'formation', 'education', 'santé', 'health', 'contact'],
   },
+  {
+    id: 'operations-pulse', name: { fr: 'Pulse métrique', en: 'Metric pulse' },
+    concept: { fr: 'Un centre de commande visuel qui hiérarchise les activités en panneaux lisibles, sans transformer les fonctions en décor.', en: 'A visual control centre that organises activity into readable panels without turning functions into decoration.' },
+    personality: { fr: ['modulaire', 'réactif', 'précis'], en: ['modular', 'responsive', 'precise'] },
+    heroLayout: 'operations', featuresLayout: 'bento', galleryLayout: 'grid', rhythm: 'balanced', treatment: 'ledger', motion: 'rise', intensity: 'subtle', palette: 'pulse', headingFont: SPACE_FONT, scale: 'editorial', keywords: ['gestion', 'management', 'dashboard', 'opérations', 'operations', 'école', 'school', 'restaurant', 'entreprise', 'suivi'],
+  },
 ];
 
 const STYLE_ARCHETYPE: Record<string, string> = {
   'professional-clear': 'clear-conversation', 'minimal-luxury': 'monumental-signal', 'warm-artisanal': 'editorial-ritual',
   'editorial-modern': 'editorial-ritual', 'bold-creative': 'immersive-atlas', 'natural-organic': 'immersive-atlas',
+  'pulse-management': 'operations-pulse',
 };
 
 function hash(value: string): number {
@@ -88,19 +96,21 @@ function truncate(value: string, maximum: number): string { return value.length 
 function localized(locale: 'fr' | 'en', fr: string, en: string): string { return locale === 'en' ? en : fr; }
 
 function paletteFor(recipe: PaletteRecipe, theme: ThemeSettings, locale: 'fr' | 'en'): CreativeDirection['palette'] {
-  const mode = recipe === 'nocturne' ? 'dark' : 'light';
+  const mode = recipe === 'nocturne' || recipe === 'pulse' ? 'dark' : 'light';
   const background = mode === 'dark' ? mix(theme.secondaryColor, '#05080D', 0.48) : recipe === 'tinted' ? mix(theme.backgroundColor, theme.primaryColor, 0.035) : theme.backgroundColor;
   const surface = mode === 'dark' ? mix(background, '#FFFFFF', 0.075) : mix(theme.surfaceColor, theme.primaryColor, recipe === 'tinted' ? 0.045 : 0.012);
   const text = mode === 'dark' ? '#F7F5F0' : readable(theme.textColor, background);
   const muted = readable(mode === 'dark' ? mix(text, background, 0.28) : theme.mutedTextColor, background);
-  let primary = readable(theme.primaryColor, background);
+  const primarySeed = recipe === 'pulse' ? mix(theme.primaryColor, '#D8FF8A', 0.82) : theme.primaryColor;
+  let primary = readable(primarySeed, background);
   primary = readable(primary, surface);
   if (mode === 'light') primary = readable(primary, '#FFFFFF');
   const secondary = readable(theme.secondaryColor, '#FFFFFF');
-  return {
-    mode, primary, secondary, accent: theme.accentColor, background, surface, text, muted,
-    rationale: localized(locale, recipe === 'nocturne' ? 'Un fond nocturne et des accents éclaircis pour préserver les contrastes.' : recipe === 'tinted' ? 'Une teinte de la couleur choisie irrigue les surfaces sans remplacer la couleur texte.' : 'La couleur du style choisi reste le repère principal, corrigée si nécessaire pour le contraste.', recipe === 'nocturne' ? 'A night background and lightened accents preserve contrast.' : recipe === 'tinted' ? 'A tint of the selected colour flows through surfaces without replacing text colour.' : 'The selected style colour remains the main anchor, adjusted only when contrast requires it.'),
-  };
+  const accent = recipe === 'pulse' ? readable(readable(theme.accentColor, background), surface) : theme.accentColor;
+  const rationale = recipe === 'pulse'
+    ? localized(locale, 'Un fond encre et des accents lime éclaircis structurent les panneaux sans sacrifier le contraste.', 'An ink background and lightened lime accents structure the panels without sacrificing contrast.')
+    : localized(locale, recipe === 'nocturne' ? 'Un fond nocturne et des accents éclaircis pour préserver les contrastes.' : recipe === 'tinted' ? 'Une teinte de la couleur choisie irrigue les surfaces sans remplacer la couleur texte.' : 'La couleur du style choisi reste le repère principal, corrigée si nécessaire pour le contraste.', recipe === 'nocturne' ? 'A night background and lightened accents preserve contrast.' : recipe === 'tinted' ? 'A tint of the selected colour flows through surfaces without replacing text colour.' : 'The selected style colour remains the main anchor, adjusted only when contrast requires it.');
+  return { mode, primary, secondary, accent, background, surface, text, muted, rationale };
 }
 
 function briefSignals(context: ProjectGenerationContext) {

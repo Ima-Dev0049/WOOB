@@ -1,6 +1,6 @@
 # Woob Creative Engine — architecture et guide
 
-Date : 2026-10-23. Branche : `arena/639e32e6-woob`.
+Date : 2026-10-25. Branche : `arena/639e32e6-woob`.
 
 Ce document décrit **les incréments fonctionnels livrés** du Creative Engine : concepts/compositions/motion, brief structuré et traçabilité des exigences. Il ne présente pas les phases restantes de l’[audit](./WOOB_CREATIVE_ENGINE_AUDIT.md) ou de la [feuille de route](./WOOB_CREATIVE_ENGINE_ROADMAP.md) comme terminées. L’incrément 3D ultérieur, ses contrats et ses preuves sont détaillés dans [WOOB_SCENE3D.md](./WOOB_SCENE3D.md).
 
@@ -9,7 +9,7 @@ Ce document décrit **les incréments fonctionnels livrés** du Creative Engine 
 - Un `ProjectBrief` structuré et versionné : objectif, audience, proposition de valeur, pages et fonctionnalités requises, contraintes, préférences, références, hypothèses, informations manquantes, contradictions et critères de réussite.
 - Un plan `CreativeDirection` structuré et versionné avant la construction des pages : intention, public, émotion, personnalité, concept, palette et typographie justifiées, composition, médias, motion, conversion et contraintes.
 - Trois concepts évalués par génération, un score de diversité et un choix explicite dans l’aperçu.
-- Cinq familles de hero, trois compositions de fonctionnalités, trois compositions de galerie et six traitements de visuel, tous représentés par des props validées.
+- Six familles de hero, quatre compositions de fonctionnalités, trois compositions de galerie et sept traitements de visuel, tous représentés par des props validées.
 - Un thème et des documents existants enrichis sans migration destructive, sans HTML arbitraire et sans remplacer les choix fonctionnels du catalogue.
 - Des entrées natives au viewport, bornées au hero et à deux sections par page lors de la génération, modifiables dans l’éditeur et compatibles avec undo/redo, copier/coller, reset, sauvegarde et publication.
 - Un rapport de qualité **structurel**, clairement séparé d’une inspection visuelle.
@@ -84,7 +84,7 @@ Les anciens documents sans direction, layout ou motion restent valides. Les nouv
 
 ## 4. Moteur local et diversité
 
-`src/lib/creative/engine.ts` contient cinq archétypes : conversation claire, rituel éditorial, atlas immersif, signal monumental et scène produit. Le style choisi ancre le premier concept ; un ordre déterministe dérivé du nom et du brief varie les alternatives. Les modules et les mots explicites du brief contribuent à la pertinence.
+`src/lib/creative/engine.ts` contient six archétypes : conversation claire, rituel éditorial, atlas immersif, signal monumental, scène produit et Pulse métrique (`operations-pulse`). Ce dernier combine le hero `operations`, les fonctionnalités `bento`, le traitement `ledger`, une palette encre/lime et Space Grotesk pour une direction originale liée aux activités de gestion. Le style choisi ancre le premier concept ; un ordre déterministe dérivé du nom et du brief varie les alternatives. Les modules et les mots explicites du brief contribuent à la pertinence.
 
 La diversité n’est pas une impression subjective :
 
@@ -116,10 +116,10 @@ Les props sont déclarées dans `src/lib/document/registry.ts` et rendues par `D
 
 | Composant | Variantes |
 | --- | --- |
-| Hero | `split`, `editorial`, `immersive`, `monumental`, `product-stage` |
-| Fonctionnalités | `cards`, `editorial`, `minimal` |
+| Hero | `split`, `editorial`, `immersive`, `monumental`, `product-stage`, `operations` |
+| Fonctionnalités | `cards`, `editorial`, `minimal`, `bento` |
 | Galerie | `grid`, `editorial`, `filmstrip` |
-| Traitement visuel | `plain`, `organic`, `framed`, `orbital`, `duotone`, `product` |
+| Traitement visuel | `plain`, `organic`, `framed`, `orbital`, `duotone`, `product`, `ledger` |
 | Scène 3D optionnelle | `orbital`, `prism`, budgets `low`/`balanced` et fallback statique |
 
 Les variantes utilisent des classes contrôlées et les tokens existants. Aucun HTML ou CSS libre n’est introduit. Les règles tablette/mobile réduisent les compositions asymétriques et préservent une galerie horizontale lorsqu’elle est intentionnelle. La navigation mobile reste disponible sous forme de liens enveloppés.
@@ -164,7 +164,7 @@ Le changement de concept complet se fait pendant la création. Après création,
 
 `visualInspection` est toujours `false` dans ce rapport. Le score ne constitue ni un audit WCAG complet, ni une mesure esthétique, ni une preuve de performance.
 
-Une inspection visuelle manuelle a néanmoins été réalisée séparément sur six captures réelles (trois concepts × desktop/mobile). Elle a permis de corriger le texte des CTA masqué par la cascade des liens, les contours d’éditeur dans l’aperçu et la navigation mobile masquée. Axe a ensuite détecté et permis de corriger un contraste d’`eyebrow` dans le CTA. Pour le brief-engine, cinq captures supplémentaires ont été examinées : wizard desktop/mobile, contradiction et projet desktop/mobile. Aucun débordement n’a été observé à 390 px. Ces inspections restent ciblées ; les captures temporaires ne sont pas versionnées.
+Une inspection visuelle manuelle a néanmoins été réalisée séparément sur six captures réelles (trois concepts × desktop/mobile). Elle a permis de corriger le texte des CTA masqué par la cascade des liens, les contours d’éditeur dans l’aperçu et la navigation mobile masquée. Axe a ensuite détecté et permis de corriger un contraste d’`eyebrow` dans le CTA. Pour le brief-engine, cinq captures supplémentaires ont été examinées : wizard desktop/mobile, contradiction et projet desktop/mobile. Pour Pulse métrique, deux captures desktop/mobile du site d’école publié ont aussi été relues ; la révélation au scroll et la correction de la grille bento à deux colonnes ont été vérifiées. Aucun débordement n’a été observé à 390 px. Ces inspections restent ciblées ; les captures temporaires ne sont pas versionnées.
 
 ## 9. Persistance et sécurité
 
@@ -197,7 +197,9 @@ npm run start -- --hostname 0.0.0.0 --port 3000
 
 Ne pas utiliser cette allowlist comme configuration de production réelle, ne pas désactiver le rate-limit et ne pas réinitialiser la base pour obtenir une suite verte.
 
-Résultats du 2026-10-23 sur ce lot :
+Résultats de l’extension Pulse métrique du 2026-10-25 : **112/112 Vitest dans 18 fichiers**, TypeScript strict, ESLint et build réussis via `npm run verify`, puis **63/63 Playwright en 15,5 min** sur build de production. Le nouveau parcours et les scans Axe desktop/mobile sont décrits dans `docs/woob/IMPLEMENTATION_STATUS.md`.
+
+Résultats historiques du 2026-10-23 sur le lot initial :
 
 - TypeScript strict : réussi ;
 - ESLint : réussi ;
@@ -214,7 +216,8 @@ Résultats du 2026-10-23 sur ce lot :
 
 ### Limites actuelles
 
-- Cinq archétypes et trois candidats par génération ; pas encore un système ouvert illimité.
+- Six archétypes et trois candidats par génération ; pas encore un système ouvert illimité.
+- Pulse métrique est une interprétation originale provisoire pour la gestion : les deux reels de référence ont répondu HTTP 403 et aucune capture exploitable n’a permis une comparaison de fidélité. Le lot n’ingère ni vidéo ni référence distante.
 - Brief et directions par heuristiques locales, pas de compréhension sémantique garantie ni de direction artistique distante.
 - Le brief structuré est consultable mais pas encore éditable après création ; seules les contradictions motion explicites sont détectées, sans analyse générale de documents ou d’images.
 - Pas encore d’orchestrateur de tâches longues avec annulation/reprise ni d’ingestion de références créatives.

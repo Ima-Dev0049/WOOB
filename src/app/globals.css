@@ -250,18 +250,37 @@
   .wb-hero-product-stage { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
   .wb-hero-product-stage .hero-copy h1 { font-size: clamp(42px, 5vw, 66px); }
   .wb-hero-product-stage :is(.hero-image, .hero-art) { aspect-ratio: 4 / 3; }
+  .wb-hero-operations { gap: clamp(32px, 5vw, 72px); grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr); }
+  .wb-hero-operations .hero-copy h1 { font-size: clamp(46px, 6vw, 82px); letter-spacing: -.045em; max-width: 11ch; }
+  .wb-hero-operations .hero-copy > p { max-width: 58ch; }
+  .wb-hero-operations .eyebrow { font-family: var(--site-mono-font); letter-spacing: .12em; text-transform: uppercase; }
+  .wb-hero-operations :is(.hero-image, .hero-art) { aspect-ratio: 4 / 3; }
   .treatment-organic :is(.hero-image, .hero-art) { border-radius: 42% 58% 48% 52% / 56% 38% 62% 44%; }
   .treatment-framed { outline: 1px solid color-mix(in srgb, var(--site-primary) 48%, transparent); outline-offset: 12px; }
   .treatment-orbital::after { border: 1px solid var(--site-primary); border-radius: 50%; content: ''; height: 38%; pointer-events: none; position: absolute; right: -8%; top: -8%; width: 38%; }
   .treatment-duotone::after { background: var(--site-primary); border-radius: inherit; content: ''; inset: 0; mix-blend-mode: color; opacity: .42; pointer-events: none; position: absolute; }
   .treatment-duotone .hero-image { filter: grayscale(1) contrast(1.06); }
   .treatment-product { background: var(--site-surface); border: 1px solid color-mix(in srgb, var(--site-text) 10%, transparent); border-radius: var(--site-radius); padding: clamp(14px, 3vw, 30px); }
+  .treatment-ledger { background: var(--site-surface); border: 1px solid color-mix(in srgb, var(--site-text) 16%, transparent); border-radius: var(--site-radius); box-shadow: 10px 10px 0 color-mix(in srgb, var(--site-primary) 72%, transparent); padding: clamp(16px, 3vw, 30px); }
+  .treatment-ledger .hero-art { background-color: color-mix(in srgb, var(--site-bg) 82%, var(--site-surface)); background-image: linear-gradient(color-mix(in srgb, var(--site-text) 8%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--site-text) 8%, transparent) 1px, transparent 1px); background-size: 28px 28px; border: 1px solid color-mix(in srgb, var(--site-text) 14%, transparent); border-radius: calc(var(--site-radius) * .65); }
+  .treatment-ledger .hero-art span { border: 0; border-radius: calc(var(--site-radius) * .35); height: 18%; left: 8%; top: 12%; width: 56%; }
+  .treatment-ledger .hero-art span:first-child { background: var(--site-primary); }
+  .treatment-ledger .hero-art span:nth-child(2) { background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--site-text) 72%, transparent) 0 12%, transparent 12% 16%); height: 24%; left: 8%; top: 40%; width: 84%; }
+  .treatment-ledger .hero-art span:nth-child(3) { background: var(--site-accent); height: 18%; left: 8%; top: 74%; width: 38%; }
+  .treatment-ledger .hero-art::after { background: var(--site-surface); border: 1px solid color-mix(in srgb, var(--site-text) 18%, transparent); border-radius: calc(var(--site-radius) * .35); content: ''; height: 18%; position: absolute; right: 8%; top: 74%; width: 38%; }
   .features-editorial { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); }
   .features-editorial .feature-card:first-child { display: flex; flex-direction: column; grid-row: span 2; justify-content: flex-end; min-height: 360px; }
   .features-editorial .feature-card:first-child h3 { font-size: clamp(30px, 4vw, 50px); }
   .features-minimal { border-top: 1px solid color-mix(in srgb, var(--site-text) 16%, transparent); gap: 0; }
   .features-minimal .feature-card { background: transparent; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--site-text) 16%, transparent); border-radius: 0; padding: 30px 18px; }
   .features-minimal .feature-icon { background: transparent; height: auto; padding: 0; width: auto; }
+  .card-grid.three.features-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .features-bento .feature-card { border: 1px solid color-mix(in srgb, var(--site-text) 14%, transparent); display: flex; flex-direction: column; justify-content: flex-end; min-height: 210px; }
+  .features-bento .feature-card:first-child { background: color-mix(in srgb, var(--site-primary) 13%, var(--site-surface)); }
+  .features-bento:has(> :nth-child(3)) .feature-card:first-child { grid-column: 1 / -1; min-height: 250px; }
+  .features-bento .feature-card:first-child h3 { font-size: clamp(30px, 4vw, 48px); letter-spacing: -.035em; max-width: 18ch; }
+  .features-bento .feature-card:first-child p { max-width: 64ch; }
+  .features-bento .feature-icon { border-radius: calc(var(--site-radius) * .35); font-family: var(--site-mono-font); }
   .gallery-editorial { grid-auto-rows: minmax(210px, auto); grid-template-columns: minmax(0, 1.3fr) minmax(0, .7fr); }
   .gallery-editorial > :first-child { grid-row: span 2; }
   .gallery-editorial img { aspect-ratio: auto; min-height: 210px; }

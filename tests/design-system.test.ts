@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { DocumentRenderer } from '@/components/renderer/DocumentRenderer';
 import { applyAiProposal } from '@/lib/document/ai';
 import {
-  contrastRatio, copyNodeStyle, createDefaultDesignSystem, getDesignSystem, normalizeThemeSettings, pasteNodeStyle,
+  contrastRatio, copyNodeStyle, createDefaultDesignSystem, getDesignSystem, normalizeThemeSettings, pasteNodeStyle, readableColor,
   resetNodeStyle, resolveNodeStateStyle, resolveNodeStyle, setNodeStyle, themeCssVariables, themeGlobalCss, withDesignSystem,
 } from '@/lib/document/design-system';
 import { createPageDocument, makeNode } from '@/lib/document/factory';
@@ -54,6 +54,12 @@ describe('design system versionné et compatible', () => {
     expect(css).toContain('.woob-theme .wb-cta :is(h2,h3){color:inherit}');
     expect(css).not.toContain('url(');
     expect(contrastRatio('#000000', '#FFFFFF')).toBe(21);
+    const darkPrimary = readableColor(readableColor('#4D6C00', '#10141B'), '#19212B');
+    expect(darkPrimary).not.toBe('#4D6C00');
+    expect(contrastRatio(darkPrimary, '#10141B')).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(darkPrimary, '#19212B')).toBeGreaterThanOrEqual(4.5);
+    expect(readableColor('#4D6C00', '#F4F3ED')).toBe('#4D6C00');
+    expect(contrastRatio('#FFFFFF', readableColor('#171B26', '#FFFFFF'))).toBeGreaterThanOrEqual(4.5);
   });
 });
 

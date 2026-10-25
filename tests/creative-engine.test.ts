@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildProjectDraft, withCreativeConcept } from '@/lib/catalog/generation';
+import { designStyles } from '@/lib/catalog/capabilities';
 import type { CreationSelection } from '@/lib/catalog/types';
 import { applyCreativeDirection } from '@/lib/creative/engine';
 import { evaluateCreativeQuality } from '@/lib/creative/quality';
 import { creativeDirectionResultSchema } from '@/lib/creative/schema';
 import { validatePageDocument } from '@/lib/document/validation';
+import { auditThemeContrast, createDefaultDesignSystem } from '@/lib/document/design-system';
 import { makeNode } from '@/lib/document/factory';
 import { flattenNodes } from '@/lib/document/operations';
 import type { PageDocument, PageNode } from '@/lib/document/types';
@@ -89,10 +91,31 @@ describe('Creative Engine local et structuré', () => {
     expect(validatePageDocument(result).success).toBe(true);
   });
 
-  it('mesure la non-répétition sur six briefs et six styles au lieu de valider un seul exemple', () => {
-    const styles = ['professional-clear', 'minimal-luxury', 'warm-artisanal', 'editorial-modern', 'bold-creative', 'natural-organic'];
+  it('intègre Pulse métrique au catalogue, aux documents et au préréglage éditeur', () => {
+    const draft = buildProjectDraft({ ...restaurant, name: 'Maison Pulse', designStyleId: 'pulse-management' });
+    expect(draft.resolved.style.id).toBe('pulse-management');
+    expect(draft.creative.selectedId).toBe('operations-pulse');
+    expect(draft.creative.diversity.uniqueCompositions).toBe(3);
+    const home = draft.pages.find((page) => page.path === '/')!.document;
+    expect(node(home, 'hero').props).toMatchObject({ layout: 'operations', visualTreatment: 'ledger' });
+    const featuresPage = draft.pages.find((page) => page.document.root.children?.some((child) => child.type === 'features'))!;
+    expect(node(featuresPage.document, 'features').props.layout).toBe('bento');
+    expect(home.theme.creativeDirection?.conceptId).toBe('operations-pulse');
+    expect(home.theme.designSystem?.colorMode).toBe('dark');
+    expect(home.theme.designSystem?.tokens.typography.headingFont).toContain('Space Grotesk');
+    expect(draft.quality.metrics.minimumContrast).toBeGreaterThanOrEqual(4.5);
+    for (const page of draft.pages) expect(validatePageDocument(page.document).success).toBe(true);
+
+    const preset = designStyles.find((style) => style.id === 'pulse-management')!;
+    const editorDesign = createDefaultDesignSystem(preset.theme);
+    expect(editorDesign.colorMode).toBe('light');
+    expect(auditThemeContrast({ ...preset.theme, designSystem: editorDesign }).every((item) => item.ratio === null || item.ratio >= 4.5)).toBe(true);
+  });
+
+  it('mesure la non-répétition sur sept briefs et sept styles au lieu de valider un seul exemple', () => {
+    const styles = ['professional-clear', 'minimal-luxury', 'warm-artisanal', 'editorial-modern', 'bold-creative', 'natural-organic', 'pulse-management'];
     const drafts = styles.map((designStyleId, index) => buildProjectDraft({
-      name: `Projet distinct ${index + 1}`, brief: [`Conseil clair pour des associations locales.`, `Maison de couture minimale et premium.`, `Céramique artisanale chaleureuse.`, `Magazine d’analyses culturelles.`, `Studio audacieux pour la musique.`, `Voyages nature immersifs.`][index],
+      name: `Projet distinct ${index + 1}`, brief: [`Conseil clair pour des associations locales.`, `Maison de couture minimale et premium.`, `Céramique artisanale chaleureuse.`, `Magazine d’analyses culturelles.`, `Studio audacieux pour la musique.`, `Voyages nature immersifs.`, `Suivi modulaire des opérations d’une école.`][index],
       siteTypeId: null, activityDomainId: null, designStyleId, moduleIds: [], locale: 'fr',
     }));
     const heroes = drafts.map((draft) => node(draft.pages.find((page) => page.path === '/')!.document, 'hero').props.layout);

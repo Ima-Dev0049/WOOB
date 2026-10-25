@@ -2,7 +2,7 @@
 
 import { useId, useState, type ReactNode } from 'react';
 import type { ColorTokens, DesignSystem, EditorMode, ShadowToken, ThemeSettings } from '@/lib/document/types';
-import { auditThemeContrast, createDefaultDesignSystem, getDesignSystem, withDesignSystem } from '@/lib/document/design-system';
+import { auditThemeContrast, createDefaultDesignSystem, getDesignSystem, readableColor, withDesignSystem } from '@/lib/document/design-system';
 import { designStyles } from '@/lib/catalog/capabilities';
 import { FontFamilyField } from './FontFamilyField';
 
@@ -54,7 +54,10 @@ export function DesignSystemInspector({ theme, mode, onChange }: Props) {
     next.name = preset.name.fr;
     next.styles = structuredClone(design.styles);
     next.colorMode = design.colorMode;
-    next.tokens.darkColors = { ...next.tokens.darkColors, primary: next.tokens.colors.primary, link: next.tokens.colors.primary, accent: next.tokens.colors.accent };
+    const dark = next.tokens.darkColors;
+    const primary = readableColor(readableColor(next.tokens.colors.primary, dark.background), dark.surface);
+    const accent = readableColor(readableColor(next.tokens.colors.accent, dark.background), dark.surface);
+    next.tokens.darkColors = { ...dark, primary, link: primary, accent, secondary: readableColor(next.tokens.colors.secondary, '#FFFFFF') };
     onChange(withDesignSystem(theme, next));
   }
   return <div className="inspector-content design-inspector"><div className="inspector-title"><span>Design system · schéma {design.schemaVersion}</span><h2>Thème global du site</h2><p>Les tokens sont propagés à toutes les pages à l’enregistrement. Les exceptions locales des blocs sont conservées.</p></div>
