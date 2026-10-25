@@ -14,6 +14,7 @@ export type ApplicationTextFieldInput = {
 };
 
 export type ApplicationRelationFieldInput = ApplicationTextFieldInput & { targetObject: string };
+export type ApplicationTypedFieldInput = ApplicationTextFieldInput & { type: 'text' | 'integer' | 'number' | 'date' };
 
 function applicationKeyBase(value: string, prefix: 'objet' | 'champ'): string {
   const slug = value
@@ -60,6 +61,11 @@ export function addSimpleApplicationObject(model: ApplicationModel, input: Simpl
 
 /** Adds one optional text field while preserving existing columns, actions and grants. */
 export function addOptionalApplicationTextField(model: ApplicationModel, input: ApplicationTextFieldInput): ApplicationModel {
+  return addOptionalApplicationTypedField(model, { ...input, type: 'text' });
+}
+
+/** Adds a supported scalar without rewriting existing records or table columns. */
+export function addOptionalApplicationTypedField(model: ApplicationModel, input: ApplicationTypedFieldInput): ApplicationModel {
   const target = model.objects.find((object) => object.key === input.objectKey);
   if (!target) throw new Error('Objet cible introuvable dans le brouillon.');
   const key = uniqueApplicationKey(input.key.trim() || input.label, target.fields.map((field) => field.key), 'champ');
@@ -67,7 +73,13 @@ export function addOptionalApplicationTextField(model: ApplicationModel, input: 
     ...model,
     objects: model.objects.map((object) => object.key === target.key ? {
       ...object,
-      fields: [...object.fields, { key, label: input.label.trim(), type: 'text', required: false, maxLength: 160 }],
+      fields: [...object.fields, {
+        key,
+        label: input.label.trim(),
+        type: input.type,
+        required: false,
+        ...(input.type === 'text' ? { maxLength: 160 } : {}),
+      }],
     } : object),
   });
 }

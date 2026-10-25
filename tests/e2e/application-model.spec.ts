@@ -414,6 +414,93 @@ test('un champ texte optionnel rejoint un objet existant sans perdre ses enregis
   expect(browserErrors).toEqual([]);
 });
 
+test('des champs typés optionnels rejoignent une filière existante et conservent leurs valeurs après rechargement', async ({ page }) => {
+  test.setTimeout(120_000);
+  const browserErrors: string[] = [];
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  await page.setExtraHTTPHeaders({ 'x-forwarded-for': `10.86.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}` });
+  await register(page, `model-typed-fields-${suffix}@example.com`);
+  await createProjectThroughWizard(page, `Champs typés ${suffix}`);
+  await page.getByRole('link', { name: 'Modèle d’application →' }).click();
+  const setupResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await page.getByRole('button', { name: 'Initialiser un portail scolaire' }).click();
+  await setupResponse;
+  await expect(page.getByRole('heading', { name: 'Portail scolaire', exact: true })).toBeVisible();
+  const form = page.locator('.application-record-form:not(.application-model-editor)');
+  const filiereName = `Filière avant types ${suffix}`;
+  await page.getByRole('button', { name: 'Ajouter : Filière', exact: true }).click();
+  await form.getByRole('textbox', { name: 'Nom de la filière', exact: true }).fill(filiereName);
+  await form.getByRole('textbox', { name: 'Code', exact: true }).fill('AVANT');
+  await form.getByRole('textbox', { name: 'Description', exact: true }).fill('Filière créée avant les champs typés.');
+  const createResponse = page.waitForResponse((response) => response.url().includes('/application/objects/filieres') && response.request().method() === 'POST' && response.status() === 201);
+  await form.getByRole('button', { name: 'Créer l’enregistrement' }).click();
+  await createResponse;
+  const row = page.locator('.application-table tbody tr').filter({ hasText: filiereName });
+  await expect(row).toBeVisible();
+
+  await page.getByRole('button', { name: 'Personnaliser le modèle', exact: true }).click();
+  const editor = page.locator('.application-model-editor');
+  const preview = page.getByRole('complementary', { name: 'Aperçu du brouillon de modèle', exact: true });
+  async function addDraftField(type: string, label: string) {
+    await editor.getByRole('combobox', { name: 'Type de champ', exact: true }).selectOption(type);
+    await editor.getByRole('textbox', { name: 'Nom du champ', exact: true }).fill(label);
+    await editor.getByRole('button', { name: 'Ajouter le champ au brouillon', exact: true }).click();
+  }
+  await addDraftField('integer', 'Capacité');
+  await addDraftField('number', 'Taux de réussite');
+  await addDraftField('date', 'Ouverture prévue');
+  const filierePreview = preview.locator('li').filter({ hasText: 'Filières' });
+  await expect(filierePreview).toContainText('6 champs');
+  await expect(filierePreview).toContainText('capacite');
+  await expect(filierePreview).toContainText('Nombre entier');
+  await expect(filierePreview).toContainText('taux-de-reussite');
+  await expect(filierePreview).toContainText('Nombre décimal');
+  await expect(filierePreview).toContainText('ouverture-prevue');
+  await expect(filierePreview).toContainText('Date');
+  await expect(preview).toContainText('11 routes logiques');
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);
+  await page.screenshot({ path: 'test-results/application-model-typed-fields-editor-mobile.png', fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  const applyResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await editor.getByRole('button', { name: 'Appliquer le brouillon', exact: true }).click();
+  await applyResponse;
+  await expect(editor).toHaveCount(0);
+  await expect(page.locator('.application-runtime-note')).toContainText('Modèle v2');
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('AVANT');
+  await expect(page.locator('.application-table thead')).not.toContainText('Capacité');
+  await expect(page.locator('.application-table thead')).not.toContainText('Ouverture prévue');
+
+  await page.getByRole('button', { name: `Modifier : ${filiereName}`, exact: true }).click();
+  const capacity = form.getByRole('spinbutton', { name: 'Capacité', exact: true });
+  const successRate = form.getByRole('spinbutton', { name: 'Taux de réussite', exact: true });
+  const openingDate = form.getByLabel('Ouverture prévue', { exact: true });
+  await expect(capacity).toHaveValue('');
+  await expect(successRate).toHaveValue('');
+  await expect(openingDate).toHaveValue('');
+  await capacity.fill('40');
+  await successRate.fill('87.5');
+  await openingDate.fill('2027-09-01');
+  const updateResponse = page.waitForResponse((response) => response.url().includes('/application/objects/filieres/') && response.request().method() === 'PATCH' && response.status() === 200);
+  await form.getByRole('button', { name: 'Enregistrer les modifications' }).click();
+  await updateResponse;
+  await page.reload();
+  await expect(row).toBeVisible();
+  await page.getByRole('button', { name: `Modifier : ${filiereName}`, exact: true }).click();
+  await expect(capacity).toHaveValue('40');
+  await expect(successRate).toHaveValue('87.5');
+  await expect(openingDate).toHaveValue('2027-09-01');
+  await expect(form.getByRole('textbox', { name: 'Code', exact: true })).toHaveValue('AVANT');
+  await expect(form.getByRole('textbox', { name: 'Nom de la filière', exact: true })).toHaveValue(filiereName);
+  expect(browserErrors).toEqual([]);
+});
+
 test('une relation optionnelle relie des objets existants et conserve ses deux références après rechargement', async ({ page }) => {
   test.setTimeout(120_000);
   const browserErrors: string[] = [];

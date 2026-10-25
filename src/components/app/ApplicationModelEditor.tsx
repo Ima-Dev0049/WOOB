@@ -2,10 +2,16 @@
 
 import { useMemo, useState } from 'react';
 import { apiFetch, errorMessage } from '@/lib/client-api';
-import { addOptionalApplicationRelationField, addOptionalApplicationTextField, addSimpleApplicationObject, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
+import { addOptionalApplicationRelationField, addOptionalApplicationTypedField, addSimpleApplicationObject, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type ApplicationTypedFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
 import { applicationModelSchema, buildApplicationRoutes, type ApplicationModel } from '@/lib/application/model';
 
 const emptyObject: SimpleApplicationObjectInput = { label: '', pluralLabel: '', key: '', description: '' };
+const optionalFieldTypes = [
+  { value: 'text', label: 'Texte court', help: 'Texte optionnel, 160 caractères maximum.' },
+  { value: 'integer', label: 'Nombre entier', help: 'Nombre entier optionnel, sans décimale.' },
+  { value: 'number', label: 'Nombre décimal', help: 'Nombre optionnel, décimales autorisées.' },
+  { value: 'date', label: 'Date', help: 'Date optionnelle au format AAAA-MM-JJ.' },
+] satisfies ReadonlyArray<{ value: ApplicationTypedFieldInput['type']; label: string; help: string }>;
 
 export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onCancel }: {
   model: ApplicationModel;
@@ -16,7 +22,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
 }) {
   const [draft, setDraft] = useState<ApplicationModel>(() => structuredClone(model));
   const [newObject, setNewObject] = useState<SimpleApplicationObjectInput>(emptyObject);
-  const [newField, setNewField] = useState<ApplicationTextFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', label: '', key: '' }));
+  const [newField, setNewField] = useState<ApplicationTypedFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', label: '', key: '', type: 'text' }));
   const [newRelation, setNewRelation] = useState<ApplicationRelationFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', targetObject: model.objects[0]?.key ?? '', label: '', key: '' }));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
@@ -32,6 +38,11 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
 
   function updateNewField(field: keyof ApplicationTextFieldInput, value: string) {
     setNewField((current) => ({ ...current, [field]: value }));
+    setError('');
+  }
+
+  function updateNewFieldType(type: ApplicationTypedFieldInput['type']) {
+    setNewField((current) => ({ ...current, type }));
     setError('');
   }
 
@@ -53,7 +64,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
 
   function addField() {
     try {
-      const next = addOptionalApplicationTextField(draft, newField);
+      const next = addOptionalApplicationTypedField(draft, newField);
       setDraft(next);
       setNewField((current) => ({ ...current, label: '', key: '' }));
       setError('');
@@ -122,12 +133,13 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           <button type="button" className="button secondary small" disabled={pending || !newObject.label.trim() || !newObject.pluralLabel.trim()} onClick={addObject}>Ajouter l’objet au brouillon</button>
         </fieldset>
         <fieldset className="application-model-draft-group">
-          <legend>Ajouter un champ texte optionnel</legend>
+          <legend>Ajouter un champ optionnel</legend>
           <p>Le champ sera disponible dans les formulaires de l’objet cible. Les champs, colonnes et enregistrements existants sont conservés.</p>
           <div className="application-form-grid">
             <label>Objet cible<select value={newField.objectKey} onChange={(event) => updateNewField('objectKey', event.target.value)}>{draft.objects.map((object) => <option key={object.key} value={object.key}>{object.pluralLabel} ({object.key})</option>)}</select></label>
+            <label>Type de champ<select value={newField.type} onChange={(event) => updateNewFieldType(event.target.value as ApplicationTypedFieldInput['type'])}>{optionalFieldTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></label>
             <label>Nom du champ<input value={newField.label} required maxLength={120} placeholder="Responsable" onChange={(event) => updateNewField('label', event.target.value)} /></label>
-            <label>Clé du champ<input value={newField.key} maxLength={48} placeholder="Générée si vide" onChange={(event) => updateNewField('key', event.target.value)} /><small>Texte optionnel, 160 caractères maximum. Une clé déjà utilisée reçoit un suffixe.</small></label>
+            <label>Clé du champ<input value={newField.key} maxLength={48} placeholder="Générée si vide" onChange={(event) => updateNewField('key', event.target.value)} /><small>{optionalFieldTypes.find((type) => type.value === newField.type)?.help} Une clé déjà utilisée reçoit un suffixe.</small></label>
           </div>
           <button type="button" className="button secondary small" disabled={pending || !newField.objectKey || !newField.label.trim()} onClick={addField}>Ajouter le champ au brouillon</button>
         </fieldset>
@@ -152,7 +164,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           const added = !originalKeys.has(object.key);
           const originalObject = model.objects.find((candidate) => candidate.key === object.key);
           const addedFields = object.fields.filter((field) => originalObject ? !originalObject.fields.some((candidate) => candidate.key === field.key) : field.key !== 'nom');
-          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code>{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}</span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
+          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{field.type === 'relation' ? 'Relation' : optionalFieldTypes.find((type) => type.value === field.type)?.label ?? field.type}</span>{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}</span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
         })}</ul>
         <p className="application-model-permissions">Les grants existants sont conservés : les champs et relations ajoutés suivent les permissions de leur objet et aucun rôle ne reçoit implicitement un nouvel objet. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
       </aside>

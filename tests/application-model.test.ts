@@ -6,7 +6,7 @@ import { createAccount, testDatabase } from './helpers/database';
 import { createProject } from '@/server/services/projects';
 import { addExistingMember } from '@/server/services/members';
 import { applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, type ApplicationModel } from '@/lib/application/model';
-import { addOptionalApplicationRelationField, addOptionalApplicationTextField, addSimpleApplicationObject } from '@/lib/application/model-editor';
+import { addOptionalApplicationRelationField, addOptionalApplicationTextField, addOptionalApplicationTypedField, addSimpleApplicationObject } from '@/lib/application/model-editor';
 import { schoolApplicationModel } from '@/lib/application/school-model';
 import {
   createApplicationRecord,
@@ -184,6 +184,44 @@ describe('modèle d’application géré', () => {
     expect(updated.data.responsable).toBe('Awa Mensah');
     expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data.responsable).toBe('Awa Mensah');
     expect((await createFiliere(account.user.id, details.project.id, 'APRES')).data.code).toBe('APRES');
+  });
+
+  it('ajoute des entiers, décimaux et dates optionnels validés sans réécrire les données existantes', async () => {
+    const { account, details } = await setup('typed-fields-application-model@example.com');
+    const existing = await createFiliere(account.user.id, details.project.id, 'AVANT');
+    const originalObject = structuredClone(schoolApplicationModel.objects[0]!);
+    const integerInput = { objectKey: 'filieres', label: 'Capacité', key: '', type: 'integer' } as const;
+    const withInteger = addOptionalApplicationTypedField(schoolApplicationModel, integerInput);
+    const withNumber = addOptionalApplicationTypedField(withInteger, { objectKey: 'filieres', label: 'Taux de réussite', key: '', type: 'number' });
+    const draft = addOptionalApplicationTypedField(withNumber, { objectKey: 'filieres', label: 'Ouverture prévue', key: '', type: 'date' });
+    const target = draft.objects[0]!;
+    expect(schoolApplicationModel.objects[0]!.fields).toHaveLength(3);
+    expect(target.fields.slice(-3)).toEqual([
+      { key: 'capacite', label: 'Capacité', type: 'integer', required: false },
+      { key: 'taux-de-reussite', label: 'Taux de réussite', type: 'number', required: false },
+      { key: 'ouverture-prevue', label: 'Ouverture prévue', type: 'date', required: false },
+    ]);
+    expect(target.columns).toEqual(originalObject.columns);
+    expect(target.actions).toEqual(originalObject.actions);
+    expect(draft.roles).toEqual(schoolApplicationModel.roles);
+    expect(buildApplicationRoutes(draft)).toHaveLength(11);
+    expect(addOptionalApplicationTypedField(draft, integerInput).objects[0]!.fields.at(-1)?.key).toBe('capacite-2');
+
+    expect((await saveApplicationModel(account.user.id, details.project.id, { model: draft, baseVersion: 1 }, context.db)).version).toBe(2);
+    const beforeUpdate = await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db);
+    expect(beforeUpdate.data.code).toBe('AVANT');
+    expect(beforeUpdate.data.capacite).toBeUndefined();
+    const values = { ...existing.data, capacite: 40, 'taux-de-reussite': 87.5, 'ouverture-prevue': '2027-09-01' };
+    await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...values, capacite: 40.5 }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
+    await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...values, 'taux-de-reussite': Number.POSITIVE_INFINITY }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
+    await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...values, 'ouverture-prevue': '2027-02-30' }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
+    const updated = await updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, values, context.db);
+    expect(updated.data).toMatchObject({ code: 'AVANT', capacite: 40, 'taux-de-reussite': 87.5, 'ouverture-prevue': '2027-09-01' });
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data).toMatchObject(values);
+    const withoutOptional = await createFiliere(account.user.id, details.project.id, 'APRES');
+    expect(withoutOptional.data.capacite).toBeUndefined();
+    expect(withoutOptional.data['taux-de-reussite']).toBeUndefined();
+    expect(withoutOptional.data['ouverture-prevue']).toBeUndefined();
   });
 
   it('ajoute une relation optionnelle tout en validant le type lié et en conservant les dossiers existants', async () => {
