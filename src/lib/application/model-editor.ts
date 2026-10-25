@@ -1,4 +1,17 @@
-import { applicationModelSchema, type ApplicationModel } from './model';
+import { applicationModelSchema, type ApplicationField, type ApplicationModel } from './model';
+
+export const applicationFieldTypeLabels = {
+  text: 'Texte court',
+  textarea: 'Texte long',
+  email: 'Email',
+  phone: 'Téléphone',
+  integer: 'Nombre entier',
+  number: 'Nombre décimal',
+  boolean: 'Booléen',
+  date: 'Date',
+  enum: 'Liste de choix',
+  relation: 'Relation',
+} as const satisfies Record<ApplicationField['type'], string>;
 
 export type SimpleApplicationObjectInput = {
   label: string;
