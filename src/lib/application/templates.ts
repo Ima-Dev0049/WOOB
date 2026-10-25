@@ -2,6 +2,7 @@ import type { ApplicationModel } from './model';
 import { commercialApplicationModel } from './commercial-model';
 import { restaurantApplicationModel } from './restaurant-model';
 import { schoolApplicationModel } from './school-model';
+import { universityApplicationModel } from './university-model';
 
 export type ManagedApplicationTemplate = {
   id: string;
@@ -26,6 +27,13 @@ export const managedApplicationTemplates = [
     description: 'Clients, opportunités et validation des conclusions par les équipes commerciales.',
     actionLabel: 'Initialiser la gestion commerciale',
     model: commercialApplicationModel,
+  },
+  {
+    id: 'university',
+    name: 'Gestion universitaire',
+    description: 'Étudiants, cours et inscriptions répartis entre scolarité et enseignement.',
+    actionLabel: 'Initialiser la gestion universitaire',
+    model: universityApplicationModel,
   },
   {
     id: 'school',

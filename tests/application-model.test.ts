@@ -10,6 +10,7 @@ import { addApplicationTransition, addOptionalApplicationEnumField, addOptionalA
 import { commercialApplicationModel } from '@/lib/application/commercial-model';
 import { restaurantApplicationModel } from '@/lib/application/restaurant-model';
 import { schoolApplicationModel } from '@/lib/application/school-model';
+import { universityApplicationModel } from '@/lib/application/university-model';
 import {
   createApplicationRecord,
   deleteApplicationRecord,
@@ -191,6 +192,35 @@ describe('modèle d’application géré', () => {
     await expect(deleteApplicationRecord(editor.user.id, details.project.id, 'clients', client.id, context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
     expect((await getApplicationRecord(account.user.id, details.project.id, 'opportunites', opportunity.id, context.db)).data).toMatchObject({ statut: 'gagnee', 'client-id': client.id, budget: 12500.5 });
     expect((await listApplicationRecords(account.user.id, details.project.id, 'opportunites', { q: 'Refonte du portail' }, context.db)).total).toBe(1);
+  });
+
+  it('exécute une inscription universitaire avec deux relations et droits scolarité/enseignement', async () => {
+    const routes = buildApplicationRoutes(universityApplicationModel);
+    expect(routes).toHaveLength(16);
+    expect(routes.find((route) => route.id === 'inscriptions.actions.accepter')?.roles).toEqual(['owner', 'admin', 'editor']);
+    expect(routes.find((route) => route.id === 'inscriptions.actions.activer')?.roles).toEqual(['owner', 'admin', 'contributor']);
+    const { account, details } = await setup('university-application@example.com', universityApplicationModel);
+    const student = await createApplicationRecord(account.user.id, details.project.id, 'etudiants', { nom: 'Awa Université', email: 'awa-universite@example.com', telephone: '+229 01 02 03 04', notes: 'Dossier complet.' }, context.db);
+    const course = await createApplicationRecord(account.user.id, details.project.id, 'cours', { intitule: 'Architecture logicielle', code: 'ARCH-401', credits: 6, semestre: 's1', description: 'Conception d’applications modulaires.' }, context.db);
+    const editor = await createAccount(context.db, 'university-scolarite@example.com', 'Scolarité');
+    const contributor = await createAccount(context.db, 'university-enseignement@example.com', 'Enseignement');
+    await addExistingMember(account.user.id, account.workspace.id, { email: editor.user.email, role: 'editor' }, context.db);
+    await addExistingMember(account.user.id, account.workspace.id, { email: contributor.user.email, role: 'contributor' }, context.db);
+    const input = { reference: 'INS-2027-001', 'etudiant-id': student.id, 'cours-id': course.id, rentree: '2027-09-01', notes: 'Inscription prioritaire.' };
+    const enrollment = await createApplicationRecord(account.user.id, details.project.id, 'inscriptions', input, context.db);
+    expect(enrollment.data.statut).toBe('demandee');
+    await expect(executeApplicationAction(contributor.user.id, details.project.id, 'inscriptions', enrollment.id, 'accepter', context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    expect((await executeApplicationAction(editor.user.id, details.project.id, 'inscriptions', enrollment.id, 'accepter', context.db)).data.statut).toBe('acceptee');
+    await expect(executeApplicationAction(editor.user.id, details.project.id, 'inscriptions', enrollment.id, 'activer', context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    expect((await executeApplicationAction(contributor.user.id, details.project.id, 'inscriptions', enrollment.id, 'activer', context.db)).data.statut).toBe('active');
+    await expect(executeApplicationAction(editor.user.id, details.project.id, 'inscriptions', enrollment.id, 'terminer', context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    expect((await executeApplicationAction(contributor.user.id, details.project.id, 'inscriptions', enrollment.id, 'terminer', context.db)).data.statut).toBe('terminee');
+    await expect(executeApplicationAction(editor.user.id, details.project.id, 'inscriptions', enrollment.id, 'annuler', context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_TRANSITION_INVALID' });
+    await expect(createApplicationRecord(contributor.user.id, details.project.id, 'inscriptions', input, context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    await expect(deleteApplicationRecord(account.user.id, details.project.id, 'etudiants', student.id, context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_RECORD_REFERENCED' });
+    await expect(deleteApplicationRecord(account.user.id, details.project.id, 'cours', course.id, context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_RECORD_REFERENCED' });
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'inscriptions', enrollment.id, context.db)).data).toMatchObject({ statut: 'terminee', 'etudiant-id': student.id, 'cours-id': course.id });
+    expect((await listApplicationRecords(account.user.id, details.project.id, 'inscriptions', { q: 'INS-2027' }, context.db)).total).toBe(1);
   });
 
   it('prépare et persiste un objet simple sans muter le modèle initial ni élargir les droits', async () => {

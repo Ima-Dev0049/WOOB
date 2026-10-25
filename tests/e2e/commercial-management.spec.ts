@@ -22,7 +22,7 @@ test('la gestion commerciale exécute clients, opportunités et validation de la
   await createProjectThroughWizard(page, `Entreprise gérée ${suffix}`);
   await page.getByRole('link', { name: 'Modèle d’application →' }).click();
   await expect(page.getByRole('heading', { name: 'Choisissez votre activité', exact: true })).toBeVisible();
-  await expect(page.locator('.application-template-list article')).toHaveCount(3);
+  await expect(page.locator('.application-template-list article')).toHaveCount(4);
   await expect(page.getByRole('heading', { name: 'Gestion commerciale', exact: true })).toBeVisible();
   const setupResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
   await page.getByRole('button', { name: 'Initialiser la gestion commerciale', exact: true }).click();
