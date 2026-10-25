@@ -385,7 +385,11 @@ function ApplicationRecordForm({ object, model, record, records, baseUrl, onRela
     for (const field of object.fields) {
       if (field.key === object.statusField) continue;
       const raw = values.get(field.key);
-      if (field.type === 'boolean') { data[field.key] = raw === 'on'; continue; }
+      if (field.type === 'boolean') {
+        if (!field.required && (raw === null || raw === '')) continue;
+        data[field.key] = raw === 'true' || raw === 'on';
+        continue;
+      }
       if ((raw === null || raw === '') && !field.required) continue;
       if (field.type === 'integer' || field.type === 'number') data[field.key] = Number(raw);
       else data[field.key] = String(raw ?? '');
@@ -410,6 +414,7 @@ function ApplicationFieldInput({ field, object, model, record, records, baseUrl,
   const common = { id, name: field.key, required: field.required, 'aria-describedby': field.help ? `${id}-help` : undefined };
   const label = <>{field.label}{field.required && <span aria-hidden="true"> *</span>}</>;
   const help = field.help && <small id={`${id}-help`}>{field.help}</small>;
+  if (field.type === 'boolean' && !field.required) return <label htmlFor={id}>{label}<select {...common} defaultValue={value === true ? 'true' : value === false ? 'false' : ''}><option value="">Non renseigné</option><option value="true">Oui</option><option value="false">Non</option></select>{help}</label>;
   if (field.type === 'boolean') return <label className="application-checkbox" htmlFor={id}>{label}<input {...common} type="checkbox" defaultChecked={value === true} />{help}</label>;
   if (field.type === 'textarea') return <label htmlFor={id}>{label}<textarea {...common} rows={4} maxLength={field.maxLength ?? 10_000} defaultValue={typeof value === 'string' ? value : ''} />{help}</label>;
   if (field.type === 'enum') return <label htmlFor={id}>{label}<select {...common} defaultValue={typeof value === 'string' ? value : ''}>{!field.required && <option value="">Non renseigné</option>}{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{help}</label>;

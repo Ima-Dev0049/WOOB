@@ -538,6 +538,93 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   expect(browserErrors).toEqual([]);
 });
 
+test('un booléen optionnel conserve Non renseigné, Oui et Non dans le formulaire et le tableau', async ({ page }) => {
+  test.setTimeout(120_000);
+  const browserErrors: string[] = [];
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  await page.setExtraHTTPHeaders({ 'x-forwarded-for': `10.84.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}` });
+  await register(page, `model-boolean-${suffix}@example.com`);
+  await createProjectThroughWizard(page, `Booléen de modèle ${suffix}`);
+  await page.getByRole('link', { name: 'Modèle d’application →' }).click();
+  const setupResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await page.getByRole('button', { name: 'Initialiser un portail scolaire' }).click();
+  await setupResponse;
+  await expect(page.getByRole('heading', { name: 'Portail scolaire', exact: true })).toBeVisible();
+  const form = page.locator('.application-record-form:not(.application-model-editor)');
+  const filiereName = `Filière booléenne ${suffix}`;
+  await page.getByRole('button', { name: 'Ajouter : Filière', exact: true }).click();
+  await form.getByRole('textbox', { name: 'Nom de la filière', exact: true }).fill(filiereName);
+  await form.getByRole('textbox', { name: 'Code', exact: true }).fill('BOOLEEN');
+  await form.getByRole('textbox', { name: 'Description', exact: true }).fill('Filière créée avant le champ booléen.');
+  const createResponse = page.waitForResponse((response) => response.url().includes('/application/objects/filieres') && response.request().method() === 'POST' && response.status() === 201);
+  await form.getByRole('button', { name: 'Créer l’enregistrement' }).click();
+  await createResponse;
+  const row = page.locator('.application-table tbody tr').filter({ hasText: filiereName });
+  await expect(row).toBeVisible();
+
+  await page.getByRole('button', { name: 'Personnaliser le modèle', exact: true }).click();
+  const editor = page.locator('.application-model-editor');
+  await editor.getByRole('combobox', { name: 'Type de champ', exact: true }).selectOption('boolean');
+  await editor.getByRole('textbox', { name: 'Nom du champ', exact: true }).fill('Internat');
+  await expect(editor.getByRole('spinbutton', { name: /^Valeur par défaut/ })).toHaveCount(0);
+  await editor.getByRole('button', { name: 'Ajouter le champ au brouillon', exact: true }).click();
+  const preview = page.getByRole('complementary', { name: 'Aperçu du brouillon de modèle', exact: true });
+  const filierePreview = preview.locator('li').filter({ hasText: 'Filières' });
+  await expect(filierePreview).toContainText('4 champs');
+  await expect(filierePreview).toContainText('internat');
+  await expect(filierePreview).toContainText('Booléen');
+  await editor.getByRole('checkbox', { name: 'Afficher la colonne Internat', exact: true }).check();
+  await expect(filierePreview).toContainText('Colonnes : nom → code → description → internat');
+  await expectApplicationAccessible(page);
+
+  const applyResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await editor.getByRole('button', { name: 'Appliquer le brouillon', exact: true }).click();
+  await applyResponse;
+  await expect(editor).toHaveCount(0);
+  await expect(page.locator('.application-runtime-note')).toContainText('Modèle v2');
+  await expect(page.getByRole('columnheader', { name: 'Internat', exact: true })).toBeVisible();
+  const booleanCell = row.locator('td[data-label="Internat"]');
+  await expect(booleanCell).toHaveText('—');
+  await page.getByRole('button', { name: `Modifier : ${filiereName}`, exact: true }).click();
+  const internat = form.getByRole('combobox', { name: 'Internat', exact: true });
+  await expect(internat).toHaveValue('');
+  await expect(form).toHaveCSS('opacity', '1');
+  await expectApplicationAccessible(page);
+  async function saveBoolean(value: 'true' | 'false' | '', label: string) {
+    await internat.selectOption(value);
+    const response = page.waitForResponse((item) => item.url().includes('/application/objects/filieres/') && item.request().method() === 'PATCH' && item.status() === 200);
+    await form.getByRole('button', { name: 'Enregistrer les modifications' }).click();
+    await response;
+    await expect(booleanCell).toHaveText(label);
+    await page.reload();
+    await expect(booleanCell).toHaveText(label);
+    if (value !== '') await page.getByRole('button', { name: `Modifier : ${filiereName}`, exact: true }).click();
+  }
+  await saveBoolean('true', 'Oui');
+  await expect(internat).toHaveValue('true');
+  await saveBoolean('false', 'Non');
+  await expect(internat).toHaveValue('false');
+  await saveBoolean('', '—');
+
+  const blankName = `Filière sans choix ${suffix}`;
+  await page.getByRole('button', { name: 'Ajouter : Filière', exact: true }).click();
+  await expect(internat).toHaveValue('');
+  await form.getByRole('textbox', { name: 'Nom de la filière', exact: true }).fill(blankName);
+  await form.getByRole('textbox', { name: 'Code', exact: true }).fill('VIDE');
+  await form.getByRole('textbox', { name: 'Description', exact: true }).fill('Aucun choix booléen ne doit être inventé.');
+  const createBlankResponse = page.waitForResponse((response) => response.url().includes('/application/objects/filieres') && response.request().method() === 'POST' && response.status() === 201);
+  await form.getByRole('button', { name: 'Créer l’enregistrement' }).click();
+  await createBlankResponse;
+  const blankRow = page.locator('.application-table tbody tr').filter({ hasText: blankName });
+  await expect(blankRow.locator('td[data-label="Internat"]')).toHaveText('—');
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);
+  await page.screenshot({ path: 'test-results/application-model-boolean-mobile.png', fullPage: true, animations: 'disabled' });
+  expect(browserErrors).toEqual([]);
+});
+
 test('une relation optionnelle relie des objets existants et conserve ses deux références après rechargement', async ({ page }) => {
   test.setTimeout(120_000);
   const browserErrors: string[] = [];

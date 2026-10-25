@@ -12,6 +12,7 @@ const optionalFieldTypes = [
   { value: 'text', label: applicationFieldTypeLabels.text, help: 'Texte optionnel, 160 caractères maximum.' },
   { value: 'integer', label: applicationFieldTypeLabels.integer, help: 'Nombre entier optionnel, sans décimale.' },
   { value: 'number', label: applicationFieldTypeLabels.number, help: 'Nombre optionnel, décimales autorisées.' },
+  { value: 'boolean', label: applicationFieldTypeLabels.boolean, help: 'Choix optionnel Oui, Non ou Non renseigné, sans valeur par défaut.' },
   { value: 'date', label: applicationFieldTypeLabels.date, help: 'Date optionnelle au format AAAA-MM-JJ.' },
 ] satisfies ReadonlyArray<{ value: ApplicationTypedFieldInput['type']; label: string; help: string }>;
 

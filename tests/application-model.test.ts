@@ -383,6 +383,37 @@ describe('modèle d’application géré', () => {
     expect(withDefaults.data['ouverture-prevue']).toBeUndefined();
   });
 
+  it('ajoute un booléen optionnel sans confondre false et valeur absente', async () => {
+    const { account, details } = await setup('boolean-field-application-model@example.com');
+    const existing = await createFiliere(account.user.id, details.project.id, 'AVANT');
+    const originalObject = structuredClone(schoolApplicationModel.objects[0]!);
+    const input = { objectKey: 'filieres', label: 'Internat', key: '', type: 'boolean' } as const;
+    const draft = addOptionalApplicationTypedField(schoolApplicationModel, input);
+    expect(schoolApplicationModel.objects[0]!.fields).toHaveLength(3);
+    expect(draft.objects[0]!.fields.at(-1)).toEqual({ key: 'internat', label: 'Internat', type: 'boolean', required: false });
+    expect(draft.objects[0]!.columns).toEqual(originalObject.columns);
+    expect(draft.objects[0]!.actions).toEqual(originalObject.actions);
+    expect(draft.roles).toEqual(schoolApplicationModel.roles);
+    expect(buildApplicationRoutes(draft)).toHaveLength(11);
+    expect(addOptionalApplicationTypedField(draft, input).objects[0]!.fields.at(-1)?.key).toBe('internat-2');
+    expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { ...input, min: 0 })).toThrow('réservées aux champs numériques');
+    expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { ...input, defaultValue: 0 })).toThrow('réservée aux champs numériques');
+
+    expect((await saveApplicationModel(account.user.id, details.project.id, { model: draft, baseVersion: 1 }, context.db)).version).toBe(2);
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data.internat).toBeUndefined();
+    expect((await createFiliere(account.user.id, details.project.id, 'SANS')).data.internat).toBeUndefined();
+    const disabled = await createApplicationRecord(account.user.id, details.project.id, 'filieres', { nom: 'Filière sans internat', code: 'NON', internat: false }, context.db);
+    expect(disabled.data.internat).toBe(false);
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', disabled.id, context.db)).data.internat).toBe(false);
+    await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...existing.data, internat: 'false' }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
+    const enabled = await updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...existing.data, internat: true }, context.db);
+    expect(enabled.data.internat).toBe(true);
+    const withoutBoolean = Object.fromEntries(Object.entries(enabled.data).filter(([key]) => key !== 'internat'));
+    const cleared = await updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, withoutBoolean, context.db);
+    expect(cleared.data.internat).toBeUndefined();
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data.internat).toBeUndefined();
+  });
+
   it('ajoute une liste enum optionnelle avec des clés déterministes et conserve les anciennes données', async () => {
     const { account, details } = await setup('enum-field-application-model@example.com');
     const existing = await createFiliere(account.user.id, details.project.id, 'AVANT');

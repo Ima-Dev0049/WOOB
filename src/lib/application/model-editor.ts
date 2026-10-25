@@ -27,7 +27,7 @@ export type ApplicationTextFieldInput = {
 };
 
 export type ApplicationRelationFieldInput = ApplicationTextFieldInput & { targetObject: string };
-export type ApplicationTypedFieldInput = ApplicationTextFieldInput & { type: 'text' | 'integer' | 'number' | 'date'; min?: number; max?: number; defaultValue?: number };
+export type ApplicationTypedFieldInput = ApplicationTextFieldInput & { type: 'text' | 'integer' | 'number' | 'boolean' | 'date'; min?: number; max?: number; defaultValue?: number };
 export type ApplicationEnumFieldInput = ApplicationTextFieldInput & { options: string[] };
 export type ApplicationTransitionInput = ApplicationTextFieldInput & { from: string; to: string };
 export type ApplicationColumnsInput = { objectKey: string; columns: string[] };
