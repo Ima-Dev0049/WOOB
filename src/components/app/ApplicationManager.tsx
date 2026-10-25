@@ -15,6 +15,7 @@ import {
   type WorkspaceRole,
 } from '@/lib/application/model';
 import { schoolApplicationModel } from '@/lib/application/school-model';
+import { ApplicationModelEditor } from './ApplicationModelEditor';
 
 const PAGE_SIZE = 25;
 const RELATION_OPTION_LIMIT = 100;
@@ -73,6 +74,7 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
   const [message, setMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [form, setForm] = useState<FormState | null>(null);
+  const [modelEditorOpen, setModelEditorOpen] = useState(false);
   const routes = useMemo(() => model ? buildApplicationRoutes(model) : [], [model]);
   const activeColumns = useMemo(() => activeObject ? applicationColumns(activeObject) : [], [activeObject]);
   const visibleRecords = useMemo(() => activeObject ? records[activeObject.key] ?? [] : [], [activeObject, records]);
@@ -227,12 +229,14 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
   return <div className="application-manager">
     <div className="application-runtime-note"><span><strong>Serveur commun sécurisé</strong>Aucun backend ni schéma SQL généré par site.</span><span>Modèle v{version} · Rôle : {roleLabel(role)}</span></div>
     <nav className="application-tabs" aria-label="Objets et plan du modèle">
-      {readableObjects.map((object) => <button key={object.key} className={selectedKey === object.key ? 'active' : ''} aria-current={selectedKey === object.key ? 'page' : undefined} onClick={() => selectObject(object.key)}>{object.pluralLabel}<span>{totals[object.key] ?? 0}</span></button>)}
-      <button className={selectedKey === 'routes' ? 'active' : ''} aria-current={selectedKey === 'routes' ? 'page' : undefined} onClick={() => selectObject('routes')}>Routes &amp; droits<span>{routes.length}</span></button>
+      {readableObjects.map((object) => <button key={object.key} disabled={modelEditorOpen} className={selectedKey === object.key ? 'active' : ''} aria-current={selectedKey === object.key ? 'page' : undefined} onClick={() => selectObject(object.key)}>{object.pluralLabel}<span>{totals[object.key] ?? 0}</span></button>)}
+      <button disabled={modelEditorOpen} className={selectedKey === 'routes' ? 'active' : ''} aria-current={selectedKey === 'routes' ? 'page' : undefined} onClick={() => selectObject('routes')}>Routes &amp; droits<span>{routes.length}</span></button>
     </nav>
+    {canManage && !modelEditorOpen && <div className="application-model-actions"><button className="button secondary small" onClick={() => { setForm(null); setMessage(''); setModelEditorOpen(true); }}>Personnaliser le modèle</button></div>}
+    {modelEditorOpen && canManage && <ApplicationModelEditor key={`${projectId}-${version}`} model={model} version={version} baseUrl={baseUrl} onApplied={() => { setModelEditorOpen(false); router.refresh(); }} onCancel={() => setModelEditorOpen(false)} />}
     {message && <p className="form-status" role="status">{message}</p>}
 
-    {activeObject && readableObjects.some((object) => object.key === activeObject.key) && <section className="application-object">
+    {!modelEditorOpen && activeObject && readableObjects.some((object) => object.key === activeObject.key) && <section className="application-object">
       <header className="application-object-header"><div><h2>{activeObject.pluralLabel}</h2><p>{activeObject.description || `Enregistrements gérés par le modèle ${model.name}.`}</p></div>{can(activeObject.key, 'create') && <button className="button dark small" disabled={pending} onClick={() => setForm({ objectKey: activeObject.key })}>Ajouter : {activeObject.label}</button>}</header>
       <div className="application-filters">
         <label>Recherche<input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder={`Rechercher dans ${activeObject.pluralLabel.toLowerCase()}`} aria-label={`Rechercher dans ${activeObject.pluralLabel}`} /></label>
@@ -264,8 +268,8 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
       </nav>}
     </section>}
 
-    {selectedKey === 'routes' && <section className="application-routes"><header><div><h2>Plan d’exécution et permissions</h2><p>Chaque opération est déduite du modèle actif, puis contrôlée à nouveau côté serveur.</p></div><span className="status-pill">{routes.length} routes logiques</span></header><div className="application-route-list">{routes.map((route) => <article key={route.id}><span className={`http-method ${route.method.toLowerCase()}`}>{route.method}</span><div><strong>{route.label}</strong><code>{route.id}</code></div><p>{route.roles.length ? route.roles.map(roleLabel).join(', ') : 'Aucun rôle autorisé'}</p></article>)}</div><p className="application-api-note">Les routes techniques restent internes et authentifiées. Aucune API publique, clé d’accès, redirection personnalisée ou publication de ces objets n’est activée dans ce lot.</p></section>}
-    {!readableObjects.length && selectedKey !== 'routes' && <div className="empty-state"><p>Votre rôle ne possède aucun droit de lecture sur ce modèle.</p></div>}
+    {!modelEditorOpen && selectedKey === 'routes' && <section className="application-routes"><header><div><h2>Plan d’exécution et permissions</h2><p>Chaque opération est déduite du modèle actif, puis contrôlée à nouveau côté serveur.</p></div><span className="status-pill">{routes.length} routes logiques</span></header><div className="application-route-list">{routes.map((route) => <article key={route.id}><span className={`http-method ${route.method.toLowerCase()}`}>{route.method}</span><div><strong>{route.label}</strong><code>{route.id}</code></div><p>{route.roles.length ? route.roles.map(roleLabel).join(', ') : 'Aucun rôle autorisé'}</p></article>)}</div><p className="application-api-note">Les routes techniques restent internes et authentifiées. Aucune API publique, clé d’accès, redirection personnalisée ou publication de ces objets n’est activée dans ce lot.</p></section>}
+    {!modelEditorOpen && !readableObjects.length && selectedKey !== 'routes' && <div className="empty-state"><p>Votre rôle ne possède aucun droit de lecture sur ce modèle.</p></div>}
   </div>;
 }
 

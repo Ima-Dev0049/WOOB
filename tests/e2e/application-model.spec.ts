@@ -263,3 +263,85 @@ test('la pagination et les relations recherchables fonctionnent au-delà du cach
   await page.screenshot({ path: 'test-results/application-pagination-mobile.png', fullPage: true, animations: 'disabled' });
   expect(browserErrors).toEqual([]);
 });
+
+test('le brouillon de modèle est prévisualisé, annulable puis appliqué sans élargir les droits', async ({ page }) => {
+  test.setTimeout(120_000);
+  const browserErrors: string[] = [];
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  await page.setExtraHTTPHeaders({ 'x-forwarded-for': `10.83.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}` });
+  await register(page, `model-editor-${suffix}@example.com`);
+  await createProjectThroughWizard(page, `Éditeur de modèle ${suffix}`);
+  await page.getByRole('link', { name: 'Modèle d’application →' }).click();
+  const setupResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await page.getByRole('button', { name: 'Initialiser un portail scolaire' }).click();
+  await setupResponse;
+  await expect(page.getByRole('heading', { name: 'Portail scolaire', exact: true })).toBeVisible();
+
+  const openEditor = page.getByRole('button', { name: 'Personnaliser le modèle', exact: true });
+  const editor = page.locator('.application-model-editor');
+  const preview = page.getByRole('complementary', { name: 'Aperçu du brouillon de modèle', exact: true });
+  await openEditor.click();
+  await expect(editor.getByRole('button', { name: 'Appliquer le brouillon', exact: true })).toBeDisabled();
+
+  async function addObjectDraft(label: string, pluralLabel: string) {
+    await editor.getByRole('textbox', { name: 'Nom singulier', exact: true }).fill(label);
+    await editor.getByRole('textbox', { name: 'Nom pluriel', exact: true }).fill(pluralLabel);
+    await editor.getByRole('button', { name: 'Ajouter l’objet au brouillon', exact: true }).click();
+  }
+
+  await editor.getByRole('textbox', { name: 'Nom du modèle', exact: true }).fill('Portail annulé');
+  await addObjectDraft('Temporaire', 'Temporaires');
+  await expect(preview).toContainText('3 objets');
+  await expect(preview).toContainText('15 routes logiques');
+  await editor.getByRole('button', { name: 'Annuler le brouillon', exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Portail scolaire', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Temporaires/ })).toHaveCount(0);
+
+  await openEditor.click();
+  await editor.getByRole('textbox', { name: 'Nom du modèle', exact: true }).fill('Portail scolaire enrichi');
+  await editor.getByRole('textbox', { name: 'Description du modèle', exact: true }).fill('Modèle enrichi par un brouillon structuré et vérifié.');
+  await addObjectDraft('Club', 'Clubs');
+  await expect(preview).toContainText('3 objets');
+  await expect(preview).toContainText('15 routes logiques');
+  await expect(preview.locator('code').filter({ hasText: 'club' })).toBeVisible();
+  await expect(preview.getByText('Nouveau', { exact: true })).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);
+  await page.screenshot({ path: 'test-results/application-model-editor-mobile.png', fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  const applyResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await editor.getByRole('button', { name: 'Appliquer le brouillon', exact: true }).click();
+  await applyResponse;
+  await expect(editor).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Portail scolaire enrichi', exact: true })).toBeVisible();
+  await expect(page.locator('.application-runtime-note')).toContainText('Modèle v2');
+
+  await page.getByRole('button', { name: /^Clubs/ }).click();
+  await page.getByRole('button', { name: 'Ajouter : Club', exact: true }).click();
+  const form = page.locator('.application-record-form:not(.application-model-editor)');
+  const clubName = `Club robotique ${suffix}`;
+  await form.getByRole('textbox', { name: 'Nom', exact: true }).fill(clubName);
+  const createResponse = page.waitForResponse((response) => response.url().includes('/application/objects/club') && response.request().method() === 'POST' && response.status() === 201);
+  await form.getByRole('button', { name: 'Créer l’enregistrement' }).click();
+  await createResponse;
+  const row = page.locator('.application-table tbody tr').filter({ hasText: clubName });
+  await expect(row).toBeVisible();
+  await page.reload();
+  await expect(row).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Portail scolaire enrichi', exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: /Routes & droits/ }).click();
+  const createRoute = page.locator('.application-route-list article').filter({ hasText: 'club.create' });
+  await expect(createRoute).toContainText('Propriétaire');
+  await expect(createRoute).toContainText('Direction');
+  await expect(createRoute).not.toContainText('Secrétariat');
+  await expect(page.locator('.application-routes > header .status-pill')).toHaveText('15 routes logiques');
+  expect(browserErrors).toEqual([]);
+});

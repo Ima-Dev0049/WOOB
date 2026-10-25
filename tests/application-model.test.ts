@@ -5,7 +5,8 @@ import { applicationModels, applicationRecords } from '@/server/db/schema';
 import { createAccount, testDatabase } from './helpers/database';
 import { createProject } from '@/server/services/projects';
 import { addExistingMember } from '@/server/services/members';
-import { applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, type ApplicationModel } from '@/lib/application/model';
+import { applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, type ApplicationModel } from '@/lib/application/model';
+import { addSimpleApplicationObject } from '@/lib/application/model-editor';
 import { schoolApplicationModel } from '@/lib/application/school-model';
 import {
   createApplicationRecord,
@@ -135,6 +136,28 @@ describe('modèle d’application géré', () => {
     await expect(executeApplicationAction(editor.user.id, details.project.id, 'dossiers', dossier.id, 'accepter', context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_TRANSITION_INVALID' });
     await expect(listApplicationRecords(outsider.user.id, details.project.id, 'dossiers', {}, context.db)).rejects.toMatchObject({ status: 404 });
     await expect(saveApplicationModel(editor.user.id, details.project.id, { model: schoolApplicationModel, baseVersion: 1 }, context.db)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('prépare et persiste un objet simple sans muter le modèle initial ni élargir les droits', async () => {
+    const { account, details } = await setup('editor-application-model@example.com');
+    const input = { label: 'Club d’échecs', pluralLabel: 'Clubs', key: '', description: 'Groupes et activités.' };
+    const draft = addSimpleApplicationObject(schoolApplicationModel, input);
+    const club = draft.objects[2]!;
+    expect(schoolApplicationModel.objects).toHaveLength(2);
+    expect(club.key).toBe('club-d-echecs');
+    expect(club.fields).toEqual([{ key: 'nom', label: 'Nom', type: 'text', required: true, maxLength: 160 }]);
+    expect(buildApplicationRoutes(draft)).toHaveLength(15);
+    expect(buildApplicationRoutes(draft).find((route) => route.id === `${club.key}.create`)?.roles).toEqual(['owner', 'admin']);
+    expect(roleCan(draft, 'owner', club.key, 'create')).toBe(true);
+    expect(roleCan(draft, 'editor', club.key, 'read')).toBe(false);
+    expect(addSimpleApplicationObject(draft, input).objects[3]?.key).toBe('club-d-echecs-2');
+
+    const existing = await createFiliere(account.user.id, details.project.id, 'LEGACY');
+    expect((await saveApplicationModel(account.user.id, details.project.id, { model: draft, baseVersion: 1 }, context.db)).version).toBe(2);
+    const created = await createApplicationRecord(account.user.id, details.project.id, club.key, { nom: 'Club robotique' }, context.db);
+    expect(created.data.nom).toBe('Club robotique');
+    expect((await listApplicationRecords(account.user.id, details.project.id, club.key, {}, context.db)).total).toBe(1);
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data.code).toBe('LEGACY');
   });
 
   it('conserve les versions et refuse une évolution incompatible avec les données', async () => {

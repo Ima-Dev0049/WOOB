@@ -45,6 +45,7 @@ async function acceptNextDialog(page: Page) {
   page.once('dialog', (dialog) => dialog.accept());
 }
 async function audit(page: Page) {
+  await expect(page.locator('[data-route-motion="native"]')).toHaveAttribute('data-route-state', 'entered');
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   return result.violations.map((violation) => ({ id: violation.id, impact: violation.impact, nodes: violation.nodes.map((node) => ({ target: node.target, summary: node.failureSummary })) }));
 }
