@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
+import { createId } from '@/lib/id';
 import type { DatabaseContext } from '@/server/db';
 import { applicationModels, applicationRecords } from '@/server/db/schema';
 import { createAccount, testDatabase } from './helpers/database';
@@ -15,6 +16,7 @@ import {
   createApplicationRecord,
   deleteApplicationRecord,
   executeApplicationAction,
+  exportApplicationRecords,
   getApplicationModel,
   getApplicationRecord,
   getApplicationSummary,
@@ -251,6 +253,37 @@ describe('modèle d’application géré', () => {
     expect(editorSummary.total).toBe(30);
     expect(editorSummary.objects.map((object) => object.objectKey)).toEqual(['reservations']);
     expect(restaurantApplicationModel.roles.find((role) => role.key === 'editor')?.grants).toHaveLength(2);
+  });
+
+  it('exporte un CSV filtré et borné avec toutes les colonnes, sans formule de tableur ni accès interdit', async () => {
+    const restricted = structuredClone(restaurantApplicationModel);
+    restricted.roles = restricted.roles.map((role) => role.key === 'editor' ? { ...role, grants: role.grants.filter((grant) => grant.object === 'tables') } : role);
+    const { account, details } = await setup('csv-application@example.com', restricted);
+    const table = await createApplicationRecord(account.user.id, details.project.id, 'tables', { nom: 'Salle export', places: 4, zone: 'salle' }, context.db);
+    const rows = Array.from({ length: 5001 }, (_, index) => {
+      const createdAt = new Date(Date.UTC(2027, 0, 1) + (5001 - index) * 1000);
+      return {
+        id: createId('application-record'), workspaceId: account.workspace.id, projectId: details.project.id, objectKey: 'reservations', createdBy: account.user.id, createdAt, updatedAt: createdAt,
+        data: { nom: index === 0 ? '=2+2' : index === 1 ? 'Client confirmé' : `Client export ${index}`, telephone: '+229 01 02 03 04', date: '2027-02-10', service: 'diner', personnes: 2, 'table-id': table.id, statut: index === 1 ? 'confirmee' : 'demandee' },
+      };
+    });
+    for (let offset = 0; offset < rows.length; offset += 1000) await context.db.insert(applicationRecords).values(rows.slice(offset, offset + 1000));
+    const result = await exportApplicationRecords(account.user.id, details.project.id, 'reservations', {}, context.db);
+    expect(result).toMatchObject({ filename: 'woob-reservations.csv', total: 5001, exported: 5000, truncated: true });
+    expect(result.csv.startsWith('\uFEFF"id","nom","email"')).toBe(true);
+    expect(result.csv).toContain('"table-id","notes","statut","created_at","updated_at"');
+    expect(result.csv.split('\r\n')).toHaveLength(5001);
+    expect(result.csv).toContain('"\'=2+2"');
+    expect(result.csv).not.toContain('"=2+2"');
+    const filtered = await exportApplicationRecords(account.user.id, details.project.id, 'reservations', { q: 'Client confirmé', status: 'confirmee' }, context.db);
+    expect(filtered).toMatchObject({ total: 1, exported: 1, truncated: false });
+    expect(filtered.csv).toContain('Client confirmé');
+    expect(filtered.csv).toContain('"confirmee"');
+    expect(filtered.csv).not.toContain('=2+2');
+    await expect(exportApplicationRecords(account.user.id, details.project.id, 'reservations', { status: 'inconnu' }, context.db)).rejects.toMatchObject({ status: 422, code: 'APPLICATION_FILTER_INVALID' });
+    const editor = await createAccount(context.db, 'csv-accueil@example.com', 'Accueil');
+    await addExistingMember(account.user.id, account.workspace.id, { email: editor.user.email, role: 'editor' }, context.db);
+    await expect(exportApplicationRecords(editor.user.id, details.project.id, 'reservations', {}, context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
   });
 
   it('prépare et persiste un objet simple sans muter le modèle initial ni élargir les droits', async () => {

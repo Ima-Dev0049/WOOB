@@ -6,6 +6,7 @@ import {
   createApplicationRecord,
   deleteApplicationRecord,
   executeApplicationAction,
+  exportApplicationRecords,
   getApplicationModel,
   getApplicationRecord,
   getApplicationSummary,
@@ -36,6 +37,19 @@ export async function GET(request: Request, context: RouteContext) {
     if (path.length === 1 && path[0] === 'summary') return noStore(NextResponse.json(await getApplicationSummary(auth.user.id, projectId)));
     if (path[0] !== 'objects') notFound();
     if (path.length === 2) return noStore(NextResponse.json(await listApplicationRecords(auth.user.id, projectId, path[1]!, listOptions(request))));
+    if (path.length === 3 && path[2] === 'export') {
+      const options = listOptions(request);
+      const result = await exportApplicationRecords(auth.user.id, projectId, path[1]!, { q: options.q, status: options.status });
+      return noStore(new NextResponse(result.csv, { headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${result.filename}"`,
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        'X-Content-Type-Options': 'nosniff',
+        'X-Export-Total-Count': String(result.total),
+        'X-Export-Row-Count': String(result.exported),
+        'X-Export-Truncated': String(result.truncated),
+      } }));
+    }
     if (path.length === 3) return noStore(NextResponse.json({ record: await getApplicationRecord(auth.user.id, projectId, path[1]!, path[2]!) }));
     notFound();
   });

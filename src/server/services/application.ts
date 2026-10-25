@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
+import { APPLICATION_EXPORT_LIMIT, applicationRecordsCsv } from '@/lib/application/csv';
 import { createId } from '@/lib/id';
 import {
   applicationModelSchema,
@@ -28,6 +29,8 @@ const listOptionsSchema = z.object({
   limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).max(100_000).default(0),
 });
+const exportOptionsSchema = listOptionsSchema.pick({ q: true, status: true });
+type RecordFilters = Pick<z.infer<typeof listOptionsSchema>, 'q' | 'status' | 'ids'>;
 
 type Access = Awaited<ReturnType<typeof requireProjectAccess>>;
 type ModelContext = { access: Access; row: ApplicationModelRow; role: WorkspaceRole };
@@ -110,21 +113,25 @@ async function recordFrom(context: ObjectContext, recordId: string, db: Db): Pro
   return record;
 }
 
-async function listFromContext(context: ObjectContext, input: unknown, db: Db) {
-  authorize(context, 'read');
-  const options = listOptionsSchema.parse(input);
+function recordsWhere(context: ObjectContext, options: RecordFilters): SQL {
   if (options.status && !context.object.statusField) throw new ApiError(422, 'APPLICATION_FILTER_UNSUPPORTED', 'Cet objet ne possède pas de filtre de statut.');
   const statusField = context.object.statusField ? context.object.fields.find((field) => field.key === context.object.statusField) : undefined;
   if (options.status && statusField?.type === 'enum' && !statusField.options?.some((option) => option.value === options.status)) throw new ApiError(422, 'APPLICATION_FILTER_INVALID', 'Ce statut n’existe pas dans le modèle.');
-  const conditions: SQL[] = [and(
+  const conditions: SQL[] = [
     eq(applicationRecords.projectId, context.access.project.id),
     eq(applicationRecords.workspaceId, context.access.project.workspaceId),
     eq(applicationRecords.objectKey, context.object.key),
-  )!];
+  ];
   if (options.q) conditions.push(sql`${applicationRecords.data}::text ILIKE ${`%${options.q}%`}`);
   if (options.status && context.object.statusField) conditions.push(sql`${applicationRecords.data} ->> ${context.object.statusField} = ${options.status}`);
   if (options.ids) conditions.push(inArray(applicationRecords.id, options.ids));
-  const where = and(...conditions);
+  return and(...conditions)!;
+}
+
+async function listFromContext(context: ObjectContext, input: unknown, db: Db) {
+  authorize(context, 'read');
+  const options = listOptionsSchema.parse(input);
+  const where = recordsWhere(context, options);
   const [records, count] = await Promise.all([
     db.select().from(applicationRecords).where(where).orderBy(desc(applicationRecords.createdAt), desc(applicationRecords.id)).limit(options.limit).offset(options.offset),
     db.select({ value: sql<number>`count(*)::int` }).from(applicationRecords).where(where),
@@ -237,6 +244,26 @@ export async function getApplicationDashboard(userId: string, projectId: string,
 export async function listApplicationRecords(userId: string, projectId: string, objectKey: string, input: unknown, db?: Db) {
   const database = db ?? await getDb();
   return listFromContext(await objectContext(userId, projectId, objectKey, 'read', database), input, database);
+}
+
+export async function exportApplicationRecords(userId: string, projectId: string, objectKey: string, input: unknown, db?: Db) {
+  const database = db ?? await getDb();
+  const context = await objectContext(userId, projectId, objectKey, 'read', database);
+  authorize(context, 'read');
+  const options = exportOptionsSchema.parse(input);
+  const where = recordsWhere(context, options);
+  const [records, count] = await Promise.all([
+    database.select().from(applicationRecords).where(where).orderBy(desc(applicationRecords.createdAt), desc(applicationRecords.id)).limit(APPLICATION_EXPORT_LIMIT + 1),
+    database.select({ value: sql<number>`count(*)::int` }).from(applicationRecords).where(where),
+  ]);
+  const exported = records.slice(0, APPLICATION_EXPORT_LIMIT);
+  return {
+    csv: applicationRecordsCsv(context.object, exported),
+    filename: `woob-${context.object.key}.csv`,
+    total: count[0]?.value ?? 0,
+    exported: exported.length,
+    truncated: records.length > APPLICATION_EXPORT_LIMIT,
+  };
 }
 
 export async function getApplicationRecord(userId: string, projectId: string, objectKey: string, recordId: string, db?: Db) {

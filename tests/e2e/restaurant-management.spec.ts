@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 import { createProjectThroughWizard } from './project-wizard';
 import { expectApplicationAccessible } from './application-audit';
@@ -70,6 +71,41 @@ test('la gestion restaurant exécute tables, réservations, rôles et processus 
   await runAction('Installer', 'installer', 'Installée');
   await runAction('Terminer', 'terminer', 'Terminée');
   await expect(page.getByRole('button', { name: `Annuler : ${client}`, exact: true })).toHaveCount(0);
+
+  const filteredList = page.waitForResponse((response) => {
+    if (!response.url().includes('/application/objects/reservations?') || response.request().method() !== 'GET' || response.status() !== 200) return false;
+    const params = new URL(response.url()).searchParams;
+    return params.get('q') === client && params.get('status') === 'terminee';
+  });
+  await page.getByRole('textbox', { name: 'Rechercher dans Réservations', exact: true }).fill(client);
+  await page.getByRole('combobox', { name: 'Filtrer par statut', exact: true }).selectOption('terminee');
+  await filteredList;
+  await expect(row).toContainText(client);
+  const exportResponsePromise = page.waitForResponse((response) => response.url().includes('/application/objects/reservations/export?') && response.request().method() === 'GET');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exporter CSV', exact: true }).click();
+  const [exportResponse, download] = await Promise.all([exportResponsePromise, downloadPromise]);
+  expect(exportResponse.status()).toBe(200);
+  expect(exportResponse.headers()['content-type']).toBe('text/csv; charset=utf-8');
+  expect(exportResponse.headers()['content-disposition']).toBe('attachment; filename="woob-reservations.csv"');
+  expect(exportResponse.headers()['cache-control']).toContain('no-store');
+  expect(exportResponse.headers()['x-content-type-options']).toBe('nosniff');
+  expect(exportResponse.headers()['content-security-policy']).toBe("default-src 'none'; sandbox");
+  expect(exportResponse.headers()['x-export-total-count']).toBe('1');
+  expect(exportResponse.headers()['x-export-row-count']).toBe('1');
+  expect(exportResponse.headers()['x-export-truncated']).toBe('false');
+  expect(download.suggestedFilename()).toBe('woob-reservations.csv');
+  const csv = await readFile((await download.path())!, 'utf8');
+  expect(csv.startsWith('\uFEFF"id","nom","email","telephone"')).toBe(true);
+  expect(csv).toContain('"notes","statut","created_at","updated_at"');
+  expect(csv.split('\r\n')).toHaveLength(2);
+  expect(csv).toContain(client);
+  expect(csv).toContain('Anniversaire.');
+  expect(csv).toContain('"terminee"');
+  expect(csv).not.toContain('Terrasse');
+  await expect(page.getByRole('status').filter({ hasText: 'Export CSV : 1 ligne.' })).toBeVisible();
+  await expectApplicationAccessible(page);
+
   await page.getByRole('button', { name: /^Vue d’ensemble/ }).click();
   await expect(page.getByRole('heading', { name: 'Vue d’ensemble', exact: true })).toBeVisible();
   await expect(page).toHaveURL(/[?&]objet=summary/);

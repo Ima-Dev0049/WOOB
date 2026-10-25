@@ -73,6 +73,7 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
   const [summary, setSummary] = useState(initialSummary);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [form, setForm] = useState<FormState | null>(null);
@@ -233,6 +234,32 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
     finally { setPending(false); }
   }
 
+  async function exportActiveObject() {
+    if (!activeObject) return;
+    setExporting(true); setMessage('');
+    try {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set('q', search.trim());
+      if (statusFilter) params.set('status', statusFilter);
+      const response = await fetch(`${baseUrl}/objects/${activeObject.key}/export?${params}`);
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(body.error?.message || `Export impossible (${response.status}).`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = `woob-${activeObject.key}.csv`;
+      document.body.append(anchor); anchor.click(); anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const exported = Number(response.headers.get('X-Export-Row-Count') ?? 0);
+      const total = Number(response.headers.get('X-Export-Total-Count') ?? exported);
+      const truncated = response.headers.get('X-Export-Truncated') === 'true';
+      setMessage(truncated ? `Export CSV limité à ${exported} lignes sur ${total} correspondances.` : `Export CSV : ${exported} ligne${exported === 1 ? '' : 's'}.`);
+    } catch (error) { setMessage(errorMessage(error)); }
+    finally { setExporting(false); }
+  }
+
   function selectObject(objectKey: string) {
     setActiveKey(objectKey); setSearch(''); setStatusFilter(''); setPage(0); setForm(null); setMessage('');
   }
@@ -265,11 +292,12 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
     {!modelEditorOpen && selectedKey === 'summary' && <ApplicationSummaryView model={model} summary={summary} onSelect={selectObject} />}
 
     {!modelEditorOpen && activeObject && readableObjects.some((object) => object.key === activeObject.key) && <section className="application-object">
-      <header className="application-object-header"><div><h2>{activeObject.pluralLabel}</h2><p>{activeObject.description || `Enregistrements gérés par le modèle ${model.name}.`}</p></div>{can(activeObject.key, 'create') && <button className="button dark small" disabled={pending} onClick={() => setForm({ objectKey: activeObject.key })}>Ajouter : {activeObject.label}</button>}</header>
+      <header className="application-object-header"><div><h2>{activeObject.pluralLabel}</h2><p>{activeObject.description || `Enregistrements gérés par le modèle ${model.name}.`}</p></div><div className="application-object-actions"><button className="button secondary small" disabled={pending || exporting} onClick={() => void exportActiveObject()}>{exporting ? 'Export…' : 'Exporter CSV'}</button>{can(activeObject.key, 'create') && <button className="button dark small" disabled={pending} onClick={() => setForm({ objectKey: activeObject.key })}>Ajouter : {activeObject.label}</button>}</div></header>
       <div className="application-filters">
         <label>Recherche<input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder={`Rechercher dans ${activeObject.pluralLabel.toLowerCase()}`} aria-label={`Rechercher dans ${activeObject.pluralLabel}`} /></label>
         {activeObject.statusField && <label>Statut<select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(0); }} aria-label="Filtrer par statut"><option value="">Tous les statuts</option>{activeObject.fields.find((field) => field.key === activeObject.statusField)?.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>}
         <span role="status" aria-atomic="true">{loading ? 'Actualisation…' : `${total} résultat${total > 1 ? 's' : ''}`}</span>
+        <span className="application-export-note">L’export CSV reprend la recherche et le statut actifs, avec tous les champs et leurs valeurs brutes, dans la limite de 5 000 lignes.</span>
       </div>
       {form?.objectKey === activeObject.key && <ApplicationRecordForm key={`${form.objectKey}-${form.record?.id ?? 'new'}`} object={activeObject} record={form.record} records={relationRecords} model={model} baseUrl={baseUrl} onRelationResolved={cacheRelationRecord} pending={pending} onCancel={() => setForm(null)} onSubmit={async (data) => {
         const creating = !form.record;
