@@ -38,7 +38,7 @@ export default async function DemoPage({ params }: { params: DemoParams }) {
     <div className="demo-notice-bar">
       <Link href="/#templates">← <span>Toutes les démos</span></Link>
       <p><strong>{site.name} · Démo Woob</strong><span>Contenu de démonstration · actions métier inactives</span></p>
-      <Link href="/register">Créer mon site <span aria-hidden="true">→</span></Link>
+      <Link href="/register">Créer mon espace de gestion <span aria-hidden="true">→</span></Link>
     </div>
     <SitePage site={site} path={currentPath} mode="demo" />
   </>;

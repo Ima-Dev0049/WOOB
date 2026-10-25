@@ -15,7 +15,7 @@ import {
   type ApplicationRecordData,
   type WorkspaceRole,
 } from '@/lib/application/model';
-import { schoolApplicationModel } from '@/lib/application/school-model';
+import { managedApplicationTemplates } from '@/lib/application/templates';
 import { ApplicationModelEditor } from './ApplicationModelEditor';
 
 const PAGE_SIZE = 25;
@@ -188,13 +188,25 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
   }, [currentPage, search, selectedKey, statusFilter]);
 
-  if (!model) return <section className="application-empty empty-state"><span className="eyebrow">Exécution gérée</span><h2>Aucun modèle d’application</h2><p>WOOB peut exécuter des objets, des formulaires et des processus validés sans générer un backend spécifique à ce site.</p>{canManage ? <><p>L’exemple ci-dessous est un modèle déterministe, pas une réponse présentée comme générée par une IA.</p><button className="button coral" disabled={pending} onClick={async () => {
-    setPending(true); setMessage('');
-    try {
-      await apiFetch(baseUrl, { method: 'PUT', body: JSON.stringify({ model: schoolApplicationModel, baseVersion: null }) });
-      router.refresh();
-    } catch (error) { setMessage(errorMessage(error)); setPending(false); }
-  }}>Initialiser un portail scolaire</button></> : <p>Un propriétaire ou un administrateur doit initialiser le modèle.</p>}{message && <p className="form-status" role="alert">{message}</p>}</section>;
+  if (!model) return <section className="application-empty empty-state">
+    <span className="eyebrow">Applications de gestion</span>
+    <h2>Choisissez votre activité</h2>
+    <p>WOOB exécute des données, des formulaires, des rôles et des processus de gestion sans générer un backend spécifique à chaque projet.</p>
+    {canManage ? <>
+      <p>Chaque point de départ est un modèle métier déterministe, personnalisable ensuite, et non une réponse présentée comme générée par une IA.</p>
+      <div className="application-template-list">{managedApplicationTemplates.map((template) => <article key={template.id}>
+        <div><h3>{template.name}</h3><p>{template.description}</p></div>
+        <button className="button coral" disabled={pending} onClick={async () => {
+          setPending(true); setMessage('');
+          try {
+            await apiFetch(baseUrl, { method: 'PUT', body: JSON.stringify({ model: template.model, baseVersion: null }) });
+            router.refresh();
+          } catch (error) { setMessage(errorMessage(error)); setPending(false); }
+        }}>{template.actionLabel}</button>
+      </article>)}</div>
+    </> : <p>Un propriétaire ou un administrateur doit initialiser l’application de gestion.</p>}
+    {message && <p className="form-status" role="alert">{message}</p>}
+  </section>;
 
   const can = (objectKey: string, operation: ApplicationOperation) => roleCan(model, role, objectKey, operation);
   const roleLabel = (key: WorkspaceRole) => model.roles.find((item) => item.key === key)?.label ?? key;

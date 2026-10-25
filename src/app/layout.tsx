@@ -14,8 +14,8 @@ import './immersive.css';
 import { RouteMotion } from '@/components/ui/RouteMotion';
 
 export const metadata: Metadata = {
-  title: { default: 'Woob — Votre site, votre vision', template: '%s · Woob' },
-  description: 'Créez, personnalisez et publiez un site professionnel avec un éditeur visuel structuré et des outils métier intégrés.',
+  title: { default: 'Woob — Le logiciel de gestion de votre activité', template: '%s · Woob' },
+  description: 'Créez l’application de gestion de votre restaurant, école, université ou entreprise : données, rôles, processus et tableaux de bord.',
   applicationName: 'Woob',
 };
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#f6f5f1' };

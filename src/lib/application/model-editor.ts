@@ -28,10 +28,11 @@ export type ApplicationTextFieldInput = {
 
 export type ApplicationRelationFieldInput = ApplicationTextFieldInput & { targetObject: string };
 export type ApplicationTypedFieldInput = ApplicationTextFieldInput & { type: 'text' | 'integer' | 'number' | 'date' };
+export type ApplicationEnumFieldInput = ApplicationTextFieldInput & { options: string[] };
 export type ApplicationTransitionInput = ApplicationTextFieldInput & { from: string; to: string };
 export type ApplicationColumnsInput = { objectKey: string; columns: string[] };
 
-function applicationKeyBase(value: string, prefix: 'objet' | 'champ' | 'action'): string {
+function applicationKeyBase(value: string, prefix: 'objet' | 'champ' | 'action' | 'option'): string {
   const slug = value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -42,7 +43,7 @@ function applicationKeyBase(value: string, prefix: 'objet' | 'champ' | 'action')
   return prefixed.slice(0, 48).replace(/-+$/g, '') || prefix;
 }
 
-export function uniqueApplicationKey(value: string, existingKeys: readonly string[], prefix: 'objet' | 'champ' | 'action' = 'objet'): string {
+export function uniqueApplicationKey(value: string, existingKeys: readonly string[], prefix: 'objet' | 'champ' | 'action' | 'option' = 'objet'): string {
   const base = applicationKeyBase(value, prefix);
   const existing = new Set(existingKeys);
   let candidate = base;
@@ -95,6 +96,33 @@ export function addOptionalApplicationTypedField(model: ApplicationModel, input:
         required: false,
         ...(input.type === 'text' ? { maxLength: 160 } : {}),
       }],
+    } : object),
+  });
+}
+
+/** Adds an optional enum with unique labels and deterministic option values, without creating a process status. */
+export function addOptionalApplicationEnumField(model: ApplicationModel, input: ApplicationEnumFieldInput): ApplicationModel {
+  const target = model.objects.find((object) => object.key === input.objectKey);
+  if (!target) throw new Error('Objet cible introuvable dans le brouillon.');
+  if (input.options.length < 2 || input.options.length > 40) throw new Error('Choisissez entre 2 et 40 options.');
+  const labels = new Set<string>();
+  const values: string[] = [];
+  const options = input.options.map((option) => {
+    const label = option.trim();
+    if (!label) throw new Error('Les options ne peuvent pas être vides.');
+    const normalized = label.toLowerCase();
+    if (labels.has(normalized)) throw new Error('Les libellés des options doivent être uniques.');
+    labels.add(normalized);
+    const value = uniqueApplicationKey(label, values, 'option');
+    values.push(value);
+    return { value, label };
+  });
+  const key = uniqueApplicationKey(input.key.trim() || input.label, target.fields.map((field) => field.key), 'champ');
+  return applicationModelSchema.parse({
+    ...model,
+    objects: model.objects.map((object) => object.key === target.key ? {
+      ...object,
+      fields: [...object.fields, { key, label: input.label.trim(), type: 'enum', required: false, options }],
     } : object),
   });
 }

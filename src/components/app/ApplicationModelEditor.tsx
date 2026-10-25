@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { apiFetch, errorMessage } from '@/lib/client-api';
 import { ApplicationModelCanvas, applicationCanvasPointAt, initialApplicationCanvasPositions } from './ApplicationModelCanvas';
-import { addApplicationTransition, addOptionalApplicationRelationField, addOptionalApplicationTypedField, addSimpleApplicationObject, applicationFieldTypeLabels, setApplicationObjectColumns, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type ApplicationTransitionInput, type ApplicationTypedFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
+import { addApplicationTransition, addOptionalApplicationEnumField, addOptionalApplicationRelationField, addOptionalApplicationTypedField, addSimpleApplicationObject, applicationFieldTypeLabels, setApplicationObjectColumns, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type ApplicationTransitionInput, type ApplicationTypedFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
 import { applicationColumnKeys, applicationModelSchema, buildApplicationRoutes, type ApplicationModel } from '@/lib/application/model';
 
 const emptyObject: SimpleApplicationObjectInput = { label: '', pluralLabel: '', key: '', description: '' };
@@ -34,6 +34,8 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
   const [draft, setDraft] = useState<ApplicationModel>(() => structuredClone(model));
   const [newObject, setNewObject] = useState<SimpleApplicationObjectInput>(emptyObject);
   const [newField, setNewField] = useState<ApplicationTypedFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', label: '', key: '', type: 'text' }));
+  const [newEnumField, setNewEnumField] = useState<ApplicationTextFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', label: '', key: '' }));
+  const [enumOptions, setEnumOptions] = useState('');
   const [newRelation, setNewRelation] = useState<ApplicationRelationFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', targetObject: model.objects[0]?.key ?? '', label: '', key: '' }));
   const [newTransition, setNewTransition] = useState<ApplicationTransitionInput>(() => initialTransition(model));
   const [columnObjectKey, setColumnObjectKey] = useState(model.objects[0]?.key ?? '');
@@ -59,6 +61,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     return field ? [field] : [];
   }) : [];
   const availableColumnFields = columnObject?.fields.filter((field) => !columnKeys.includes(field.key)) ?? [];
+  const enumOptionLabels = enumOptions.split('\n').map((option) => option.trim()).filter((option) => option.length > 0);
 
   function updateNewObject(field: keyof SimpleApplicationObjectInput, value: string) {
     setNewObject((current) => ({ ...current, [field]: value }));
@@ -72,6 +75,11 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
 
   function updateNewFieldType(type: ApplicationTypedFieldInput['type']) {
     setNewField((current) => ({ ...current, type }));
+    setError('');
+  }
+
+  function updateNewEnumField(field: keyof ApplicationTextFieldInput, value: string) {
+    setNewEnumField((current) => ({ ...current, [field]: value }));
     setError('');
   }
 
@@ -147,6 +155,18 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     }
   }
 
+  function addEnumField() {
+    try {
+      const next = addOptionalApplicationEnumField(draft, { ...newEnumField, options: enumOptionLabels });
+      setDraft(next);
+      setNewEnumField((current) => ({ ...current, label: '', key: '' }));
+      setEnumOptions('');
+      setError('');
+    } catch {
+      setError('Impossible d’ajouter cette liste. Vérifiez son nom et utilisez de 2 à 40 options non vides avec des libellés uniques.');
+    }
+  }
+
   function addRelation() {
     try {
       const next = addOptionalApplicationRelationField(draft, newRelation);
@@ -203,6 +223,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     if (selectedObjectKey === objectKey) setSelectedObjectKey(nextObjectKey);
     if (relationSource === objectKey) setRelationSource(null);
     if (newField.objectKey === objectKey) setNewField((current) => ({ ...current, objectKey: nextObjectKey }));
+    if (newEnumField.objectKey === objectKey) setNewEnumField((current) => ({ ...current, objectKey: nextObjectKey }));
     if (newRelation.objectKey === objectKey) setNewRelation((current) => ({ ...current, objectKey: nextObjectKey }));
     if (newRelation.targetObject === objectKey) setNewRelation((current) => ({ ...current, targetObject: nextObjectKey }));
     if (columnObjectKey === objectKey) setColumnObjectKey(nextObjectKey);
@@ -277,6 +298,17 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           <button type="button" className="button secondary small" disabled={pending || !newField.objectKey || !newField.label.trim()} onClick={addField}>Ajouter le champ au brouillon</button>
         </fieldset>
         <fieldset className="application-model-draft-group">
+          <legend>Ajouter une liste de choix optionnelle</legend>
+          <p>Ce champ enum reste distinct du statut de processus. Les anciennes données peuvent le laisser vide et les colonnes existantes ne changent pas automatiquement.</p>
+          <div className="application-form-grid">
+            <label>Objet de la liste<select value={newEnumField.objectKey} onChange={(event) => updateNewEnumField('objectKey', event.target.value)}>{draft.objects.map((object) => <option key={object.key} value={object.key}>{object.pluralLabel} ({object.key})</option>)}</select></label>
+            <label>Nom de la liste<input value={newEnumField.label} required maxLength={120} placeholder="Niveau d’études" onChange={(event) => updateNewEnumField('label', event.target.value)} /></label>
+            <label>Clé de la liste<input value={newEnumField.key} maxLength={48} placeholder="Générée si vide" onChange={(event) => updateNewEnumField('key', event.target.value)} /><small>Une clé de champ déjà utilisée reçoit un suffixe.</small></label>
+            <label>Options de la liste<textarea rows={4} maxLength={6000} value={enumOptions} placeholder={'Licence\nMaster\nDoctorat'} onChange={(event) => { setEnumOptions(event.target.value); setError(''); }} /><small>Une option par ligne, de 2 à 40. Les lignes vides sont ignorées, les libellés doivent être uniques et les clés techniques sont générées avec suffixe de collision.</small></label>
+          </div>
+          <button type="button" className="button secondary small" disabled={pending || !newEnumField.objectKey || !newEnumField.label.trim() || enumOptionLabels.length < 2} onClick={addEnumField}>Ajouter la liste au brouillon</button>
+        </fieldset>
+        <fieldset className="application-model-draft-group">
           <legend>Ajouter une relation optionnelle</legend>
           <p>Les anciennes données peuvent laisser cette relation vide. Le serveur vérifiera le projet et le type de chaque enregistrement lié.</p>
           <div className="application-form-grid">
@@ -333,7 +365,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           const originalObject = model.objects.find((candidate) => candidate.key === object.key);
           const addedFields = object.fields.filter((field) => originalObject ? !originalObject.fields.some((candidate) => candidate.key === field.key) : field.key !== 'nom');
           const addedActions = object.actions.filter((action) => !originalObject?.actions.some((candidate) => candidate.key === action.key));
-          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small><small className="application-model-object-columns">Colonnes : {applicationColumnKeys(object).join(' → ')}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{applicationFieldTypeLabels[field.type]}</span>{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}</span>)}</span>}{addedActions.length > 0 && <span className="application-model-added-fields">{addedActions.map((action) => <span key={action.key}>↳ {action.label} <code>{action.key}</code><span className="application-model-field-type">Transition</span><span className="application-model-relation-target">{action.from.join(', ')} → {action.to}</span></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
+          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small><small className="application-model-object-columns">Colonnes : {applicationColumnKeys(object).join(' → ')}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{applicationFieldTypeLabels[field.type]}</span>{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}{field.type === 'enum' && <span className="application-model-relation-target">Options : {field.options?.map((option) => option.label).join(', ')}</span>}</span>)}</span>}{addedActions.length > 0 && <span className="application-model-added-fields">{addedActions.map((action) => <span key={action.key}>↳ {action.label} <code>{action.key}</code><span className="application-model-field-type">Transition</span><span className="application-model-relation-target">{action.from.join(', ')} → {action.to}</span></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
         })}</ul>
         <p className="application-model-permissions">Les grants existants sont conservés sans élargissement : les ajouts utilisent les permissions de leur objet, seuls les grants d’action * couvrent automatiquement une nouvelle transition et aucun rôle ne reçoit implicitement un nouvel objet. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
       </aside>

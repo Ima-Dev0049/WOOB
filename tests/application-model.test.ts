@@ -6,7 +6,8 @@ import { createAccount, testDatabase } from './helpers/database';
 import { createProject } from '@/server/services/projects';
 import { addExistingMember } from '@/server/services/members';
 import { applicationColumnKeys, applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, roleCanAction, type ApplicationModel } from '@/lib/application/model';
-import { addApplicationTransition, addOptionalApplicationRelationField, addOptionalApplicationTextField, addOptionalApplicationTypedField, addSimpleApplicationObject, setApplicationObjectColumns } from '@/lib/application/model-editor';
+import { addApplicationTransition, addOptionalApplicationEnumField, addOptionalApplicationRelationField, addOptionalApplicationTextField, addOptionalApplicationTypedField, addSimpleApplicationObject, setApplicationObjectColumns } from '@/lib/application/model-editor';
+import { restaurantApplicationModel } from '@/lib/application/restaurant-model';
 import { schoolApplicationModel } from '@/lib/application/school-model';
 import {
   createApplicationRecord,
@@ -23,11 +24,11 @@ let context: DatabaseContext;
 beforeAll(async () => { context = await testDatabase(); }, 60_000);
 afterAll(async () => { await context.close(); });
 
-async function setup(email: string) {
+async function setup(email: string, model: ApplicationModel = schoolApplicationModel) {
   const account = await createAccount(context.db, email, email.split('@')[0]!);
   const details = await createProject(account.user.id, account.workspace.id, { name: `Application ${email}`, description: '', templateId: 'studio-business' }, context.db);
-  const model = await saveApplicationModel(account.user.id, details.project.id, { model: schoolApplicationModel, baseVersion: null }, context.db);
-  return { account, details, model };
+  const saved = await saveApplicationModel(account.user.id, details.project.id, { model, baseVersion: null }, context.db);
+  return { account, details, model: saved };
 }
 
 async function createFiliere(userId: string, projectId: string, code = 'INFO') {
@@ -139,6 +140,32 @@ describe('modèle d’application géré', () => {
     await expect(saveApplicationModel(editor.user.id, details.project.id, { model: schoolApplicationModel, baseVersion: 1 }, context.db)).rejects.toMatchObject({ status: 403 });
   });
 
+  it('exécute une réservation de restaurant avec ses rôles accueil et service', async () => {
+    const routes = buildApplicationRoutes(restaurantApplicationModel);
+    expect(routes).toHaveLength(12);
+    expect(routes.find((route) => route.id === 'reservations.actions.confirmer')?.roles).toEqual(['owner', 'admin', 'editor']);
+    expect(routes.find((route) => route.id === 'reservations.actions.installer')?.roles).toEqual(['owner', 'admin', 'contributor']);
+    const { account, details } = await setup('restaurant-application@example.com', restaurantApplicationModel);
+    const table = await createApplicationRecord(account.user.id, details.project.id, 'tables', { nom: 'Terrasse 1', places: 4, zone: 'terrasse', notes: 'Table au calme.' }, context.db);
+    const editor = await createAccount(context.db, 'restaurant-accueil@example.com', 'Accueil');
+    const contributor = await createAccount(context.db, 'restaurant-service@example.com', 'Service');
+    await addExistingMember(account.user.id, account.workspace.id, { email: editor.user.email, role: 'editor' }, context.db);
+    await addExistingMember(account.user.id, account.workspace.id, { email: contributor.user.email, role: 'contributor' }, context.db);
+    const input = { nom: 'Client Restaurant', email: 'client-restaurant@example.com', telephone: '+229 01 02 03 04', date: '2026-12-24', service: 'diner', personnes: 2, 'table-id': table.id, notes: 'Anniversaire.' };
+    const reservation = await createApplicationRecord(account.user.id, details.project.id, 'reservations', input, context.db);
+    expect(reservation.data.statut).toBe('demandee');
+    await expect(executeApplicationAction(contributor.user.id, details.project.id, 'reservations', reservation.id, 'confirmer', context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    expect((await executeApplicationAction(editor.user.id, details.project.id, 'reservations', reservation.id, 'confirmer', context.db)).data.statut).toBe('confirmee');
+    await expect(executeApplicationAction(editor.user.id, details.project.id, 'reservations', reservation.id, 'installer', context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    expect((await executeApplicationAction(contributor.user.id, details.project.id, 'reservations', reservation.id, 'installer', context.db)).data.statut).toBe('installee');
+    await expect(executeApplicationAction(editor.user.id, details.project.id, 'reservations', reservation.id, 'terminer', context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    expect((await executeApplicationAction(contributor.user.id, details.project.id, 'reservations', reservation.id, 'terminer', context.db)).data.statut).toBe('terminee');
+    await expect(executeApplicationAction(editor.user.id, details.project.id, 'reservations', reservation.id, 'annuler', context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_TRANSITION_INVALID' });
+    await expect(createApplicationRecord(contributor.user.id, details.project.id, 'reservations', input, context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'reservations', reservation.id, context.db)).data).toMatchObject({ statut: 'terminee', 'table-id': table.id, personnes: 2 });
+    expect((await listApplicationRecords(account.user.id, details.project.id, 'reservations', { q: 'Client Restaurant' }, context.db)).total).toBe(1);
+  });
+
   it('prépare et persiste un objet simple sans muter le modèle initial ni élargir les droits', async () => {
     const { account, details } = await setup('editor-application-model@example.com');
     const input = { label: 'Club d’échecs', pluralLabel: 'Clubs', key: '', description: 'Groupes et activités.' };
@@ -223,6 +250,45 @@ describe('modèle d’application géré', () => {
     expect(withoutOptional.data.capacite).toBeUndefined();
     expect(withoutOptional.data['taux-de-reussite']).toBeUndefined();
     expect(withoutOptional.data['ouverture-prevue']).toBeUndefined();
+  });
+
+  it('ajoute une liste enum optionnelle avec des clés déterministes et conserve les anciennes données', async () => {
+    const { account, details } = await setup('enum-field-application-model@example.com');
+    const existing = await createFiliere(account.user.id, details.project.id, 'AVANT');
+    const originalObject = structuredClone(schoolApplicationModel.objects[0]!);
+    const input = { objectKey: 'filieres', label: 'Niveau d’études', key: '', options: ['Licence', 'Master', 'Sur place', 'Sur-place'] };
+    const draft = addOptionalApplicationEnumField(schoolApplicationModel, input);
+    const target = draft.objects[0]!;
+    expect(schoolApplicationModel.objects[0]!.fields).toHaveLength(3);
+    expect(target.fields.at(-1)).toEqual({
+      key: 'niveau-d-etudes', label: 'Niveau d’études', type: 'enum', required: false,
+      options: [
+        { value: 'licence', label: 'Licence' },
+        { value: 'master', label: 'Master' },
+        { value: 'sur-place', label: 'Sur place' },
+        { value: 'sur-place-2', label: 'Sur-place' },
+      ],
+    });
+    expect(target.columns).toEqual(originalObject.columns);
+    expect(target.actions).toEqual(originalObject.actions);
+    expect(draft.objects[1]).toEqual(schoolApplicationModel.objects[1]);
+    expect(draft.roles).toEqual(schoolApplicationModel.roles);
+    expect(buildApplicationRoutes(draft)).toHaveLength(11);
+    expect(addOptionalApplicationEnumField(draft, input).objects[0]!.fields.at(-1)?.key).toBe('niveau-d-etudes-2');
+    expect(() => addOptionalApplicationEnumField(draft, { ...input, options: ['Unique'] })).toThrow('2 et 40');
+    expect(() => addOptionalApplicationEnumField(draft, { ...input, options: Array.from({ length: 41 }, (_, index) => `Option ${index}`) })).toThrow('2 et 40');
+    expect(() => addOptionalApplicationEnumField(draft, { ...input, options: ['Licence', ' licence '] })).toThrow('libellés');
+    expect(() => addOptionalApplicationEnumField(draft, { ...input, options: ['Licence', ''] })).toThrow('vides');
+    expect(() => addOptionalApplicationEnumField(draft, { ...input, objectKey: 'inconnu' })).toThrow('Objet cible introuvable');
+
+    expect((await saveApplicationModel(account.user.id, details.project.id, { model: draft, baseVersion: 1 }, context.db)).version).toBe(2);
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data['niveau-d-etudes']).toBeUndefined();
+    const withoutValue = await createFiliere(account.user.id, details.project.id, 'SANS');
+    expect(withoutValue.data['niveau-d-etudes']).toBeUndefined();
+    await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...existing.data, 'niveau-d-etudes': 'inconnu' }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
+    const updated = await updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...existing.data, 'niveau-d-etudes': 'master' }, context.db);
+    expect(updated.data).toMatchObject({ code: 'AVANT', 'niveau-d-etudes': 'master' });
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data['niveau-d-etudes']).toBe('master');
   });
 
   it('ajoute une relation optionnelle tout en validant le type lié et en conservant les dossiers existants', async () => {

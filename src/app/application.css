@@ -180,6 +180,11 @@
   .application-empty h2 { margin: 12px 0; }
   .application-empty p { margin-bottom: 12px; max-width: 680px; }
   .application-empty .button { margin-top: 8px; }
+  .application-template-list { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 24px auto 0; max-width: 920px; text-align: left; }
+  .application-template-list article { background: var(--application-surface-subtle); border: 1px solid var(--application-border); border-radius: 12px; display: flex; flex-direction: column; gap: 18px; justify-content: space-between; padding: 20px; }
+  .application-template-list h3 { color: var(--application-heading); font-size: 16px; margin-bottom: 8px; }
+  .application-template-list p { color: var(--application-muted); font-size: 12px; line-height: 1.6; margin: 0; }
+  .application-template-list .button { align-self: start; }
   .danger { color: var(--application-danger, #a23d34) !important; }
   .application-dashboard .project-breadcrumb { color: var(--application-muted); }
   .application-record-form .field-hint { color: var(--application-muted); }
@@ -191,6 +196,8 @@
     .application-runtime-note { gap: 10px; }
     .application-form-grid { grid-template-columns: 1fr; }
     .application-form-grid > label:has(textarea) { grid-column: auto; }
+    .application-template-list { grid-template-columns: 1fr; }
+    .application-template-list .button { align-self: stretch; }
     .application-model-canvas-panel { padding: 12px; }
     .application-model-canvas-panel > header, .application-model-canvas-actions { width: 100%; }
     .application-model-canvas-actions .button { flex: 1; }

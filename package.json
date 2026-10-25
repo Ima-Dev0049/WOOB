@@ -2,7 +2,7 @@
   "name": "woob",
   "version": "0.1.0",
   "private": true,
-  "description": "Woob — Imagine. Create. Launch. Plateforme de création de sites assistée par IA.",
+  "description": "Woob — Plateforme de création d’applications de gestion pour restaurants, écoles, universités et entreprises.",
   "scripts": {
     "dev": "node scripts/next.cjs dev",
     "build": "next build",
