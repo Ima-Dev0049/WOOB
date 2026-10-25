@@ -233,7 +233,7 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
       <button disabled={modelEditorOpen} className={selectedKey === 'routes' ? 'active' : ''} aria-current={selectedKey === 'routes' ? 'page' : undefined} onClick={() => selectObject('routes')}>Routes &amp; droits<span>{routes.length}</span></button>
     </nav>
     {canManage && !modelEditorOpen && <div className="application-model-actions"><button className="button secondary small" onClick={() => { setForm(null); setMessage(''); setModelEditorOpen(true); }}>Personnaliser le modèle</button></div>}
-    {modelEditorOpen && canManage && <ApplicationModelEditor key={`${projectId}-${version}`} model={model} version={version} baseUrl={baseUrl} onApplied={() => { setModelEditorOpen(false); router.refresh(); }} onCancel={() => setModelEditorOpen(false)} />}
+    {modelEditorOpen && canManage && <ApplicationModelEditor key={`${projectId}-${version}`} model={model} version={version} baseUrl={baseUrl} onApplied={() => { setModelEditorOpen(false); const url = new URL(window.location.href); url.searchParams.set('objet', selectedKey); router.replace(`${url.pathname}${url.search}${url.hash}`, { scroll: false }); router.refresh(); }} onCancel={() => setModelEditorOpen(false)} />}
     {message && <p className="form-status" role="status">{message}</p>}
 
     {!modelEditorOpen && activeObject && readableObjects.some((object) => object.key === activeObject.key) && <section className="application-object">

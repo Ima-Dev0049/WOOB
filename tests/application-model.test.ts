@@ -6,7 +6,7 @@ import { createAccount, testDatabase } from './helpers/database';
 import { createProject } from '@/server/services/projects';
 import { addExistingMember } from '@/server/services/members';
 import { applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, type ApplicationModel } from '@/lib/application/model';
-import { addOptionalApplicationTextField, addSimpleApplicationObject } from '@/lib/application/model-editor';
+import { addOptionalApplicationRelationField, addOptionalApplicationTextField, addSimpleApplicationObject } from '@/lib/application/model-editor';
 import { schoolApplicationModel } from '@/lib/application/school-model';
 import {
   createApplicationRecord,
@@ -184,6 +184,41 @@ describe('modèle d’application géré', () => {
     expect(updated.data.responsable).toBe('Awa Mensah');
     expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data.responsable).toBe('Awa Mensah');
     expect((await createFiliere(account.user.id, details.project.id, 'APRES')).data.code).toBe('APRES');
+  });
+
+  it('ajoute une relation optionnelle tout en validant le type lié et en conservant les dossiers existants', async () => {
+    const { account, details } = await setup('relation-application-model@example.com');
+    const primary = await createFiliere(account.user.id, details.project.id, 'PRINCIPALE');
+    const secondary = await createFiliere(account.user.id, details.project.id, 'SECONDAIRE');
+    const dossier = await createApplicationRecord(account.user.id, details.project.id, 'dossiers', dossierInput(primary.id), context.db);
+    const input = { objectKey: 'dossiers', targetObject: 'filieres', label: 'Filière secondaire', key: '' };
+    const originalObject = structuredClone(schoolApplicationModel.objects[1]!);
+    const draft = addOptionalApplicationRelationField(schoolApplicationModel, input);
+    const target = draft.objects[1]!;
+    expect(schoolApplicationModel.objects[1]!.fields).toHaveLength(originalObject.fields.length);
+    expect(target.fields.at(-1)).toEqual({ key: 'filiere-secondaire', label: 'Filière secondaire', type: 'relation', required: false, targetObject: 'filieres' });
+    expect(target.columns).toEqual(originalObject.columns);
+    expect(target.actions).toEqual(originalObject.actions);
+    expect(draft.roles).toEqual(schoolApplicationModel.roles);
+    expect(buildApplicationRoutes(draft)).toHaveLength(11);
+    expect(addOptionalApplicationRelationField(draft, input).objects[1]!.fields.at(-1)?.key).toBe('filiere-secondaire-2');
+    expect(() => addOptionalApplicationRelationField(draft, { ...input, objectKey: 'inconnu' })).toThrow('Objet source introuvable');
+    expect(() => addOptionalApplicationRelationField(draft, { ...input, targetObject: 'inconnu' })).toThrow('Objet lié introuvable');
+    const withClub = addSimpleApplicationObject(draft, { label: 'Club', pluralLabel: 'Clubs', key: '', description: '' });
+    expect(addOptionalApplicationRelationField(withClub, { objectKey: 'club', targetObject: 'filieres', label: 'Filière du club', key: '' }).objects.find((object) => object.key === 'club')?.fields.at(-1)).toMatchObject({ key: 'filiere-du-club', targetObject: 'filieres', required: false });
+    expect(addOptionalApplicationRelationField(withClub, { ...input, label: 'Club du dossier', targetObject: 'club' }).objects[1]!.fields.at(-1)).toMatchObject({ key: 'club-du-dossier', targetObject: 'club', required: false });
+
+    expect((await saveApplicationModel(account.user.id, details.project.id, { model: draft, baseVersion: 1 }, context.db)).version).toBe(2);
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'dossiers', dossier.id, context.db)).data['filiere-secondaire']).toBeUndefined();
+    await expect(updateApplicationRecord(account.user.id, details.project.id, 'dossiers', dossier.id, { ...dossierInput(primary.id, 'B'), 'filiere-secondaire': dossier.id }, context.db)).rejects.toMatchObject({ status: 422, code: 'APPLICATION_RELATION_INVALID' });
+    const updated = await updateApplicationRecord(account.user.id, details.project.id, 'dossiers', dossier.id, { ...dossierInput(primary.id, 'B'), 'filiere-secondaire': secondary.id }, context.db);
+    expect(updated.data['filiere-secondaire']).toBe(secondary.id);
+    expect(updated.data['filiere-id']).toBe(primary.id);
+    expect(updated.data.statut).toBe('recu');
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'dossiers', dossier.id, context.db)).data['filiere-secondaire']).toBe(secondary.id);
+    await expect(deleteApplicationRecord(account.user.id, details.project.id, 'filieres', secondary.id, context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_RECORD_REFERENCED' });
+    const withoutOptional = await createApplicationRecord(account.user.id, details.project.id, 'dossiers', dossierInput(primary.id, 'C'), context.db);
+    expect(withoutOptional.data['filiere-secondaire']).toBeUndefined();
   });
 
   it('conserve les versions et refuse une évolution incompatible avec les données', async () => {

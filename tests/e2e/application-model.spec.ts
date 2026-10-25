@@ -413,3 +413,96 @@ test('un champ texte optionnel rejoint un objet existant sans perdre ses enregis
   await expect(form.getByRole('textbox', { name: 'Nom de la filière', exact: true })).toHaveValue(filiereName);
   expect(browserErrors).toEqual([]);
 });
+
+test('une relation optionnelle relie des objets existants et conserve ses deux références après rechargement', async ({ page }) => {
+  test.setTimeout(120_000);
+  const browserErrors: string[] = [];
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  await page.setExtraHTTPHeaders({ 'x-forwarded-for': `10.85.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}` });
+  await register(page, `model-relation-${suffix}@example.com`);
+  await createProjectThroughWizard(page, `Relation de modèle ${suffix}`);
+  await page.getByRole('link', { name: 'Modèle d’application →' }).click();
+  const setupResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await page.getByRole('button', { name: 'Initialiser un portail scolaire' }).click();
+  await setupResponse;
+  await expect(page.getByRole('heading', { name: 'Portail scolaire', exact: true })).toBeVisible();
+  const form = page.locator('.application-record-form:not(.application-model-editor)');
+
+  async function createFiliere(name: string, code: string) {
+    await page.getByRole('button', { name: 'Ajouter : Filière', exact: true }).click();
+    await form.getByRole('textbox', { name: 'Nom de la filière', exact: true }).fill(name);
+    await form.getByRole('textbox', { name: 'Code', exact: true }).fill(code);
+    await form.getByRole('textbox', { name: 'Description', exact: true }).fill('Filière liée par le brouillon de modèle.');
+    const response = page.waitForResponse((item) => item.url().includes('/application/objects/filieres') && item.request().method() === 'POST' && item.status() === 201);
+    await form.getByRole('button', { name: 'Créer l’enregistrement' }).click();
+    await response;
+    await expect(page.locator('.application-table tbody').getByText(name, { exact: true })).toBeVisible();
+  }
+
+  const primaryName = `Filière principale ${suffix}`;
+  const secondaryName = `Filière secondaire ${suffix}`;
+  await createFiliere(primaryName, 'PRINCIPALE');
+  await createFiliere(secondaryName, 'SECONDAIRE');
+  await page.getByRole('button', { name: /^Dossiers/ }).click();
+  await page.getByRole('button', { name: 'Ajouter : Dossier', exact: true }).click();
+  const student = `Dossier avant relation ${suffix}`;
+  await form.getByRole('textbox', { name: 'Nom complet', exact: true }).fill(student);
+  await form.getByRole('textbox', { name: 'Email', exact: true }).fill(`relation-${suffix}@example.com`);
+  await form.getByRole('textbox', { name: 'Téléphone', exact: true }).fill('+229 01 02 03 04');
+  const primaryRelation = form.getByRole('combobox', { name: 'Filière', exact: true });
+  await primaryRelation.selectOption({ label: primaryName });
+  const primaryId = await primaryRelation.inputValue();
+  await form.getByRole('textbox', { name: 'Motivation', exact: true }).fill('Vérifier les relations ajoutées par le brouillon.');
+  const createDossier = page.waitForResponse((response) => response.url().includes('/application/objects/dossiers') && response.request().method() === 'POST' && response.status() === 201);
+  await form.getByRole('button', { name: 'Créer l’enregistrement' }).click();
+  await createDossier;
+  const row = page.locator('.application-table tbody tr').filter({ hasText: student });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText(primaryName);
+
+  await page.getByRole('button', { name: 'Personnaliser le modèle', exact: true }).click();
+  const editor = page.locator('.application-model-editor');
+  const preview = page.getByRole('complementary', { name: 'Aperçu du brouillon de modèle', exact: true });
+  await editor.getByRole('combobox', { name: 'Objet source', exact: true }).selectOption('dossiers');
+  await editor.getByRole('combobox', { name: 'Objet lié', exact: true }).selectOption('filieres');
+  await editor.getByRole('textbox', { name: 'Nom de la relation', exact: true }).fill('Filière secondaire');
+  await editor.getByRole('button', { name: 'Ajouter la relation au brouillon', exact: true }).click();
+  const dossierPreview = preview.locator('li').filter({ hasText: 'Dossiers' });
+  await expect(dossierPreview).toContainText('7 champs');
+  await expect(dossierPreview).toContainText('Filière secondaire');
+  await expect(dossierPreview).toContainText('filiere-secondaire');
+  await expect(dossierPreview).toContainText('→ filieres');
+  await expect(preview).toContainText('11 routes logiques');
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);
+  await page.screenshot({ path: 'test-results/application-model-relation-editor-mobile.png', fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  const applyResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await editor.getByRole('button', { name: 'Appliquer le brouillon', exact: true }).click();
+  await applyResponse;
+  await expect(editor).toHaveCount(0);
+  await expect(page.locator('.application-runtime-note')).toContainText('Modèle v2');
+  await expect(row).toBeVisible();
+  await expect(row).toContainText(primaryName);
+
+  await page.getByRole('button', { name: `Modifier : ${student}`, exact: true }).click();
+  const secondaryRelation = form.getByRole('combobox', { name: 'Filière secondaire', exact: true });
+  await expect(secondaryRelation).toHaveValue('');
+  await secondaryRelation.selectOption({ label: secondaryName });
+  const secondaryId = await secondaryRelation.inputValue();
+  const updateResponse = page.waitForResponse((response) => response.url().includes('/application/objects/dossiers/') && response.request().method() === 'PATCH' && response.status() === 200);
+  await form.getByRole('button', { name: 'Enregistrer les modifications' }).click();
+  await updateResponse;
+  await page.reload();
+  await expect(row).toBeVisible();
+  await page.getByRole('button', { name: `Modifier : ${student}`, exact: true }).click();
+  await expect(primaryRelation).toHaveValue(primaryId);
+  await expect(secondaryRelation).toHaveValue(secondaryId);
+  await expect(row).toContainText('Reçu');
+  expect(browserErrors).toEqual([]);
+});

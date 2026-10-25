@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { apiFetch, errorMessage } from '@/lib/client-api';
-import { addOptionalApplicationTextField, addSimpleApplicationObject, type ApplicationTextFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
+import { addOptionalApplicationRelationField, addOptionalApplicationTextField, addSimpleApplicationObject, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
 import { applicationModelSchema, buildApplicationRoutes, type ApplicationModel } from '@/lib/application/model';
 
 const emptyObject: SimpleApplicationObjectInput = { label: '', pluralLabel: '', key: '', description: '' };
@@ -17,6 +17,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
   const [draft, setDraft] = useState<ApplicationModel>(() => structuredClone(model));
   const [newObject, setNewObject] = useState<SimpleApplicationObjectInput>(emptyObject);
   const [newField, setNewField] = useState<ApplicationTextFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', label: '', key: '' }));
+  const [newRelation, setNewRelation] = useState<ApplicationRelationFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', targetObject: model.objects[0]?.key ?? '', label: '', key: '' }));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const parsedDraft = useMemo(() => applicationModelSchema.safeParse(draft), [draft]);
@@ -31,6 +32,11 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
 
   function updateNewField(field: keyof ApplicationTextFieldInput, value: string) {
     setNewField((current) => ({ ...current, [field]: value }));
+    setError('');
+  }
+
+  function updateNewRelation(field: keyof ApplicationRelationFieldInput, value: string) {
+    setNewRelation((current) => ({ ...current, [field]: value }));
     setError('');
   }
 
@@ -56,12 +62,23 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     }
   }
 
-  function removeObject(objectKey: string) {
-    setDraft((current) => ({ ...current, objects: current.objects.filter((object) => object.key !== objectKey) }));
-    if (newField.objectKey === objectKey) {
-      const nextTarget = draft.objects.find((object) => object.key !== objectKey)?.key ?? '';
-      setNewField((current) => ({ ...current, objectKey: nextTarget }));
+  function addRelation() {
+    try {
+      const next = addOptionalApplicationRelationField(draft, newRelation);
+      setDraft(next);
+      setNewRelation((current) => ({ ...current, label: '', key: '' }));
+      setError('');
+    } catch {
+      setError('Impossible d’ajouter cette relation. Vérifiez les objets source et lié, le nom et les limites du modèle.');
     }
+  }
+
+  function removeObject(objectKey: string) {
+    setDraft((current) => ({ ...current, objects: current.objects.filter((object) => object.key !== objectKey).map((object) => ({ ...object, fields: object.fields.filter((field) => field.targetObject !== objectKey) })) }));
+    const nextObjectKey = draft.objects.find((object) => object.key !== objectKey)?.key ?? '';
+    if (newField.objectKey === objectKey) setNewField((current) => ({ ...current, objectKey: nextObjectKey }));
+    if (newRelation.objectKey === objectKey) setNewRelation((current) => ({ ...current, objectKey: nextObjectKey }));
+    if (newRelation.targetObject === objectKey) setNewRelation((current) => ({ ...current, targetObject: nextObjectKey }));
     setError('');
   }
 
@@ -114,6 +131,17 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           </div>
           <button type="button" className="button secondary small" disabled={pending || !newField.objectKey || !newField.label.trim()} onClick={addField}>Ajouter le champ au brouillon</button>
         </fieldset>
+        <fieldset className="application-model-draft-group">
+          <legend>Ajouter une relation optionnelle</legend>
+          <p>Les anciennes données peuvent laisser cette relation vide. Le serveur vérifiera le projet et le type de chaque enregistrement lié.</p>
+          <div className="application-form-grid">
+            <label>Objet source<select value={newRelation.objectKey} onChange={(event) => updateNewRelation('objectKey', event.target.value)}>{draft.objects.map((object) => <option key={object.key} value={object.key}>{object.pluralLabel} ({object.key})</option>)}</select></label>
+            <label>Objet lié<select value={newRelation.targetObject} onChange={(event) => updateNewRelation('targetObject', event.target.value)}>{draft.objects.map((object) => <option key={object.key} value={object.key}>{object.pluralLabel} ({object.key})</option>)}</select></label>
+            <label>Nom de la relation<input value={newRelation.label} required maxLength={120} placeholder="Filière secondaire" onChange={(event) => updateNewRelation('label', event.target.value)} /></label>
+            <label>Clé de la relation<input value={newRelation.key} maxLength={48} placeholder="Générée si vide" onChange={(event) => updateNewRelation('key', event.target.value)} /><small>Relation optionnelle. Une clé déjà utilisée dans l’objet source reçoit un suffixe.</small></label>
+          </div>
+          <button type="button" className="button secondary small" disabled={pending || !newRelation.objectKey || !newRelation.targetObject || !newRelation.label.trim()} onClick={addRelation}>Ajouter la relation au brouillon</button>
+        </fieldset>
       </div>
       <aside className="application-model-preview" aria-label="Aperçu du brouillon de modèle">
         <span className="status-pill">Brouillon non enregistré</span>
@@ -124,9 +152,9 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           const added = !originalKeys.has(object.key);
           const originalObject = model.objects.find((candidate) => candidate.key === object.key);
           const addedFields = object.fields.filter((field) => originalObject ? !originalObject.fields.some((candidate) => candidate.key === field.key) : field.key !== 'nom');
-          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
+          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code>{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}</span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
         })}</ul>
-        <p className="application-model-permissions">Les grants existants sont conservés : les champs ajoutés suivent les permissions de leur objet et aucun rôle ne reçoit implicitement un nouvel objet. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
+        <p className="application-model-permissions">Les grants existants sont conservés : les champs et relations ajoutés suivent les permissions de leur objet et aucun rôle ne reçoit implicitement un nouvel objet. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
       </aside>
     </div>
     {error && <p className="form-status" role="alert">{error}</p>}

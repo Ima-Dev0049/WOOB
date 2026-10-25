@@ -13,6 +13,8 @@ export type ApplicationTextFieldInput = {
   key: string;
 };
 
+export type ApplicationRelationFieldInput = ApplicationTextFieldInput & { targetObject: string };
+
 function applicationKeyBase(value: string, prefix: 'objet' | 'champ'): string {
   const slug = value
     .normalize('NFD')
@@ -66,6 +68,22 @@ export function addOptionalApplicationTextField(model: ApplicationModel, input: 
     objects: model.objects.map((object) => object.key === target.key ? {
       ...object,
       fields: [...object.fields, { key, label: input.label.trim(), type: 'text', required: false, maxLength: 160 }],
+    } : object),
+  });
+}
+
+/** Adds one optional relation without changing existing fields, columns, actions or grants. */
+export function addOptionalApplicationRelationField(model: ApplicationModel, input: ApplicationRelationFieldInput): ApplicationModel {
+  const source = model.objects.find((object) => object.key === input.objectKey);
+  const linked = model.objects.find((object) => object.key === input.targetObject);
+  if (!source) throw new Error('Objet source introuvable dans le brouillon.');
+  if (!linked) throw new Error('Objet lié introuvable dans le brouillon.');
+  const key = uniqueApplicationKey(input.key.trim() || input.label, source.fields.map((field) => field.key), 'champ');
+  return applicationModelSchema.parse({
+    ...model,
+    objects: model.objects.map((object) => object.key === source.key ? {
+      ...object,
+      fields: [...object.fields, { key, label: input.label.trim(), type: 'relation', required: false, targetObject: linked.key }],
     } : object),
   });
 }
