@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { apiFetch, errorMessage } from '@/lib/client-api';
-import { addSimpleApplicationObject, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
+import { addOptionalApplicationTextField, addSimpleApplicationObject, type ApplicationTextFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
 import { applicationModelSchema, buildApplicationRoutes, type ApplicationModel } from '@/lib/application/model';
 
 const emptyObject: SimpleApplicationObjectInput = { label: '', pluralLabel: '', key: '', description: '' };
@@ -16,6 +16,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
 }) {
   const [draft, setDraft] = useState<ApplicationModel>(() => structuredClone(model));
   const [newObject, setNewObject] = useState<SimpleApplicationObjectInput>(emptyObject);
+  const [newField, setNewField] = useState<ApplicationTextFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', label: '', key: '' }));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const parsedDraft = useMemo(() => applicationModelSchema.safeParse(draft), [draft]);
@@ -28,6 +29,11 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     setError('');
   }
 
+  function updateNewField(field: keyof ApplicationTextFieldInput, value: string) {
+    setNewField((current) => ({ ...current, [field]: value }));
+    setError('');
+  }
+
   function addObject() {
     try {
       const next = addSimpleApplicationObject(draft, newObject);
@@ -37,6 +43,26 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     } catch {
       setError('Impossible d’ajouter cet objet. Vérifiez les noms, la clé technique et les limites du modèle.');
     }
+  }
+
+  function addField() {
+    try {
+      const next = addOptionalApplicationTextField(draft, newField);
+      setDraft(next);
+      setNewField((current) => ({ ...current, label: '', key: '' }));
+      setError('');
+    } catch {
+      setError('Impossible d’ajouter ce champ. Vérifiez l’objet cible, le nom et les limites du modèle.');
+    }
+  }
+
+  function removeObject(objectKey: string) {
+    setDraft((current) => ({ ...current, objects: current.objects.filter((object) => object.key !== objectKey) }));
+    if (newField.objectKey === objectKey) {
+      const nextTarget = draft.objects.find((object) => object.key !== objectKey)?.key ?? '';
+      setNewField((current) => ({ ...current, objectKey: nextTarget }));
+    }
+    setError('');
   }
 
   async function apply() {
@@ -67,7 +93,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           <label>Nom du modèle<input value={draft.name} required maxLength={120} onChange={(event) => { setDraft((current) => ({ ...current, name: event.target.value })); setError(''); }} /></label>
           <label>Description du modèle<textarea rows={3} maxLength={500} value={draft.description} onChange={(event) => { setDraft((current) => ({ ...current, description: event.target.value })); setError(''); }} /></label>
         </div>
-        <fieldset className="application-model-new-object">
+        <fieldset className="application-model-draft-group">
           <legend>Ajouter un objet simple</legend>
           <p>Le nouvel objet contient un champ « Nom » requis. Les champs, processus et relations existants ne sont pas modifiés.</p>
           <div className="application-form-grid">
@@ -78,6 +104,16 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           </div>
           <button type="button" className="button secondary small" disabled={pending || !newObject.label.trim() || !newObject.pluralLabel.trim()} onClick={addObject}>Ajouter l’objet au brouillon</button>
         </fieldset>
+        <fieldset className="application-model-draft-group">
+          <legend>Ajouter un champ texte optionnel</legend>
+          <p>Le champ sera disponible dans les formulaires de l’objet cible. Les champs, colonnes et enregistrements existants sont conservés.</p>
+          <div className="application-form-grid">
+            <label>Objet cible<select value={newField.objectKey} onChange={(event) => updateNewField('objectKey', event.target.value)}>{draft.objects.map((object) => <option key={object.key} value={object.key}>{object.pluralLabel} ({object.key})</option>)}</select></label>
+            <label>Nom du champ<input value={newField.label} required maxLength={120} placeholder="Responsable" onChange={(event) => updateNewField('label', event.target.value)} /></label>
+            <label>Clé du champ<input value={newField.key} maxLength={48} placeholder="Générée si vide" onChange={(event) => updateNewField('key', event.target.value)} /><small>Texte optionnel, 160 caractères maximum. Une clé déjà utilisée reçoit un suffixe.</small></label>
+          </div>
+          <button type="button" className="button secondary small" disabled={pending || !newField.objectKey || !newField.label.trim()} onClick={addField}>Ajouter le champ au brouillon</button>
+        </fieldset>
       </div>
       <aside className="application-model-preview" aria-label="Aperçu du brouillon de modèle">
         <span className="status-pill">Brouillon non enregistré</span>
@@ -86,9 +122,11 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
         <div className="application-model-preview-metrics"><strong>{draft.objects.length} objets</strong><span>{parsedDraft.success ? routeCount : '—'} routes logiques</span></div>
         <ul>{draft.objects.map((object) => {
           const added = !originalKeys.has(object.key);
-          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code></div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => { setDraft((current) => ({ ...current, objects: current.objects.filter((candidate) => candidate.key !== object.key) })); setError(''); }}>Retirer</button></>}</li>;
+          const originalObject = model.objects.find((candidate) => candidate.key === object.key);
+          const addedFields = object.fields.filter((field) => originalObject ? !originalObject.fields.some((candidate) => candidate.key === field.key) : field.key !== 'nom');
+          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
         })}</ul>
-        <p className="application-model-permissions">Les grants existants sont conservés. Seuls les rôles avec un grant global ou explicite sur le nouvel objet y auront accès. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
+        <p className="application-model-permissions">Les grants existants sont conservés : les champs ajoutés suivent les permissions de leur objet et aucun rôle ne reçoit implicitement un nouvel objet. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
       </aside>
     </div>
     {error && <p className="form-status" role="alert">{error}</p>}

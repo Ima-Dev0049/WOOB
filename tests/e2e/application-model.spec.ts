@@ -345,3 +345,71 @@ test('le brouillon de modèle est prévisualisé, annulable puis appliqué sans 
   await expect(page.locator('.application-routes > header .status-pill')).toHaveText('15 routes logiques');
   expect(browserErrors).toEqual([]);
 });
+
+test('un champ texte optionnel rejoint un objet existant sans perdre ses enregistrements', async ({ page }) => {
+  test.setTimeout(120_000);
+  const browserErrors: string[] = [];
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  await page.setExtraHTTPHeaders({ 'x-forwarded-for': `10.84.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}` });
+  await register(page, `model-field-${suffix}@example.com`);
+  await createProjectThroughWizard(page, `Champ de modèle ${suffix}`);
+  await page.getByRole('link', { name: 'Modèle d’application →' }).click();
+  const setupResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await page.getByRole('button', { name: 'Initialiser un portail scolaire' }).click();
+  await setupResponse;
+  await expect(page.getByRole('heading', { name: 'Portail scolaire', exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Ajouter : Filière', exact: true }).click();
+  const form = page.locator('.application-record-form:not(.application-model-editor)');
+  const filiereName = `Filière avant évolution ${suffix}`;
+  await form.getByRole('textbox', { name: 'Nom de la filière', exact: true }).fill(filiereName);
+  await form.getByRole('textbox', { name: 'Code', exact: true }).fill('AVANT');
+  await form.getByRole('textbox', { name: 'Description', exact: true }).fill('Donnée créée avant l’évolution du modèle.');
+  const createResponse = page.waitForResponse((response) => response.url().includes('/application/objects/filieres') && response.request().method() === 'POST' && response.status() === 201);
+  await form.getByRole('button', { name: 'Créer l’enregistrement' }).click();
+  await createResponse;
+  const row = page.locator('.application-table tbody tr').filter({ hasText: filiereName });
+  await expect(row).toBeVisible();
+
+  await page.getByRole('button', { name: 'Personnaliser le modèle', exact: true }).click();
+  const editor = page.locator('.application-model-editor');
+  const preview = page.getByRole('complementary', { name: 'Aperçu du brouillon de modèle', exact: true });
+  await editor.getByRole('combobox', { name: 'Objet cible', exact: true }).selectOption('filieres');
+  await editor.getByRole('textbox', { name: 'Nom du champ', exact: true }).fill('Responsable');
+  await editor.getByRole('button', { name: 'Ajouter le champ au brouillon', exact: true }).click();
+  const filierePreview = preview.locator('li').filter({ hasText: 'Filières' });
+  await expect(filierePreview).toContainText('4 champs');
+  await expect(filierePreview).toContainText('Responsable');
+  await expect(filierePreview).toContainText('responsable');
+  await expect(preview).toContainText('11 routes logiques');
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);
+  await page.screenshot({ path: 'test-results/application-model-field-editor-mobile.png', fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  const applyResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await editor.getByRole('button', { name: 'Appliquer le brouillon', exact: true }).click();
+  await applyResponse;
+  await expect(editor).toHaveCount(0);
+  await expect(page.locator('.application-runtime-note')).toContainText('Modèle v2');
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('AVANT');
+
+  await page.getByRole('button', { name: `Modifier : ${filiereName}`, exact: true }).click();
+  const manager = `Awa Mensah ${suffix}`;
+  await form.getByRole('textbox', { name: 'Responsable', exact: true }).fill(manager);
+  const updateResponse = page.waitForResponse((response) => response.url().includes('/application/objects/filieres/') && response.request().method() === 'PATCH' && response.status() === 200);
+  await form.getByRole('button', { name: 'Enregistrer les modifications' }).click();
+  await updateResponse;
+  await page.reload();
+  await expect(row).toBeVisible();
+  await page.getByRole('button', { name: `Modifier : ${filiereName}`, exact: true }).click();
+  await expect(form.getByRole('textbox', { name: 'Responsable', exact: true })).toHaveValue(manager);
+  await expect(form.getByRole('textbox', { name: 'Code', exact: true })).toHaveValue('AVANT');
+  await expect(form.getByRole('textbox', { name: 'Nom de la filière', exact: true })).toHaveValue(filiereName);
+  expect(browserErrors).toEqual([]);
+});

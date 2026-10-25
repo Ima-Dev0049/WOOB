@@ -94,10 +94,10 @@
   .application-model-editor > header p { color: var(--application-muted); font-size: 11px; margin-top: 5px; }
   .application-model-editor-layout { align-items: start; display: grid; gap: 20px; grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr); }
   .application-model-editor-controls { display: grid; gap: 18px; min-width: 0; }
-  .application-model-new-object { border: 1px solid var(--application-border); border-radius: 10px; display: grid; gap: 14px; margin: 0; min-width: 0; padding: 16px; }
-  .application-model-new-object legend { color: var(--application-heading); font-size: 12px; font-weight: 700; padding: 0 6px; }
-  .application-model-new-object > p { color: var(--application-muted); font-size: 11px; line-height: 1.6; }
-  .application-model-new-object > .button { justify-self: start; }
+  .application-model-draft-group { border: 1px solid var(--application-border); border-radius: 10px; display: grid; gap: 14px; margin: 0; min-width: 0; padding: 16px; }
+  .application-model-draft-group legend { color: var(--application-heading); font-size: 12px; font-weight: 700; padding: 0 6px; }
+  .application-model-draft-group > p { color: var(--application-muted); font-size: 11px; line-height: 1.6; }
+  .application-model-draft-group > .button { justify-self: start; }
   .application-model-preview { background: var(--application-surface-subtle); border: 1px solid var(--application-border); border-radius: 10px; display: grid; gap: 14px; min-width: 0; padding: 18px; }
   .application-model-preview h3 { font-size: 17px; overflow-wrap: anywhere; }
   .application-model-preview > p { color: var(--application-muted); font-size: 11px; line-height: 1.6; }
@@ -109,6 +109,10 @@
   .application-model-preview li strong, .application-model-preview li code { overflow-wrap: anywhere; }
   .application-model-preview li strong { font-size: 12px; }
   .application-model-preview li code { color: var(--application-muted); font-size: 10px; }
+  .application-model-object-meta { color: var(--application-muted); font-size: 10px; }
+  .application-model-added-fields { color: var(--application-post-text); display: grid; font-size: 10px; gap: 3px; margin-top: 3px; }
+  .application-model-added-fields > span { overflow-wrap: anywhere; }
+  .application-model-added-fields code { margin-left: 4px; }
   .application-model-new-badge { background: var(--application-post-bg); border-radius: 999px; color: var(--application-post-text); font-size: 9px; font-weight: 700; padding: 4px 7px; }
   .application-model-permissions { border-top: 1px solid var(--application-border); padding-top: 12px; }
   .application-route-list { background: var(--application-surface); border: 1px solid var(--application-border); border-radius: 12px; display: grid; }
@@ -140,7 +144,7 @@
     .application-form-grid { grid-template-columns: 1fr; }
     .application-form-grid > label:has(textarea) { grid-column: auto; }
     .application-model-editor-layout { grid-template-columns: 1fr; }
-    .application-model-actions .button, .application-model-new-object > .button { justify-self: stretch; width: 100%; }
+    .application-model-actions .button, .application-model-draft-group > .button { justify-self: stretch; width: 100%; }
     .application-model-preview li { flex-wrap: wrap; }
     .application-route-list article { align-items: start; grid-template-columns: 58px minmax(0, 1fr); }
     .application-route-list article > p { grid-column: 2; }

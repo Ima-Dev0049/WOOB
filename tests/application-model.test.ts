@@ -6,7 +6,7 @@ import { createAccount, testDatabase } from './helpers/database';
 import { createProject } from '@/server/services/projects';
 import { addExistingMember } from '@/server/services/members';
 import { applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, type ApplicationModel } from '@/lib/application/model';
-import { addSimpleApplicationObject } from '@/lib/application/model-editor';
+import { addOptionalApplicationTextField, addSimpleApplicationObject } from '@/lib/application/model-editor';
 import { schoolApplicationModel } from '@/lib/application/school-model';
 import {
   createApplicationRecord,
@@ -158,6 +158,32 @@ describe('modèle d’application géré', () => {
     expect(created.data.nom).toBe('Club robotique');
     expect((await listApplicationRecords(account.user.id, details.project.id, club.key, {}, context.db)).total).toBe(1);
     expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data.code).toBe('LEGACY');
+  });
+
+  it('ajoute un champ texte optionnel sans réécrire les colonnes, les grants ou les anciennes données', async () => {
+    const { account, details } = await setup('field-application-model@example.com');
+    const existing = await createFiliere(account.user.id, details.project.id, 'AVANT');
+    const input = { objectKey: 'filieres', label: 'Responsable', key: '' };
+    const draft = addOptionalApplicationTextField(schoolApplicationModel, input);
+    const originalObject = schoolApplicationModel.objects[0]!;
+    const target = draft.objects[0]!;
+    expect(schoolApplicationModel.objects[0]!.fields).toHaveLength(3);
+    expect(target.fields.at(-1)).toEqual({ key: 'responsable', label: 'Responsable', type: 'text', required: false, maxLength: 160 });
+    expect(target.columns).toEqual(originalObject.columns);
+    expect(target.actions).toEqual(originalObject.actions);
+    expect(draft.roles).toEqual(schoolApplicationModel.roles);
+    expect(buildApplicationRoutes(draft)).toHaveLength(11);
+    expect(addOptionalApplicationTextField(draft, input).objects[0]!.fields.at(-1)?.key).toBe('responsable-2');
+    expect(() => addOptionalApplicationTextField(draft, { ...input, objectKey: 'inconnu' })).toThrow('Objet cible introuvable');
+
+    expect((await saveApplicationModel(account.user.id, details.project.id, { model: draft, baseVersion: 1 }, context.db)).version).toBe(2);
+    const beforeUpdate = await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db);
+    expect(beforeUpdate.data.code).toBe('AVANT');
+    expect(beforeUpdate.data.responsable).toBeUndefined();
+    const updated = await updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...existing.data, responsable: 'Awa Mensah' }, context.db);
+    expect(updated.data.responsable).toBe('Awa Mensah');
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data.responsable).toBe('Awa Mensah');
+    expect((await createFiliere(account.user.id, details.project.id, 'APRES')).data.code).toBe('APRES');
   });
 
   it('conserve les versions et refuse une évolution incompatible avec les données', async () => {
