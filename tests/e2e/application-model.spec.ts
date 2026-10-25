@@ -442,7 +442,7 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   await page.getByRole('button', { name: 'Personnaliser le modèle', exact: true }).click();
   const editor = page.locator('.application-model-editor');
   const preview = page.getByRole('complementary', { name: 'Aperçu du brouillon de modèle', exact: true });
-  async function addDraftField(type: string, label: string, settings?: { min: string; max: string; defaultValue: string }) {
+  async function addDraftField(type: string, label: string, settings?: { min: string; max: string; defaultValue: string }, dateDefault?: string) {
     await editor.getByRole('combobox', { name: 'Type de champ', exact: true }).selectOption(type);
     await editor.getByRole('textbox', { name: 'Nom du champ', exact: true }).fill(label);
     if (settings) {
@@ -450,11 +450,12 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
       await editor.getByRole('spinbutton', { name: /^Borne maximale/ }).fill(settings.max);
       await editor.getByRole('spinbutton', { name: /^Valeur par défaut/ }).fill(settings.defaultValue);
     }
+    if (dateDefault) await editor.getByLabel(/^Valeur par défaut/).fill(dateDefault);
     await editor.getByRole('button', { name: 'Ajouter le champ au brouillon', exact: true }).click();
   }
   await addDraftField('integer', 'Capacité', { min: '1', max: '120', defaultValue: '24' });
   await addDraftField('number', 'Taux de réussite', { min: '0', max: '100', defaultValue: '75.5' });
-  await addDraftField('date', 'Ouverture prévue');
+  await addDraftField('date', 'Ouverture prévue', undefined, '2028-02-29');
   const filierePreview = preview.locator('li').filter({ hasText: 'Filières' });
   await expect(filierePreview).toContainText('6 champs');
   await expect(filierePreview).toContainText('capacite');
@@ -467,6 +468,7 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   await expect(filierePreview).toContainText('Défaut : 75.5');
   await expect(filierePreview).toContainText('ouverture-prevue');
   await expect(filierePreview).toContainText('Date');
+  await expect(filierePreview).toContainText('Défaut : 2028-02-29');
   await expect(preview).toContainText('11 routes logiques');
   await expectApplicationAccessible(page);
 
@@ -497,6 +499,14 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   await expect(capacity).toHaveAttribute('max', '120');
   await expect(successRate).toHaveAttribute('min', '0');
   await expect(successRate).toHaveAttribute('max', '100');
+  const unchangedResponse = page.waitForResponse((response) => response.url().includes('/application/objects/filieres/') && response.request().method() === 'PATCH' && response.status() === 200);
+  await form.getByRole('button', { name: 'Enregistrer les modifications' }).click();
+  await unchangedResponse;
+  await page.reload();
+  await page.getByRole('button', { name: `Modifier : ${filiereName}`, exact: true }).click();
+  await expect(capacity).toHaveValue('');
+  await expect(successRate).toHaveValue('');
+  await expect(openingDate).toHaveValue('');
   await capacity.fill('0');
   expect(await capacity.evaluate((input) => (input as HTMLInputElement).validity.rangeUnderflow)).toBe(true);
   await capacity.fill('40');
@@ -520,7 +530,7 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   await page.getByRole('button', { name: 'Ajouter : Filière', exact: true }).click();
   await expect(capacity).toHaveValue('24');
   await expect(successRate).toHaveValue('75.5');
-  await expect(openingDate).toHaveValue('');
+  await expect(openingDate).toHaveValue('2028-02-29');
   await form.getByRole('textbox', { name: 'Nom de la filière', exact: true }).fill(defaultedName);
   await form.getByRole('textbox', { name: 'Code', exact: true }).fill('DEFAUT');
   await form.getByRole('textbox', { name: 'Description', exact: true }).fill('Valeurs initiales limitées à la création.');
@@ -534,7 +544,7 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   await page.getByRole('button', { name: `Modifier : ${defaultedName}`, exact: true }).click();
   await expect(capacity).toHaveValue('24');
   await expect(successRate).toHaveValue('75.5');
-  await expect(openingDate).toHaveValue('');
+  await expect(openingDate).toHaveValue('2028-02-29');
   expect(browserErrors).toEqual([]);
 });
 

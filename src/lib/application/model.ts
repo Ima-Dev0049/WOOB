@@ -9,6 +9,10 @@ const keySchema = z.string().trim().min(1).max(48).regex(/^[a-z][a-z0-9-]*$/, 'U
 const labelSchema = z.string().trim().min(1).max(120);
 const optionSchema = z.object({ value: keySchema, label: labelSchema });
 const fieldTypeSchema = z.enum(['text', 'textarea', 'email', 'phone', 'integer', 'number', 'boolean', 'date', 'enum', 'relation']);
+const calendarDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}, 'Date invalide.');
 
 export const applicationFieldSchema = z.object({
   key: keySchema,
@@ -47,6 +51,7 @@ export const applicationFieldSchema = z.object({
     || (!['boolean', 'integer', 'number', 'relation'].includes(field.type) && typeof field.defaultValue === 'string');
   if (!validType) context.addIssue({ code: 'custom', message: 'La valeur par défaut ne correspond pas au type du champ.', path: ['defaultValue'] });
   if (field.type === 'integer' && typeof field.defaultValue === 'number' && !Number.isInteger(field.defaultValue)) context.addIssue({ code: 'custom', message: 'La valeur par défaut doit être un entier.', path: ['defaultValue'] });
+  if (field.type === 'date' && typeof field.defaultValue === 'string' && !calendarDateSchema.safeParse(field.defaultValue).success) context.addIssue({ code: 'custom', message: 'La valeur par défaut doit être une date calendaire valide.', path: ['defaultValue'] });
   if (typeof field.defaultValue === 'number' && ((field.min !== undefined && field.defaultValue < field.min) || (field.max !== undefined && field.defaultValue > field.max))) context.addIssue({ code: 'custom', message: 'La valeur par défaut sort des bornes.', path: ['defaultValue'] });
   if (field.type === 'enum' && typeof field.defaultValue === 'string' && !field.options?.some((option) => option.value === field.defaultValue)) context.addIssue({ code: 'custom', message: 'La valeur par défaut doit être une option déclarée.', path: ['defaultValue'] });
 });
@@ -155,10 +160,7 @@ function fieldValueSchema(field: ApplicationField): z.ZodTypeAny {
     case 'integer': { let schema = z.number().int(); if (field.min !== undefined) schema = schema.min(field.min); if (field.max !== undefined) schema = schema.max(field.max); return schema; }
     case 'number': { let schema = z.number().finite(); if (field.min !== undefined) schema = schema.min(field.min); if (field.max !== undefined) schema = schema.max(field.max); return schema; }
     case 'boolean': return z.boolean();
-    case 'date': return z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
-      const date = new Date(`${value}T00:00:00Z`);
-      return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-    }, 'Date invalide.');
+    case 'date': return calendarDateSchema;
     case 'enum': return z.enum((field.options ?? []).map((option) => option.value) as [string, ...string[]]);
     case 'relation': return z.uuid();
   }
