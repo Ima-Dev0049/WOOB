@@ -5,13 +5,14 @@ import { applicationModels, applicationRecords } from '@/server/db/schema';
 import { createAccount, testDatabase } from './helpers/database';
 import { createProject } from '@/server/services/projects';
 import { addExistingMember } from '@/server/services/members';
-import { applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, roleCanAction, type ApplicationModel } from '@/lib/application/model';
-import { addApplicationTransition, addOptionalApplicationRelationField, addOptionalApplicationTextField, addOptionalApplicationTypedField, addSimpleApplicationObject } from '@/lib/application/model-editor';
+import { applicationColumnKeys, applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, roleCanAction, type ApplicationModel } from '@/lib/application/model';
+import { addApplicationTransition, addOptionalApplicationRelationField, addOptionalApplicationTextField, addOptionalApplicationTypedField, addSimpleApplicationObject, setApplicationObjectColumns } from '@/lib/application/model-editor';
 import { schoolApplicationModel } from '@/lib/application/school-model';
 import {
   createApplicationRecord,
   deleteApplicationRecord,
   executeApplicationAction,
+  getApplicationModel,
   getApplicationRecord,
   listApplicationRecords,
   saveApplicationModel,
@@ -257,6 +258,38 @@ describe('modèle d’application géré', () => {
     await expect(deleteApplicationRecord(account.user.id, details.project.id, 'filieres', secondary.id, context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_RECORD_REFERENCED' });
     const withoutOptional = await createApplicationRecord(account.user.id, details.project.id, 'dossiers', dossierInput(primary.id, 'C'), context.db);
     expect(withoutOptional.data['filiere-secondaire']).toBeUndefined();
+  });
+
+  it('configure les colonnes sans muter les champs, les grants ou les données existantes', async () => {
+    const { account, details } = await setup('columns-application-model@example.com');
+    const filiere = await createFiliere(account.user.id, details.project.id);
+    const dossier = await createApplicationRecord(account.user.id, details.project.id, 'dossiers', dossierInput(filiere.id), context.db);
+    const originalObject = structuredClone(schoolApplicationModel.objects[1]!);
+    const columns = ['motivation', 'nom', 'statut', 'filiere-id'];
+    const draft = setApplicationObjectColumns(schoolApplicationModel, { objectKey: 'dossiers', columns });
+    expect(schoolApplicationModel.objects[1]!.columns).toEqual(originalObject.columns);
+    expect(draft.objects[1]!.columns).toEqual(columns);
+    expect(applicationColumnKeys(draft.objects[1]!)).toEqual(columns);
+    expect(draft.objects[1]!.fields).toEqual(originalObject.fields);
+    expect(draft.objects[1]!.actions).toEqual(originalObject.actions);
+    expect(draft.objects[0]).toEqual(schoolApplicationModel.objects[0]);
+    expect(draft.roles).toEqual(schoolApplicationModel.roles);
+    expect(buildApplicationRoutes(draft)).toHaveLength(11);
+    expect(() => setApplicationObjectColumns(draft, { objectKey: 'dossiers', columns: ['nom', 'nom'] })).toThrow('une fois');
+    expect(() => setApplicationObjectColumns(draft, { objectKey: 'dossiers', columns: ['inconnu'] })).toThrow('champ de cet objet');
+    expect(() => setApplicationObjectColumns(draft, { objectKey: 'dossiers', columns: [] })).toThrow('1 et 12');
+    expect(() => setApplicationObjectColumns(draft, { objectKey: 'dossiers', columns: Array.from({ length: 13 }, (_, index) => `colonne-${index}`) })).toThrow('1 et 12');
+    expect(() => setApplicationObjectColumns(draft, { objectKey: 'inconnu', columns: ['nom'] })).toThrow('Objet du tableau introuvable');
+    const duplicate = structuredClone(draft);
+    duplicate.objects[1]!.columns = ['nom', 'nom'];
+    expect(applicationModelSchema.safeParse(duplicate).success).toBe(false);
+
+    expect((await saveApplicationModel(account.user.id, details.project.id, { model: draft, baseVersion: 1 }, context.db)).version).toBe(2);
+    expect((await getApplicationModel(account.user.id, details.project.id, context.db)).model?.objects[1]?.columns).toEqual(columns);
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'dossiers', dossier.id, context.db)).data).toEqual(dossier.data);
+    const updated = await updateApplicationRecord(account.user.id, details.project.id, 'dossiers', dossier.id, { ...dossierInput(filiere.id), email: 'adresse-masquee@example.com', telephone: '+229 99 88 77 66', motivation: 'Valeur conservée et modifiable.' }, context.db);
+    expect(updated.data).toMatchObject({ email: 'adresse-masquee@example.com', telephone: '+229 99 88 77 66', motivation: 'Valeur conservée et modifiable.', statut: 'recu' });
+    expect((await listApplicationRecords(account.user.id, details.project.id, 'dossiers', {}, context.db)).total).toBe(1);
   });
 
   it('ajoute une transition sans élargir les grants et l’exécute sur un dossier existant', async () => {

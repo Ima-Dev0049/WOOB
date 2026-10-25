@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, errorMessage } from '@/lib/client-api';
 import {
+  applicationColumnKeys,
   buildApplicationRoutes,
   roleCan,
   roleCanAction,
@@ -32,9 +33,7 @@ function pageFromParam(value: string | null): number {
 }
 
 function applicationColumns(object: ApplicationObject): ApplicationField[] {
-  return (object.columns ?? [object.titleField, ...object.fields.map((field) => field.key)])
-    .filter((key, index, values) => values.indexOf(key) === index)
-    .slice(0, 6)
+  return applicationColumnKeys(object)
     .map((key) => object.fields.find((field) => field.key === key)!)
     .filter(Boolean);
 }

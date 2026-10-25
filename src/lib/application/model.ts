@@ -90,7 +90,10 @@ export const applicationModelSchema = z.object({
       if (field.type === 'relation' && field.targetObject && !model.objects.some((candidate) => candidate.key === field.targetObject)) context.addIssue({ code: 'custom', message: `Objet lié inconnu : ${field.targetObject}.`, path: ['objects', index, 'fields', fieldIndex, 'targetObject'] });
     }
     if (!fields.has(object.titleField)) context.addIssue({ code: 'custom', message: 'Le champ titre est introuvable.', path: ['objects', index, 'titleField'] });
-    for (const [columnIndex, column] of (object.columns ?? []).entries()) if (!fields.has(column)) context.addIssue({ code: 'custom', message: `Colonne inconnue : ${column}.`, path: ['objects', index, 'columns', columnIndex] });
+    for (const [columnIndex, column] of (object.columns ?? []).entries()) {
+      if (!fields.has(column)) context.addIssue({ code: 'custom', message: `Colonne inconnue : ${column}.`, path: ['objects', index, 'columns', columnIndex] });
+      if ((object.columns ?? []).indexOf(column) !== columnIndex) context.addIssue({ code: 'custom', message: `Colonne dupliquée : ${column}.`, path: ['objects', index, 'columns', columnIndex] });
+    }
     const actionKeys = new Set<string>();
     if (object.actions.length && !object.statusField) context.addIssue({ code: 'custom', message: 'Les actions exigent un champ de statut.', path: ['objects', index, 'statusField'] });
     if (object.statusField) {
@@ -129,6 +132,14 @@ export type ApplicationObject = ApplicationModel['objects'][number];
 export type ApplicationField = ApplicationObject['fields'][number];
 export type ApplicationAction = ApplicationObject['actions'][number];
 export type ApplicationRecordData = Record<string, unknown>;
+
+/** Resolves the same bounded, unique column list for the inspector and runtime table. */
+export function applicationColumnKeys(object: ApplicationObject): string[] {
+  const available = new Set(object.fields.map((field) => field.key));
+  return (object.columns ?? [object.titleField, ...object.fields.map((field) => field.key)])
+    .filter((key, index, values) => available.has(key) && values.indexOf(key) === index)
+    .slice(0, 12);
+}
 
 function fieldValueSchema(field: ApplicationField): z.ZodTypeAny {
   const requiredText = (max: number) => z.string().trim().min(1).max(max);

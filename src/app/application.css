@@ -132,6 +132,18 @@
   .application-model-draft-group legend { color: var(--application-heading); font-size: 12px; font-weight: 700; padding: 0 6px; }
   .application-model-draft-group > p { color: var(--application-muted); font-size: 11px; line-height: 1.6; }
   .application-model-draft-group > .button { justify-self: start; }
+  .application-model-columns-section { display: grid; gap: 8px; }
+  .application-model-columns-section > strong { color: var(--application-heading); font-size: 11px; }
+  .application-model-columns-section > p { color: var(--application-muted); font-size: 11px; }
+  .application-model-columns-list { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
+  .application-model-columns-list li { align-items: center; background: var(--application-surface-subtle); border: 1px solid var(--application-border); border-radius: 8px; display: flex; flex-wrap: wrap; gap: 8px; padding: 9px 10px; }
+  .application-model-columns-list li > label { align-items: center; color: var(--application-form-label); cursor: pointer; display: flex; flex: 1; font-size: 11px; gap: 8px; min-width: 180px; }
+  .application-model-columns-list input { flex: none; height: 18px; min-height: 18px; width: 18px; }
+  .application-model-columns-list code { color: var(--application-muted); font-size: 10px; overflow-wrap: anywhere; }
+  .application-model-columns-list li > small { color: var(--application-muted); font-size: 10px; }
+  .application-model-column-position { align-items: center; background: var(--application-count-bg); border-radius: 999px; color: var(--application-muted-strong); display: inline-flex; font-size: 10px; height: 24px; justify-content: center; width: 24px; }
+  .application-model-column-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+  .application-model-column-actions .button { font-size: 10px; min-height: 32px; }
   .application-model-preview { background: var(--application-surface-subtle); border: 1px solid var(--application-border); border-radius: 10px; display: grid; gap: 14px; min-width: 0; padding: 18px; }
   .application-model-preview h3 { font-size: 17px; overflow-wrap: anywhere; }
   .application-model-preview > p { color: var(--application-muted); font-size: 11px; line-height: 1.6; }
@@ -144,6 +156,7 @@
   .application-model-preview li strong { font-size: 12px; }
   .application-model-preview li code { color: var(--application-muted); font-size: 10px; }
   .application-model-object-meta { color: var(--application-muted); font-size: 10px; }
+  .application-model-object-columns { color: var(--application-muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
   .application-model-added-fields { color: var(--application-post-text); display: grid; font-size: 10px; gap: 3px; margin-top: 3px; }
   .application-model-added-fields > span { overflow-wrap: anywhere; }
   .application-model-added-fields code { margin-left: 4px; }

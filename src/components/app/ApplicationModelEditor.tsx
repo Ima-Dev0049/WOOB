@@ -3,8 +3,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { apiFetch, errorMessage } from '@/lib/client-api';
 import { ApplicationModelCanvas, applicationCanvasPointAt, initialApplicationCanvasPositions } from './ApplicationModelCanvas';
-import { addApplicationTransition, addOptionalApplicationRelationField, addOptionalApplicationTypedField, addSimpleApplicationObject, applicationFieldTypeLabels, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type ApplicationTransitionInput, type ApplicationTypedFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
-import { applicationModelSchema, buildApplicationRoutes, type ApplicationModel } from '@/lib/application/model';
+import { addApplicationTransition, addOptionalApplicationRelationField, addOptionalApplicationTypedField, addSimpleApplicationObject, applicationFieldTypeLabels, setApplicationObjectColumns, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type ApplicationTransitionInput, type ApplicationTypedFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
+import { applicationColumnKeys, applicationModelSchema, buildApplicationRoutes, type ApplicationModel } from '@/lib/application/model';
 
 const emptyObject: SimpleApplicationObjectInput = { label: '', pluralLabel: '', key: '', description: '' };
 const optionalFieldTypes = [
@@ -36,6 +36,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
   const [newField, setNewField] = useState<ApplicationTypedFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', label: '', key: '', type: 'text' }));
   const [newRelation, setNewRelation] = useState<ApplicationRelationFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', targetObject: model.objects[0]?.key ?? '', label: '', key: '' }));
   const [newTransition, setNewTransition] = useState<ApplicationTransitionInput>(() => initialTransition(model));
+  const [columnObjectKey, setColumnObjectKey] = useState(model.objects[0]?.key ?? '');
   const [canvasPositions, setCanvasPositions] = useState(() => initialApplicationCanvasPositions(model.objects));
   const [selectedObjectKey, setSelectedObjectKey] = useState(model.objects[0]?.key ?? '');
   const [relationSource, setRelationSource] = useState<string | null>(null);
@@ -51,6 +52,13 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
   const originalKeys = useMemo(() => new Set(model.objects.map((object) => object.key)), [model]);
   const transitionObject = draft.objects.find((object) => object.key === newTransition.objectKey);
   const transitionStatuses = transitionObject?.fields.find((field) => field.key === transitionObject.statusField)?.options ?? [];
+  const columnObject = draft.objects.find((object) => object.key === columnObjectKey);
+  const columnKeys = columnObject ? applicationColumnKeys(columnObject) : [];
+  const columnFields = columnObject ? columnKeys.flatMap((key) => {
+    const field = columnObject.fields.find((candidate) => candidate.key === key);
+    return field ? [field] : [];
+  }) : [];
+  const availableColumnFields = columnObject?.fields.filter((field) => !columnKeys.includes(field.key)) ?? [];
 
   function updateNewObject(field: keyof SimpleApplicationObjectInput, value: string) {
     setNewObject((current) => ({ ...current, [field]: value }));
@@ -161,8 +169,35 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     }
   }
 
+  function updateColumns(columns: string[]) {
+    try {
+      setDraft(setApplicationObjectColumns(draft, { objectKey: columnObjectKey, columns }));
+      setError('');
+    } catch {
+      setError('Impossible de configurer ces colonnes. Choisissez de 1 à 12 champs distincts appartenant à cet objet.');
+    }
+  }
+
+  function toggleColumn(fieldKey: string, visible: boolean) {
+    updateColumns(visible ? [...columnKeys, fieldKey] : columnKeys.filter((key) => key !== fieldKey));
+  }
+
+  function moveColumn(fieldKey: string, direction: -1 | 1) {
+    const index = columnKeys.indexOf(fieldKey);
+    const destination = index + direction;
+    if (index < 0 || destination < 0 || destination >= columnKeys.length) return;
+    const next = [...columnKeys];
+    [next[index], next[destination]] = [next[destination]!, next[index]!];
+    updateColumns(next);
+  }
+
   function removeObject(objectKey: string) {
-    setDraft((current) => ({ ...current, objects: current.objects.filter((object) => object.key !== objectKey).map((object) => ({ ...object, fields: object.fields.filter((field) => field.targetObject !== objectKey) })) }));
+    setDraft((current) => ({ ...current, objects: current.objects.filter((object) => object.key !== objectKey).map((object) => {
+      const fields = object.fields.filter((field) => field.targetObject !== objectKey);
+      if (!object.columns) return { ...object, fields };
+      const columns = object.columns.filter((key) => fields.some((field) => field.key === key));
+      return { ...object, fields, columns: columns.length ? columns : [object.titleField] };
+    }) }));
     const nextObjectKey = draft.objects.find((object) => object.key !== objectKey)?.key ?? '';
     setCanvasPositions((current) => { const next = { ...current }; delete next[objectKey]; return next; });
     if (selectedObjectKey === objectKey) setSelectedObjectKey(nextObjectKey);
@@ -170,6 +205,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     if (newField.objectKey === objectKey) setNewField((current) => ({ ...current, objectKey: nextObjectKey }));
     if (newRelation.objectKey === objectKey) setNewRelation((current) => ({ ...current, objectKey: nextObjectKey }));
     if (newRelation.targetObject === objectKey) setNewRelation((current) => ({ ...current, targetObject: nextObjectKey }));
+    if (columnObjectKey === objectKey) setColumnObjectKey(nextObjectKey);
     setError('');
   }
 
@@ -252,6 +288,29 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           <button type="button" className="button secondary small" disabled={pending || !newRelation.objectKey || !newRelation.targetObject || !newRelation.label.trim()} onClick={addRelation}>Ajouter la relation au brouillon</button>
         </fieldset>
         <fieldset className="application-model-draft-group">
+          <legend>Configurer les colonnes du tableau</legend>
+          <p>Choisissez de 1 à 12 colonnes et leur ordre pour cet objet. Masquer une colonne ne supprime ni le champ, ni sa valeur, ni sa présence dans les formulaires.</p>
+          <div className="application-form-grid">
+            <label>Objet du tableau<select disabled={pending} value={columnObjectKey} onChange={(event) => { setColumnObjectKey(event.target.value); setError(''); }}>{draft.objects.map((object) => <option key={object.key} value={object.key}>{object.pluralLabel} ({object.key})</option>)}</select></label>
+          </div>
+          <div className="application-model-columns-section">
+            <strong>Colonnes affichées, dans l’ordre</strong>
+            <ol className="application-model-columns-list" aria-label={`Colonnes affichées de ${columnObject?.pluralLabel ?? 'l’objet'}`}>{columnFields.map((field, index) => <li key={field.key}>
+              <span className="application-model-column-position" aria-hidden="true">{index + 1}</span>
+              <label><input type="checkbox" checked disabled={pending} onChange={(event) => toggleColumn(field.key, event.target.checked)} /><span>Afficher la colonne {field.label}</span></label>
+              <code>{field.key}</code>
+              <div className="application-model-column-actions"><button type="button" className="button ghost small" disabled={pending || index === 0} aria-label={`Monter la colonne ${field.label}`} onClick={() => moveColumn(field.key, -1)}>Monter</button><button type="button" className="button ghost small" disabled={pending || index === columnFields.length - 1} aria-label={`Descendre la colonne ${field.label}`} onClick={() => moveColumn(field.key, 1)}>Descendre</button></div>
+            </li>)}</ol>
+          </div>
+          <div className="application-model-columns-section">
+            <strong>Champs disponibles</strong>
+            {availableColumnFields.length > 0 ? <ul className="application-model-columns-list" aria-label={`Champs disponibles pour ${columnObject?.pluralLabel ?? 'l’objet'}`}>{availableColumnFields.map((field) => <li key={field.key}>
+              <label><input type="checkbox" checked={false} disabled={pending || columnKeys.length >= 12} onChange={(event) => toggleColumn(field.key, event.target.checked)} /><span>Afficher la colonne {field.label}</span></label>
+              <code>{field.key}</code><small>{applicationFieldTypeLabels[field.type]}</small>
+            </li>)}</ul> : <p>Tous les champs de cet objet sont affichés.</p>}
+          </div>
+        </fieldset>
+        <fieldset className="application-model-draft-group">
           <legend>Ajouter une transition de processus</legend>
           <p>Ajoutez une transition à source unique entre deux statuts existants. Les grants explicites ne sont pas élargis ; les grants d’action * conservent leur effet.</p>
           <div className="application-form-grid">
@@ -274,7 +333,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           const originalObject = model.objects.find((candidate) => candidate.key === object.key);
           const addedFields = object.fields.filter((field) => originalObject ? !originalObject.fields.some((candidate) => candidate.key === field.key) : field.key !== 'nom');
           const addedActions = object.actions.filter((action) => !originalObject?.actions.some((candidate) => candidate.key === action.key));
-          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{applicationFieldTypeLabels[field.type]}</span>{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}</span>)}</span>}{addedActions.length > 0 && <span className="application-model-added-fields">{addedActions.map((action) => <span key={action.key}>↳ {action.label} <code>{action.key}</code><span className="application-model-field-type">Transition</span><span className="application-model-relation-target">{action.from.join(', ')} → {action.to}</span></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
+          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small><small className="application-model-object-columns">Colonnes : {applicationColumnKeys(object).join(' → ')}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{applicationFieldTypeLabels[field.type]}</span>{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}</span>)}</span>}{addedActions.length > 0 && <span className="application-model-added-fields">{addedActions.map((action) => <span key={action.key}>↳ {action.label} <code>{action.key}</code><span className="application-model-field-type">Transition</span><span className="application-model-relation-target">{action.from.join(', ')} → {action.to}</span></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
         })}</ul>
         <p className="application-model-permissions">Les grants existants sont conservés sans élargissement : les ajouts utilisent les permissions de leur objet, seuls les grants d’action * couvrent automatiquement une nouvelle transition et aucun rôle ne reçoit implicitement un nouvel objet. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
       </aside>

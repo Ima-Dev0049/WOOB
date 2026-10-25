@@ -29,6 +29,7 @@ export type ApplicationTextFieldInput = {
 export type ApplicationRelationFieldInput = ApplicationTextFieldInput & { targetObject: string };
 export type ApplicationTypedFieldInput = ApplicationTextFieldInput & { type: 'text' | 'integer' | 'number' | 'date' };
 export type ApplicationTransitionInput = ApplicationTextFieldInput & { from: string; to: string };
+export type ApplicationColumnsInput = { objectKey: string; columns: string[] };
 
 function applicationKeyBase(value: string, prefix: 'objet' | 'champ' | 'action'): string {
   const slug = value
@@ -114,6 +115,20 @@ export function addApplicationTransition(model: ApplicationModel, input: Applica
       ...object,
       actions: [...object.actions, { key, label: input.label.trim(), from: [input.from], to: input.to }],
     } : object),
+  });
+}
+
+/** Replaces only one object's visible columns, preserving every field, record and grant. */
+export function setApplicationObjectColumns(model: ApplicationModel, input: ApplicationColumnsInput): ApplicationModel {
+  const target = model.objects.find((object) => object.key === input.objectKey);
+  if (!target) throw new Error('Objet du tableau introuvable dans le brouillon.');
+  if (!input.columns.length || input.columns.length > 12) throw new Error('Choisissez entre 1 et 12 colonnes.');
+  if (new Set(input.columns).size !== input.columns.length) throw new Error('Une colonne ne peut apparaître qu’une fois.');
+  const available = new Set(target.fields.map((field) => field.key));
+  if (input.columns.some((key) => !available.has(key))) throw new Error('Chaque colonne doit correspondre à un champ de cet objet.');
+  return applicationModelSchema.parse({
+    ...model,
+    objects: model.objects.map((object) => object.key === target.key ? { ...object, columns: [...input.columns] } : object),
   });
 }
 
