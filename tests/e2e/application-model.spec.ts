@@ -442,26 +442,29 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   await page.getByRole('button', { name: 'Personnaliser le modèle', exact: true }).click();
   const editor = page.locator('.application-model-editor');
   const preview = page.getByRole('complementary', { name: 'Aperçu du brouillon de modèle', exact: true });
-  async function addDraftField(type: string, label: string, bounds?: { min: string; max: string }) {
+  async function addDraftField(type: string, label: string, settings?: { min: string; max: string; defaultValue: string }) {
     await editor.getByRole('combobox', { name: 'Type de champ', exact: true }).selectOption(type);
     await editor.getByRole('textbox', { name: 'Nom du champ', exact: true }).fill(label);
-    if (bounds) {
-      await editor.getByRole('spinbutton', { name: /^Borne minimale/ }).fill(bounds.min);
-      await editor.getByRole('spinbutton', { name: /^Borne maximale/ }).fill(bounds.max);
+    if (settings) {
+      await editor.getByRole('spinbutton', { name: /^Borne minimale/ }).fill(settings.min);
+      await editor.getByRole('spinbutton', { name: /^Borne maximale/ }).fill(settings.max);
+      await editor.getByRole('spinbutton', { name: /^Valeur par défaut/ }).fill(settings.defaultValue);
     }
     await editor.getByRole('button', { name: 'Ajouter le champ au brouillon', exact: true }).click();
   }
-  await addDraftField('integer', 'Capacité', { min: '1', max: '120' });
-  await addDraftField('number', 'Taux de réussite', { min: '0', max: '100' });
+  await addDraftField('integer', 'Capacité', { min: '1', max: '120', defaultValue: '24' });
+  await addDraftField('number', 'Taux de réussite', { min: '0', max: '100', defaultValue: '75.5' });
   await addDraftField('date', 'Ouverture prévue');
   const filierePreview = preview.locator('li').filter({ hasText: 'Filières' });
   await expect(filierePreview).toContainText('6 champs');
   await expect(filierePreview).toContainText('capacite');
   await expect(filierePreview).toContainText('Nombre entier');
   await expect(filierePreview).toContainText('Min. 1 · Max. 120');
+  await expect(filierePreview).toContainText('Défaut : 24');
   await expect(filierePreview).toContainText('taux-de-reussite');
   await expect(filierePreview).toContainText('Nombre décimal');
   await expect(filierePreview).toContainText('Min. 0 · Max. 100');
+  await expect(filierePreview).toContainText('Défaut : 75.5');
   await expect(filierePreview).toContainText('ouverture-prevue');
   await expect(filierePreview).toContainText('Date');
   await expect(preview).toContainText('11 routes logiques');
@@ -512,6 +515,26 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   await expect(openingDate).toHaveValue('2027-09-01');
   await expect(form.getByRole('textbox', { name: 'Code', exact: true })).toHaveValue('AVANT');
   await expect(form.getByRole('textbox', { name: 'Nom de la filière', exact: true })).toHaveValue(filiereName);
+
+  const defaultedName = `Filière avec défauts ${suffix}`;
+  await page.getByRole('button', { name: 'Ajouter : Filière', exact: true }).click();
+  await expect(capacity).toHaveValue('24');
+  await expect(successRate).toHaveValue('75.5');
+  await expect(openingDate).toHaveValue('');
+  await form.getByRole('textbox', { name: 'Nom de la filière', exact: true }).fill(defaultedName);
+  await form.getByRole('textbox', { name: 'Code', exact: true }).fill('DEFAUT');
+  await form.getByRole('textbox', { name: 'Description', exact: true }).fill('Valeurs initiales limitées à la création.');
+  const createWithDefaultsResponse = page.waitForResponse((response) => response.url().includes('/application/objects/filieres') && response.request().method() === 'POST' && response.status() === 201);
+  await form.getByRole('button', { name: 'Créer l’enregistrement' }).click();
+  await createWithDefaultsResponse;
+  const defaultedRow = page.locator('.application-table tbody tr').filter({ hasText: defaultedName });
+  await expect(defaultedRow).toBeVisible();
+  await page.reload();
+  await expect(defaultedRow).toBeVisible();
+  await page.getByRole('button', { name: `Modifier : ${defaultedName}`, exact: true }).click();
+  await expect(capacity).toHaveValue('24');
+  await expect(successRate).toHaveValue('75.5');
+  await expect(openingDate).toHaveValue('');
   expect(browserErrors).toEqual([]);
 });
 

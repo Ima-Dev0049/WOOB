@@ -338,15 +338,15 @@ describe('modèle d’application géré', () => {
     const { account, details } = await setup('typed-fields-application-model@example.com');
     const existing = await createFiliere(account.user.id, details.project.id, 'AVANT');
     const originalObject = structuredClone(schoolApplicationModel.objects[0]!);
-    const integerInput = { objectKey: 'filieres', label: 'Capacité', key: '', type: 'integer', min: 1, max: 120 } as const;
+    const integerInput = { objectKey: 'filieres', label: 'Capacité', key: '', type: 'integer', min: 1, max: 120, defaultValue: 24 } as const;
     const withInteger = addOptionalApplicationTypedField(schoolApplicationModel, integerInput);
-    const withNumber = addOptionalApplicationTypedField(withInteger, { objectKey: 'filieres', label: 'Taux de réussite', key: '', type: 'number', min: 0, max: 100 });
+    const withNumber = addOptionalApplicationTypedField(withInteger, { objectKey: 'filieres', label: 'Taux de réussite', key: '', type: 'number', min: 0, max: 100, defaultValue: 75.5 });
     const draft = addOptionalApplicationTypedField(withNumber, { objectKey: 'filieres', label: 'Ouverture prévue', key: '', type: 'date' });
     const target = draft.objects[0]!;
     expect(schoolApplicationModel.objects[0]!.fields).toHaveLength(3);
     expect(target.fields.slice(-3)).toEqual([
-      { key: 'capacite', label: 'Capacité', type: 'integer', required: false, min: 1, max: 120 },
-      { key: 'taux-de-reussite', label: 'Taux de réussite', type: 'number', required: false, min: 0, max: 100 },
+      { key: 'capacite', label: 'Capacité', type: 'integer', required: false, min: 1, max: 120, defaultValue: 24 },
+      { key: 'taux-de-reussite', label: 'Taux de réussite', type: 'number', required: false, min: 0, max: 100, defaultValue: 75.5 },
       { key: 'ouverture-prevue', label: 'Ouverture prévue', type: 'date', required: false },
     ]);
     expect(target.columns).toEqual(originalObject.columns);
@@ -357,7 +357,10 @@ describe('modèle d’application géré', () => {
     expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { ...integerInput, min: 1.5 })).toThrow('minimale doit être un entier');
     expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { ...integerInput, max: 120.5 })).toThrow('maximale doit être un entier');
     expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { ...integerInput, min: 121, max: 120 })).toThrow('minimale dépasse le maximum');
+    expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { ...integerInput, defaultValue: 24.5 })).toThrow('valeur par défaut doit être un entier');
+    expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { ...integerInput, defaultValue: 121 })).toThrow('valeur par défaut sort des bornes');
     expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { objectKey: 'filieres', label: 'Date bornée', key: '', type: 'date', min: 0 })).toThrow('réservées aux champs numériques');
+    expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { objectKey: 'filieres', label: 'Date avec défaut', key: '', type: 'date', defaultValue: 0 })).toThrow('valeur par défaut configurable');
 
     expect((await saveApplicationModel(account.user.id, details.project.id, { model: draft, baseVersion: 1 }, context.db)).version).toBe(2);
     const beforeUpdate = await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db);
@@ -374,10 +377,10 @@ describe('modèle d’application géré', () => {
     const updated = await updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, values, context.db);
     expect(updated.data).toMatchObject({ code: 'AVANT', capacite: 40, 'taux-de-reussite': 87.5, 'ouverture-prevue': '2027-09-01' });
     expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data).toMatchObject(values);
-    const withoutOptional = await createFiliere(account.user.id, details.project.id, 'APRES');
-    expect(withoutOptional.data.capacite).toBeUndefined();
-    expect(withoutOptional.data['taux-de-reussite']).toBeUndefined();
-    expect(withoutOptional.data['ouverture-prevue']).toBeUndefined();
+    const withDefaults = await createFiliere(account.user.id, details.project.id, 'APRES');
+    expect(withDefaults.data.capacite).toBe(24);
+    expect(withDefaults.data['taux-de-reussite']).toBe(75.5);
+    expect(withDefaults.data['ouverture-prevue']).toBeUndefined();
   });
 
   it('ajoute une liste enum optionnelle avec des clés déterministes et conserve les anciennes données', async () => {

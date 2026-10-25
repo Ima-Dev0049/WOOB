@@ -36,6 +36,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
   const [newObject, setNewObject] = useState<SimpleApplicationObjectInput>(emptyObject);
   const [newField, setNewField] = useState<ApplicationTypedFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', label: '', key: '', type: 'text' }));
   const [fieldBounds, setFieldBounds] = useState(emptyFieldBounds);
+  const [fieldDefault, setFieldDefault] = useState('');
   const [newEnumField, setNewEnumField] = useState<ApplicationTextFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', label: '', key: '' }));
   const [enumOptions, setEnumOptions] = useState('');
   const [newRelation, setNewRelation] = useState<ApplicationRelationFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', targetObject: model.objects[0]?.key ?? '', label: '', key: '' }));
@@ -79,11 +80,17 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
   function updateNewFieldType(type: ApplicationTypedFieldInput['type']) {
     setNewField((current) => ({ ...current, type }));
     setFieldBounds(emptyFieldBounds);
+    setFieldDefault('');
     setError('');
   }
 
   function updateFieldBounds(field: keyof typeof emptyFieldBounds, value: string) {
     setFieldBounds((current) => ({ ...current, [field]: value }));
+    setError('');
+  }
+
+  function updateFieldDefault(value: string) {
+    setFieldDefault(value);
     setError('');
   }
 
@@ -155,17 +162,19 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
 
   function addField() {
     try {
-      const bounds = numericField ? {
+      const numericSettings = numericField ? {
         ...(fieldBounds.min.trim() ? { min: Number(fieldBounds.min) } : {}),
         ...(fieldBounds.max.trim() ? { max: Number(fieldBounds.max) } : {}),
+        ...(fieldDefault.trim() ? { defaultValue: Number(fieldDefault) } : {}),
       } : {};
-      const next = addOptionalApplicationTypedField(draft, { ...newField, ...bounds });
+      const next = addOptionalApplicationTypedField(draft, { ...newField, ...numericSettings });
       setDraft(next);
       setNewField((current) => ({ ...current, label: '', key: '' }));
       setFieldBounds(emptyFieldBounds);
+      setFieldDefault('');
       setError('');
     } catch {
-      setError('Impossible d’ajouter ce champ. Vérifiez l’objet cible, le nom, les bornes et les limites du modèle.');
+      setError('Impossible d’ajouter ce champ. Vérifiez l’objet cible, le nom, les bornes, la valeur par défaut et les limites du modèle.');
     }
   }
 
@@ -311,6 +320,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
             {numericField && <>
               <label>Borne minimale<input type="number" step={newField.type === 'integer' ? 1 : 'any'} value={fieldBounds.min} placeholder="Aucune" onChange={(event) => updateFieldBounds('min', event.target.value)} /><small>Laissez vide pour ne pas définir de minimum.</small></label>
               <label>Borne maximale<input type="number" step={newField.type === 'integer' ? 1 : 'any'} value={fieldBounds.max} placeholder="Aucune" onChange={(event) => updateFieldBounds('max', event.target.value)} /><small>Le minimum ne peut pas dépasser le maximum.</small></label>
+              <label>Valeur par défaut<input type="number" step={newField.type === 'integer' ? 1 : 'any'} value={fieldDefault} placeholder="Aucune" onChange={(event) => updateFieldDefault(event.target.value)} /><small>Appliquée à la création si le champ est omis, sans remplir les anciens enregistrements. Elle doit respecter les bornes.</small></label>
             </>}
           </div>
           <button type="button" className="button secondary small" disabled={pending || !newField.objectKey || !newField.label.trim()} onClick={addField}>Ajouter le champ au brouillon</button>
@@ -383,7 +393,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           const originalObject = model.objects.find((candidate) => candidate.key === object.key);
           const addedFields = object.fields.filter((field) => originalObject ? !originalObject.fields.some((candidate) => candidate.key === field.key) : field.key !== 'nom');
           const addedActions = object.actions.filter((action) => !originalObject?.actions.some((candidate) => candidate.key === action.key));
-          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small><small className="application-model-object-columns">Colonnes : {applicationColumnKeys(object).join(' → ')}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{applicationFieldTypeLabels[field.type]}</span>{(field.type === 'integer' || field.type === 'number') && (field.min !== undefined || field.max !== undefined) && <span className="application-model-field-constraints">Min. {field.min ?? '—'} · Max. {field.max ?? '—'}</span>}{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}{field.type === 'enum' && <span className="application-model-relation-target">Options : {field.options?.map((option) => option.label).join(', ')}</span>}</span>)}</span>}{addedActions.length > 0 && <span className="application-model-added-fields">{addedActions.map((action) => <span key={action.key}>↳ {action.label} <code>{action.key}</code><span className="application-model-field-type">Transition</span><span className="application-model-relation-target">{action.from.join(', ')} → {action.to}</span></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
+          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small><small className="application-model-object-columns">Colonnes : {applicationColumnKeys(object).join(' → ')}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{applicationFieldTypeLabels[field.type]}</span>{(field.type === 'integer' || field.type === 'number') && (field.min !== undefined || field.max !== undefined) && <span className="application-model-field-constraints">Min. {field.min ?? '—'} · Max. {field.max ?? '—'}</span>}{(field.type === 'integer' || field.type === 'number') && field.defaultValue !== undefined && <span className="application-model-field-constraints">Défaut : {String(field.defaultValue)}</span>}{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}{field.type === 'enum' && <span className="application-model-relation-target">Options : {field.options?.map((option) => option.label).join(', ')}</span>}</span>)}</span>}{addedActions.length > 0 && <span className="application-model-added-fields">{addedActions.map((action) => <span key={action.key}>↳ {action.label} <code>{action.key}</code><span className="application-model-field-type">Transition</span><span className="application-model-relation-target">{action.from.join(', ')} → {action.to}</span></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
         })}</ul>
         <p className="application-model-permissions">Les grants existants sont conservés sans élargissement : les ajouts utilisent les permissions de leur objet, seuls les grants d’action * couvrent automatiquement une nouvelle transition et aucun rôle ne reçoit implicitement un nouvel objet. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
       </aside>

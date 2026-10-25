@@ -27,7 +27,7 @@ export type ApplicationTextFieldInput = {
 };
 
 export type ApplicationRelationFieldInput = ApplicationTextFieldInput & { targetObject: string };
-export type ApplicationTypedFieldInput = ApplicationTextFieldInput & { type: 'text' | 'integer' | 'number' | 'date'; min?: number; max?: number };
+export type ApplicationTypedFieldInput = ApplicationTextFieldInput & { type: 'text' | 'integer' | 'number' | 'date'; min?: number; max?: number; defaultValue?: number };
 export type ApplicationEnumFieldInput = ApplicationTextFieldInput & { options: string[] };
 export type ApplicationTransitionInput = ApplicationTextFieldInput & { from: string; to: string };
 export type ApplicationColumnsInput = { objectKey: string; columns: string[] };
@@ -86,6 +86,7 @@ export function addOptionalApplicationTypedField(model: ApplicationModel, input:
   if (!target) throw new Error('Objet cible introuvable dans le brouillon.');
   const numeric = input.type === 'integer' || input.type === 'number';
   if (!numeric && (input.min !== undefined || input.max !== undefined)) throw new Error('Les bornes sont réservées aux champs numériques.');
+  if (!numeric && input.defaultValue !== undefined) throw new Error('La valeur par défaut configurable est réservée aux champs numériques.');
   const key = uniqueApplicationKey(input.key.trim() || input.label, target.fields.map((field) => field.key), 'champ');
   return applicationModelSchema.parse({
     ...model,
@@ -99,6 +100,7 @@ export function addOptionalApplicationTypedField(model: ApplicationModel, input:
         ...(input.type === 'text' ? { maxLength: 160 } : {}),
         ...(numeric && input.min !== undefined ? { min: input.min } : {}),
         ...(numeric && input.max !== undefined ? { max: input.max } : {}),
+        ...(numeric && input.defaultValue !== undefined ? { defaultValue: input.defaultValue } : {}),
       }],
     } : object),
   });

@@ -405,7 +405,8 @@ function ApplicationFieldInput({ field, object, model, record, records, baseUrl,
   onRelationResolved: (record: ManagedRecord) => void;
 }) {
   const id = `application-${object.key}-${field.key}`;
-  const value = record?.data[field.key] ?? field.defaultValue;
+  // Defaults initialize new records only; editing must not backfill fields absent from older records.
+  const value = record ? record.data[field.key] : field.defaultValue;
   const common = { id, name: field.key, required: field.required, 'aria-describedby': field.help ? `${id}-help` : undefined };
   const label = <>{field.label}{field.required && <span aria-hidden="true"> *</span>}</>;
   const help = field.help && <small id={`${id}-help`}>{field.help}</small>;
