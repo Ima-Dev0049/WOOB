@@ -338,15 +338,15 @@ describe('modèle d’application géré', () => {
     const { account, details } = await setup('typed-fields-application-model@example.com');
     const existing = await createFiliere(account.user.id, details.project.id, 'AVANT');
     const originalObject = structuredClone(schoolApplicationModel.objects[0]!);
-    const integerInput = { objectKey: 'filieres', label: 'Capacité', key: '', type: 'integer' } as const;
+    const integerInput = { objectKey: 'filieres', label: 'Capacité', key: '', type: 'integer', min: 1, max: 120 } as const;
     const withInteger = addOptionalApplicationTypedField(schoolApplicationModel, integerInput);
-    const withNumber = addOptionalApplicationTypedField(withInteger, { objectKey: 'filieres', label: 'Taux de réussite', key: '', type: 'number' });
+    const withNumber = addOptionalApplicationTypedField(withInteger, { objectKey: 'filieres', label: 'Taux de réussite', key: '', type: 'number', min: 0, max: 100 });
     const draft = addOptionalApplicationTypedField(withNumber, { objectKey: 'filieres', label: 'Ouverture prévue', key: '', type: 'date' });
     const target = draft.objects[0]!;
     expect(schoolApplicationModel.objects[0]!.fields).toHaveLength(3);
     expect(target.fields.slice(-3)).toEqual([
-      { key: 'capacite', label: 'Capacité', type: 'integer', required: false },
-      { key: 'taux-de-reussite', label: 'Taux de réussite', type: 'number', required: false },
+      { key: 'capacite', label: 'Capacité', type: 'integer', required: false, min: 1, max: 120 },
+      { key: 'taux-de-reussite', label: 'Taux de réussite', type: 'number', required: false, min: 0, max: 100 },
       { key: 'ouverture-prevue', label: 'Ouverture prévue', type: 'date', required: false },
     ]);
     expect(target.columns).toEqual(originalObject.columns);
@@ -354,13 +354,21 @@ describe('modèle d’application géré', () => {
     expect(draft.roles).toEqual(schoolApplicationModel.roles);
     expect(buildApplicationRoutes(draft)).toHaveLength(11);
     expect(addOptionalApplicationTypedField(draft, integerInput).objects[0]!.fields.at(-1)?.key).toBe('capacite-2');
+    expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { ...integerInput, min: 1.5 })).toThrow('minimale doit être un entier');
+    expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { ...integerInput, max: 120.5 })).toThrow('maximale doit être un entier');
+    expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { ...integerInput, min: 121, max: 120 })).toThrow('minimale dépasse le maximum');
+    expect(() => addOptionalApplicationTypedField(schoolApplicationModel, { objectKey: 'filieres', label: 'Date bornée', key: '', type: 'date', min: 0 })).toThrow('réservées aux champs numériques');
 
     expect((await saveApplicationModel(account.user.id, details.project.id, { model: draft, baseVersion: 1 }, context.db)).version).toBe(2);
     const beforeUpdate = await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db);
     expect(beforeUpdate.data.code).toBe('AVANT');
     expect(beforeUpdate.data.capacite).toBeUndefined();
     const values = { ...existing.data, capacite: 40, 'taux-de-reussite': 87.5, 'ouverture-prevue': '2027-09-01' };
+    await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...values, capacite: 0 }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
+    await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...values, capacite: 121 }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
     await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...values, capacite: 40.5 }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
+    await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...values, 'taux-de-reussite': -0.1 }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
+    await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...values, 'taux-de-reussite': 100.1 }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
     await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...values, 'taux-de-reussite': Number.POSITIVE_INFINITY }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
     await expect(updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, { ...values, 'ouverture-prevue': '2027-02-30' }, context.db)).rejects.toMatchObject({ name: 'ZodError' });
     const updated = await updateApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, values, context.db);

@@ -26,6 +26,10 @@ export const applicationFieldSchema = z.object({
   const textual = ['text', 'textarea', 'email', 'phone'].includes(field.type);
   if (!textual && field.maxLength !== undefined) context.addIssue({ code: 'custom', message: 'maxLength est réservé aux champs texte.', path: ['maxLength'] });
   if (!['integer', 'number'].includes(field.type) && (field.min !== undefined || field.max !== undefined)) context.addIssue({ code: 'custom', message: 'Les bornes sont réservées aux nombres.', path: ['min'] });
+  if (field.type === 'integer') {
+    if (field.min !== undefined && !Number.isInteger(field.min)) context.addIssue({ code: 'custom', message: 'La borne minimale doit être un entier.', path: ['min'] });
+    if (field.max !== undefined && !Number.isInteger(field.max)) context.addIssue({ code: 'custom', message: 'La borne maximale doit être un entier.', path: ['max'] });
+  }
   if (field.min !== undefined && field.max !== undefined && field.min > field.max) context.addIssue({ code: 'custom', message: 'La borne minimale dépasse le maximum.', path: ['min'] });
   if (field.type === 'enum') {
     if (!field.options || field.options.length < 2) context.addIssue({ code: 'custom', message: 'Un champ enum exige au moins deux options.', path: ['options'] });

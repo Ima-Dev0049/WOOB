@@ -442,20 +442,26 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   await page.getByRole('button', { name: 'Personnaliser le modèle', exact: true }).click();
   const editor = page.locator('.application-model-editor');
   const preview = page.getByRole('complementary', { name: 'Aperçu du brouillon de modèle', exact: true });
-  async function addDraftField(type: string, label: string) {
+  async function addDraftField(type: string, label: string, bounds?: { min: string; max: string }) {
     await editor.getByRole('combobox', { name: 'Type de champ', exact: true }).selectOption(type);
     await editor.getByRole('textbox', { name: 'Nom du champ', exact: true }).fill(label);
+    if (bounds) {
+      await editor.getByRole('spinbutton', { name: /^Borne minimale/ }).fill(bounds.min);
+      await editor.getByRole('spinbutton', { name: /^Borne maximale/ }).fill(bounds.max);
+    }
     await editor.getByRole('button', { name: 'Ajouter le champ au brouillon', exact: true }).click();
   }
-  await addDraftField('integer', 'Capacité');
-  await addDraftField('number', 'Taux de réussite');
+  await addDraftField('integer', 'Capacité', { min: '1', max: '120' });
+  await addDraftField('number', 'Taux de réussite', { min: '0', max: '100' });
   await addDraftField('date', 'Ouverture prévue');
   const filierePreview = preview.locator('li').filter({ hasText: 'Filières' });
   await expect(filierePreview).toContainText('6 champs');
   await expect(filierePreview).toContainText('capacite');
   await expect(filierePreview).toContainText('Nombre entier');
+  await expect(filierePreview).toContainText('Min. 1 · Max. 120');
   await expect(filierePreview).toContainText('taux-de-reussite');
   await expect(filierePreview).toContainText('Nombre décimal');
+  await expect(filierePreview).toContainText('Min. 0 · Max. 100');
   await expect(filierePreview).toContainText('ouverture-prevue');
   await expect(filierePreview).toContainText('Date');
   await expect(preview).toContainText('11 routes logiques');
@@ -484,7 +490,15 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   await expect(capacity).toHaveValue('');
   await expect(successRate).toHaveValue('');
   await expect(openingDate).toHaveValue('');
+  await expect(capacity).toHaveAttribute('min', '1');
+  await expect(capacity).toHaveAttribute('max', '120');
+  await expect(successRate).toHaveAttribute('min', '0');
+  await expect(successRate).toHaveAttribute('max', '100');
+  await capacity.fill('0');
+  expect(await capacity.evaluate((input) => (input as HTMLInputElement).validity.rangeUnderflow)).toBe(true);
   await capacity.fill('40');
+  await successRate.fill('100.1');
+  expect(await successRate.evaluate((input) => (input as HTMLInputElement).validity.rangeOverflow)).toBe(true);
   await successRate.fill('87.5');
   await openingDate.fill('2027-09-01');
   const updateResponse = page.waitForResponse((response) => response.url().includes('/application/objects/filieres/') && response.request().method() === 'PATCH' && response.status() === 200);
