@@ -1,4 +1,5 @@
 import type { ApplicationModel } from './model';
+import { commercialApplicationModel } from './commercial-model';
 import { restaurantApplicationModel } from './restaurant-model';
 import { schoolApplicationModel } from './school-model';
 
@@ -18,6 +19,13 @@ export const managedApplicationTemplates = [
     description: 'Tables, réservations et passage du service par les équipes accueil et salle.',
     actionLabel: 'Initialiser la gestion du restaurant',
     model: restaurantApplicationModel,
+  },
+  {
+    id: 'commercial',
+    name: 'Gestion commerciale',
+    description: 'Clients, opportunités et validation des conclusions par les équipes commerciales.',
+    actionLabel: 'Initialiser la gestion commerciale',
+    model: commercialApplicationModel,
   },
   {
     id: 'school',

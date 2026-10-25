@@ -7,6 +7,7 @@ import { createProject } from '@/server/services/projects';
 import { addExistingMember } from '@/server/services/members';
 import { applicationColumnKeys, applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, roleCanAction, type ApplicationModel } from '@/lib/application/model';
 import { addApplicationTransition, addOptionalApplicationEnumField, addOptionalApplicationRelationField, addOptionalApplicationTextField, addOptionalApplicationTypedField, addSimpleApplicationObject, setApplicationObjectColumns } from '@/lib/application/model-editor';
+import { commercialApplicationModel } from '@/lib/application/commercial-model';
 import { restaurantApplicationModel } from '@/lib/application/restaurant-model';
 import { schoolApplicationModel } from '@/lib/application/school-model';
 import {
@@ -164,6 +165,32 @@ describe('modèle d’application géré', () => {
     await expect(createApplicationRecord(contributor.user.id, details.project.id, 'reservations', input, context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
     expect((await getApplicationRecord(account.user.id, details.project.id, 'reservations', reservation.id, context.db)).data).toMatchObject({ statut: 'terminee', 'table-id': table.id, personnes: 2 });
     expect((await listApplicationRecords(account.user.id, details.project.id, 'reservations', { q: 'Client Restaurant' }, context.db)).total).toBe(1);
+  });
+
+  it('exécute une opportunité commerciale avec validation séparée et relation client persistée', async () => {
+    const routes = buildApplicationRoutes(commercialApplicationModel);
+    expect(routes).toHaveLength(12);
+    expect(routes.find((route) => route.id === 'opportunites.actions.qualifier')?.roles).toEqual(['owner', 'admin', 'editor']);
+    expect(routes.find((route) => route.id === 'opportunites.actions.conclure')?.roles).toEqual(['owner', 'admin', 'contributor']);
+    const { account, details } = await setup('commercial-application@example.com', commercialApplicationModel);
+    const client = await createApplicationRecord(account.user.id, details.project.id, 'clients', { nom: 'Entreprise Baobab', contact: 'Awa Mensah', email: 'contact@baobab.example', telephone: '+229 01 02 03 04', segment: 'grand-compte', notes: 'Client historique.' }, context.db);
+    const editor = await createAccount(context.db, 'commercial-equipe@example.com', 'Commercial');
+    const contributor = await createAccount(context.db, 'commercial-validation@example.com', 'Validation');
+    await addExistingMember(account.user.id, account.workspace.id, { email: editor.user.email, role: 'editor' }, context.db);
+    await addExistingMember(account.user.id, account.workspace.id, { email: contributor.user.email, role: 'contributor' }, context.db);
+    const input = { nom: 'Refonte du portail client', 'client-id': client.id, budget: 12500.5, echeance: '2027-01-15', notes: 'Proposition à valider.' };
+    const opportunity = await createApplicationRecord(account.user.id, details.project.id, 'opportunites', input, context.db);
+    expect(opportunity.data.statut).toBe('nouvelle');
+    await expect(executeApplicationAction(contributor.user.id, details.project.id, 'opportunites', opportunity.id, 'qualifier', context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    expect((await executeApplicationAction(editor.user.id, details.project.id, 'opportunites', opportunity.id, 'qualifier', context.db)).data.statut).toBe('qualifiee');
+    await expect(executeApplicationAction(editor.user.id, details.project.id, 'opportunites', opportunity.id, 'conclure', context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    expect((await executeApplicationAction(editor.user.id, details.project.id, 'opportunites', opportunity.id, 'proposer', context.db)).data.statut).toBe('proposition');
+    expect((await executeApplicationAction(contributor.user.id, details.project.id, 'opportunites', opportunity.id, 'conclure', context.db)).data.statut).toBe('gagnee');
+    await expect(executeApplicationAction(editor.user.id, details.project.id, 'opportunites', opportunity.id, 'perdre', context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_TRANSITION_INVALID' });
+    await expect(createApplicationRecord(contributor.user.id, details.project.id, 'opportunites', input, context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    await expect(deleteApplicationRecord(editor.user.id, details.project.id, 'clients', client.id, context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'opportunites', opportunity.id, context.db)).data).toMatchObject({ statut: 'gagnee', 'client-id': client.id, budget: 12500.5 });
+    expect((await listApplicationRecords(account.user.id, details.project.id, 'opportunites', { q: 'Refonte du portail' }, context.db)).total).toBe(1);
   });
 
   it('prépare et persiste un objet simple sans muter le modèle initial ni élargir les droits', async () => {

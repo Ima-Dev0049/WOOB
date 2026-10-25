@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
 import { createProjectThroughWizard } from './project-wizard';
+import { expectApplicationAccessible } from './application-audit';
 
 async function register(page: Page, email: string) {
   await page.goto('/register');
@@ -73,7 +73,7 @@ test('la gestion restaurant exécute tables, réservations, rôles et processus 
   await page.reload();
   await expect(row).toContainText('Terminée');
   await expect(row).toContainText(tableName);
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
 
   await page.getByRole('button', { name: /Routes & droits/ }).click();
   const confirmRoute = page.locator('.application-route-list article').filter({ hasText: 'Confirmer : Réservation' });

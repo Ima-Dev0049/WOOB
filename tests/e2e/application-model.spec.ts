@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
 import { createProjectThroughWizard } from './project-wizard';
+import { expectApplicationAccessible } from './application-audit';
 
 async function register(page: Page, email: string) {
   await page.goto('/register');
@@ -72,7 +72,7 @@ test('le modèle géré exécute un portail scolaire avec relations, processus e
   await acceptResponse;
   await expect(row).toContainText('Accepté');
   await page.screenshot({ path: 'test-results/application-model-desktop.png' });
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
 
   const search = page.getByRole('textbox', { name: 'Rechercher dans Dossiers' });
   await search.fill('aucun-dossier-possible');
@@ -174,7 +174,7 @@ test('la pagination et les relations recherchables fonctionnent au-delà du cach
   await expect(relationSelect.getByRole('option', { name: inside.name, exact: true })).toHaveCount(1);
   await expect(relationSelect.getByRole('option', { name: outside.name, exact: true })).toHaveCount(1);
   await expect(relationSelect).toHaveValue(outside.id);
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
   await page.screenshot({ path: 'test-results/application-relation-search-desktop.png', fullPage: true, animations: 'disabled' });
 
   const student = `Dossier relation ${suffix}`;
@@ -308,7 +308,7 @@ test('le brouillon de modèle est prévisualisé, annulable puis appliqué sans 
   await expect(preview).toContainText('15 routes logiques');
   await expect(preview.locator('code').filter({ hasText: 'club' })).toBeVisible();
   await expect(preview.getByText('Nouveau', { exact: true })).toBeVisible();
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
@@ -383,7 +383,7 @@ test('un champ texte optionnel rejoint un objet existant sans perdre ses enregis
   await expect(filierePreview).toContainText('Responsable');
   await expect(filierePreview).toContainText('responsable');
   await expect(preview).toContainText('11 routes logiques');
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
@@ -459,7 +459,7 @@ test('des champs typés optionnels rejoignent une filière existante et conserve
   await expect(filierePreview).toContainText('ouverture-prevue');
   await expect(filierePreview).toContainText('Date');
   await expect(preview).toContainText('11 routes logiques');
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
@@ -561,7 +561,7 @@ test('une relation optionnelle relie des objets existants et conserve ses deux r
   await expect(dossierPreview).toContainText('filiere-secondaire');
   await expect(dossierPreview).toContainText('→ filieres');
   await expect(preview).toContainText('11 routes logiques');
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
@@ -666,7 +666,7 @@ test('le canvas du modèle déplace les objets et pilote les ajouts structurés 
   await editor.getByRole('button', { name: 'Ajouter la relation au brouillon', exact: true }).click();
   await expect(dossierNode.locator('ul')).toContainText('Filière secondaire');
   await expect(canvas.locator('svg g')).toHaveCount(2);
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
   await page.screenshot({ path: 'test-results/application-model-canvas-desktop.png', fullPage: true, animations: 'disabled' });
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -766,7 +766,7 @@ test('une transition ajoutée sur le canvas rouvre un dossier existant sans éla
   const dossierNode = canvas.locator('[data-object-key="dossiers"]');
   await expect(dossierNode.locator('ul')).toContainText('Rouvrir');
   await expect(dossierNode.locator('ul')).toContainText('refuse → en-revue');
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
@@ -851,7 +851,7 @@ test('les colonnes configurées changent le tableau sans effacer les champs masq
   const dossierPreview = preview.locator('li').filter({ hasText: 'Dossiers' });
   await expect(dossierPreview).toContainText('Colonnes : nom → email → filiere-id → motivation → statut');
   await expect(preview).toContainText('11 routes logiques');
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
   await page.setViewportSize({ width: 390, height: 844 });
   const editorDimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   expect(editorDimensions.document).toBeLessThanOrEqual(editorDimensions.viewport + 1);
@@ -932,7 +932,7 @@ test('une liste de choix optionnelle conserve les anciennes filières et affiche
   await editor.getByRole('checkbox', { name: 'Afficher la colonne Niveau d’études', exact: true }).check();
   await expect(filierePreview.locator('.application-model-object-columns')).toHaveText('Colonnes : nom → code → description → niveau-d-etudes');
   await expect(preview).toContainText('11 routes logiques');
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await expectApplicationAccessible(page);
   await page.setViewportSize({ width: 390, height: 844 });
   const editorDimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   expect(editorDimensions.document).toBeLessThanOrEqual(editorDimensions.viewport + 1);
