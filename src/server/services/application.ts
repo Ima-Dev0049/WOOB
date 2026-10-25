@@ -16,6 +16,7 @@ import {
   type WorkspaceRole,
 } from '@/lib/application/model';
 import { requireProjectAccess } from '@/server/auth/tenancy';
+import type { ApplicationSummary } from '@/lib/application/summary';
 import { getDb, type Db } from '@/server/db';
 import { applicationModels, applicationRecords, projects, type ApplicationModelRow, type ApplicationRecordRow } from '@/server/db/schema';
 import { ApiError } from '@/server/http';
@@ -185,11 +186,44 @@ export async function saveApplicationModel(userId: string, projectId: string, in
   });
 }
 
+async function summaryFromContext(context: ModelContext, db: Db): Promise<ApplicationSummary> {
+  const readable = context.row.model.objects.filter((object) => roleCan(context.row.model, context.role, object.key, 'read'));
+  if (!readable.length) return { total: 0, objects: [] };
+  const statusObjects = readable.filter((object) => object.statusField);
+  const statusExpression = statusObjects.length
+    ? sql<string | null>`case ${applicationRecords.objectKey} ${sql.join(statusObjects.map((object) => sql`when ${object.key} then ${applicationRecords.data} ->> ${object.statusField}`), sql` `)} else null end`
+    : sql<string | null>`null::text`;
+  const rows = await db.select({
+    objectKey: applicationRecords.objectKey,
+    status: statusExpression,
+    count: sql<number>`count(*)::int`,
+  }).from(applicationRecords).where(and(
+    eq(applicationRecords.projectId, context.access.project.id),
+    eq(applicationRecords.workspaceId, context.access.project.workspaceId),
+    inArray(applicationRecords.objectKey, readable.map((object) => object.key)),
+  )).groupBy(sql`1`, sql`2`); // Select positions keep the parameterized status expression identical in GROUP BY.
+  const byObject = new Map<string, ApplicationSummary['objects'][number]>();
+  for (const object of readable) byObject.set(object.key, { objectKey: object.key, total: 0, statuses: [] });
+  for (const row of rows) {
+    const summary = byObject.get(row.objectKey);
+    if (!summary) continue;
+    summary.total += row.count;
+    if (row.status !== null) summary.statuses.push({ value: row.status, count: row.count });
+  }
+  const objects = [...byObject.values()];
+  return { total: objects.reduce((total, object) => total + object.total, 0), objects };
+}
+
+export async function getApplicationSummary(userId: string, projectId: string, db?: Db): Promise<ApplicationSummary> {
+  const database = db ?? await getDb();
+  return summaryFromContext(await readContext(userId, projectId, 'read', database), database);
+}
+
 export async function getApplicationDashboard(userId: string, projectId: string, db?: Db) {
   const database = db ?? await getDb();
   const access = await requireProjectAccess(userId, projectId, 'read', database);
   const row = await currentModel(projectId, database);
-  if (!row) return { project: access.project, role: access.member.role as WorkspaceRole, canManage: ['owner', 'admin'].includes(access.member.role), model: null, version: 0, objects: [] };
+  if (!row) return { project: access.project, role: access.member.role as WorkspaceRole, canManage: ['owner', 'admin'].includes(access.member.role), model: null, version: 0, objects: [], summary: { total: 0, objects: [] } };
   const parsedRole = workspaceRoleSchema.parse(access.member.role);
   const context: ModelContext = { access, row, role: parsedRole };
   const readable = row.model.objects.filter((object) => roleCan(row.model, parsedRole, object.key, 'read'));
@@ -197,7 +231,7 @@ export async function getApplicationDashboard(userId: string, projectId: string,
     object,
     ...(await listFromContext({ ...context, object }, { limit: 100, offset: 0 }, database)),
   })));
-  return { project: access.project, role: parsedRole, canManage: ['owner', 'admin'].includes(access.member.role), model: row.model, version: row.version, objects };
+  return { project: access.project, role: parsedRole, canManage: ['owner', 'admin'].includes(access.member.role), model: row.model, version: row.version, objects, summary: await summaryFromContext(context, database) };
 }
 
 export async function listApplicationRecords(userId: string, projectId: string, objectKey: string, input: unknown, db?: Db) {

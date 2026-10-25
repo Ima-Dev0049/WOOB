@@ -70,10 +70,24 @@ test('la gestion restaurant exécute tables, réservations, rôles et processus 
   await runAction('Installer', 'installer', 'Installée');
   await runAction('Terminer', 'terminer', 'Terminée');
   await expect(page.getByRole('button', { name: `Annuler : ${client}`, exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Vue d’ensemble/ }).click();
+  await expect(page.getByRole('heading', { name: 'Vue d’ensemble', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/[?&]objet=summary/);
+  await expect(page.locator('.application-summary > header .status-pill')).toHaveText('2 enregistrements');
+  const tableCard = page.locator('.application-summary-card').filter({ has: page.getByRole('heading', { name: 'Tables', exact: true }) });
+  const reservationCard = page.locator('.application-summary-card').filter({ has: page.getByRole('heading', { name: 'Réservations', exact: true }) });
+  await expect(tableCard.locator('.application-summary-total strong')).toHaveText('1');
+  await expect(reservationCard.locator('.application-summary-total strong')).toHaveText('1');
+  await expect(reservationCard.locator('li').filter({ hasText: 'Demandée' })).toContainText('0');
+  await expect(reservationCard.locator('li').filter({ hasText: 'Terminée' })).toContainText('1');
   await page.reload();
-  await expect(row).toContainText('Terminée');
-  await expect(row).toContainText(tableName);
+  await expect(page.locator('.application-summary > header .status-pill')).toHaveText('2 enregistrements');
+  await expect(reservationCard.locator('li').filter({ hasText: 'Terminée' })).toContainText('1');
   await expectApplicationAccessible(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const summaryDimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+  expect(summaryDimensions.document).toBeLessThanOrEqual(summaryDimensions.viewport + 1);
+  await page.screenshot({ path: 'test-results/application-summary-mobile.png', fullPage: true, animations: 'disabled' });
 
   await page.getByRole('button', { name: /Routes & droits/ }).click();
   const confirmRoute = page.locator('.application-route-list article').filter({ hasText: 'Confirmer : Réservation' });
@@ -83,6 +97,8 @@ test('la gestion restaurant exécute tables, réservations, rôles et processus 
   await expect(installRoute).toContainText('Service');
   await expect(installRoute).not.toContainText('Accueil');
   await page.getByRole('button', { name: /^Réservations/ }).click();
+  await expect(row).toContainText('Terminée');
+  await expect(row).toContainText(tableName);
   await page.setViewportSize({ width: 390, height: 844 });
   const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);

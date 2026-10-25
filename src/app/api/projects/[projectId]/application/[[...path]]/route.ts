@@ -8,6 +8,7 @@ import {
   executeApplicationAction,
   getApplicationModel,
   getApplicationRecord,
+  getApplicationSummary,
   listApplicationRecords,
   saveApplicationModel,
   updateApplicationRecord,
@@ -32,6 +33,7 @@ export async function GET(request: Request, context: RouteContext) {
     const auth = await requireUser();
     const { projectId, path = [] } = await context.params;
     if (!path.length) return noStore(NextResponse.json(await getApplicationModel(auth.user.id, projectId)));
+    if (path.length === 1 && path[0] === 'summary') return noStore(NextResponse.json(await getApplicationSummary(auth.user.id, projectId)));
     if (path[0] !== 'objects') notFound();
     if (path.length === 2) return noStore(NextResponse.json(await listApplicationRecords(auth.user.id, projectId, path[1]!, listOptions(request))));
     if (path.length === 3) return noStore(NextResponse.json({ record: await getApplicationRecord(auth.user.id, projectId, path[1]!, path[2]!) }));

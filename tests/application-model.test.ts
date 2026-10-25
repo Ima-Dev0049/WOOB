@@ -17,6 +17,7 @@ import {
   executeApplicationAction,
   getApplicationModel,
   getApplicationRecord,
+  getApplicationSummary,
   listApplicationRecords,
   saveApplicationModel,
   updateApplicationRecord,
@@ -221,6 +222,35 @@ describe('modèle d’application géré', () => {
     await expect(deleteApplicationRecord(account.user.id, details.project.id, 'cours', course.id, context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_RECORD_REFERENCED' });
     expect((await getApplicationRecord(account.user.id, details.project.id, 'inscriptions', enrollment.id, context.db)).data).toMatchObject({ statut: 'terminee', 'etudiant-id': student.id, 'cours-id': course.id });
     expect((await listApplicationRecords(account.user.id, details.project.id, 'inscriptions', { q: 'INS-2027' }, context.db)).total).toBe(1);
+  });
+
+  it('agrège tous les enregistrements lisibles au-delà de la pagination sans exposer les objets interdits', async () => {
+    const restricted = structuredClone(restaurantApplicationModel);
+    restricted.roles = restricted.roles.map((role) => role.key === 'editor' ? { ...role, grants: role.grants.filter((grant) => grant.object === 'reservations') } : role);
+    const { account, details } = await setup('summary-application@example.com', restricted);
+    const empty = await getApplicationSummary(account.user.id, details.project.id, context.db);
+    expect(empty).toEqual({ total: 0, objects: [{ objectKey: 'tables', total: 0, statuses: [] }, { objectKey: 'reservations', total: 0, statuses: [] }] });
+    const table = await createApplicationRecord(account.user.id, details.project.id, 'tables', { nom: 'Salle synthèse', places: 4, zone: 'salle' }, context.db);
+    const editor = await createAccount(context.db, 'summary-accueil@example.com', 'Accueil');
+    await addExistingMember(account.user.id, account.workspace.id, { email: editor.user.email, role: 'editor' }, context.db);
+    const reservations = [];
+    for (let index = 0; index < 30; index += 1) {
+      reservations.push(await createApplicationRecord(account.user.id, details.project.id, 'reservations', { nom: `Client synthèse ${index}`, telephone: '+229 01 02 03 04', date: '2027-02-10', service: 'diner', personnes: 2, 'table-id': table.id }, context.db));
+    }
+    await executeApplicationAction(editor.user.id, details.project.id, 'reservations', reservations[0]!.id, 'confirmer', context.db);
+    const page = await listApplicationRecords(account.user.id, details.project.id, 'reservations', { limit: 25, offset: 0 }, context.db);
+    expect(page.records).toHaveLength(25);
+    expect(page.total).toBe(30);
+    const summary = await getApplicationSummary(account.user.id, details.project.id, context.db);
+    expect(summary.total).toBe(31);
+    expect(summary.objects.find((object) => object.objectKey === 'tables')).toEqual({ objectKey: 'tables', total: 1, statuses: [] });
+    const reservationSummary = summary.objects.find((object) => object.objectKey === 'reservations');
+    expect(reservationSummary?.total).toBe(30);
+    expect(reservationSummary?.statuses).toEqual(expect.arrayContaining([{ value: 'demandee', count: 29 }, { value: 'confirmee', count: 1 }]));
+    const editorSummary = await getApplicationSummary(editor.user.id, details.project.id, context.db);
+    expect(editorSummary.total).toBe(30);
+    expect(editorSummary.objects.map((object) => object.objectKey)).toEqual(['reservations']);
+    expect(restaurantApplicationModel.roles.find((role) => role.key === 'editor')?.grants).toHaveLength(2);
   });
 
   it('prépare et persiste un objet simple sans muter le modèle initial ni élargir les droits', async () => {

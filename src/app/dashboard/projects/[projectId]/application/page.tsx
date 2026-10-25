@@ -23,6 +23,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ pr
       version={data.version}
       role={data.role}
       canManage={data.canManage}
+      initialSummary={data.summary}
       initialObjects={data.objects.map((item) => ({
         object: item.object,
         total: item.total,

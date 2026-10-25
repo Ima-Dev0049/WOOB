@@ -46,10 +46,23 @@
   .application-tabs button { align-items: center; background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--application-muted); display: flex; font-size: 12px; gap: 8px; padding: 12px 15px; transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease; white-space: nowrap; }
   .application-tabs button.active { border-bottom-color: var(--primary); color: var(--primary-dark); font-weight: 700; }
   .application-tabs button span { background: var(--application-count-bg); border-radius: 10px; color: var(--application-muted); font-size: 9px; padding: 2px 6px; }
-  .application-object, .application-routes { min-width: 0; }
-  .application-object-header, .application-routes > header { align-items: start; display: flex; gap: 20px; justify-content: space-between; margin-bottom: 20px; }
-  .application-object-header h2, .application-routes h2 { font-size: 22px; letter-spacing: -.025em; }
-  .application-object-header p, .application-routes header p { color: var(--application-muted); font-size: 12px; margin-top: 6px; }
+  .application-object, .application-routes, .application-summary { min-width: 0; }
+  .application-object-header, .application-routes > header, .application-summary > header { align-items: start; display: flex; gap: 20px; justify-content: space-between; margin-bottom: 20px; }
+  .application-object-header h2, .application-routes h2, .application-summary h2 { font-size: 22px; letter-spacing: -.025em; }
+  .application-object-header p, .application-routes header p, .application-summary > header p { color: var(--application-muted); font-size: 12px; margin-top: 6px; }
+  .application-summary-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .application-summary-card { background: var(--application-surface); border: 1px solid var(--application-border); border-radius: 12px; display: flex; flex-direction: column; gap: 18px; min-width: 0; padding: 20px; }
+  .application-summary-card > header { align-items: start; display: flex; gap: 14px; justify-content: space-between; }
+  .application-summary-card h3 { color: var(--application-heading); font-size: 16px; }
+  .application-summary-card header p { color: var(--application-muted); font-size: 11px; line-height: 1.55; margin-top: 6px; }
+  .application-summary-total { flex: 0 0 auto; text-align: right; }
+  .application-summary-total strong { color: var(--application-heading); display: block; font-size: 28px; line-height: 1; }
+  .application-summary-total span { color: var(--application-muted); display: block; font-size: 9px; margin-top: 5px; }
+  .application-summary-card ul { display: grid; gap: 7px; list-style: none; margin: 0; padding: 0; }
+  .application-summary-card li { align-items: center; background: var(--application-surface-subtle); border: 1px solid var(--application-row-border); border-radius: 8px; color: var(--application-muted-strong); display: flex; font-size: 11px; justify-content: space-between; padding: 9px 11px; }
+  .application-summary-card li strong { color: var(--application-heading); font-size: 13px; }
+  .application-summary-card > .button { align-self: start; margin-top: auto; }
+  .application-summary-empty { color: var(--application-muted); font-size: 12px; }
   .application-filters { align-items: end; background: var(--application-surface); border: 1px solid var(--application-border); border-radius: 12px 12px 0 0; display: flex; flex-wrap: wrap; gap: 14px; padding: 16px 18px; }
   .application-filters label { color: var(--application-label); display: grid; font-size: 10px; gap: 6px; }
   .application-filters label:first-child { flex: 1; min-width: 220px; }
@@ -192,7 +205,7 @@
 
 @layer responsive {
   @media (max-width: 760px) {
-    .application-runtime-note, .application-object-header, .application-routes > header { align-items: stretch; flex-direction: column; }
+    .application-runtime-note, .application-object-header, .application-routes > header, .application-summary > header { align-items: stretch; flex-direction: column; }
     .application-runtime-note { gap: 10px; }
     .application-form-grid { grid-template-columns: 1fr; }
     .application-form-grid > label:has(textarea) { grid-column: auto; }

@@ -16,6 +16,7 @@ import {
   type WorkspaceRole,
 } from '@/lib/application/model';
 import { managedApplicationTemplates } from '@/lib/application/templates';
+import type { ApplicationSummary } from '@/lib/application/summary';
 import { ApplicationModelEditor } from './ApplicationModelEditor';
 
 const PAGE_SIZE = 25;
@@ -38,12 +39,13 @@ function applicationColumns(object: ApplicationObject): ApplicationField[] {
     .filter(Boolean);
 }
 
-export function ApplicationManager({ projectId, model, version, role, canManage, initialObjects }: {
+export function ApplicationManager({ projectId, model, version, role, canManage, initialSummary, initialObjects }: {
   projectId: string;
   model: ApplicationModel | null;
   version: number;
   role: WorkspaceRole;
   canManage: boolean;
+  initialSummary: ApplicationSummary;
   initialObjects: ManagedObjectData[];
 }) {
   const router = useRouter();
@@ -51,9 +53,9 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
   const readableObjects = useMemo(() => model?.objects.filter((object) => roleCan(model, role, object.key, 'read')) ?? [], [model, role]);
   const [activeKey, setActiveKey] = useState(() => {
     const requested = searchParams.get('objet');
-    return requested === 'routes' || readableObjects.some((object) => object.key === requested) ? requested! : readableObjects[0]?.key ?? 'routes';
+    return requested === 'routes' || requested === 'summary' || readableObjects.some((object) => object.key === requested) ? requested! : readableObjects[0]?.key ?? 'routes';
   });
-  const selectedKey = activeKey === 'routes' || readableObjects.some((object) => object.key === activeKey) ? activeKey : readableObjects[0]?.key ?? 'routes';
+  const selectedKey = activeKey === 'routes' || activeKey === 'summary' || readableObjects.some((object) => object.key === activeKey) ? activeKey : readableObjects[0]?.key ?? 'routes';
   const activeObject = model?.objects.find((object) => object.key === selectedKey);
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const [statusFilter, setStatusFilter] = useState(() => {
@@ -68,6 +70,7 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
   ])));
   const [relationRecords, setRelationRecords] = useState<Record<string, ManagedRecord[]>>(() => Object.fromEntries(initialObjects.map((item) => [item.object.key, item.records])));
   const [totals, setTotals] = useState<Record<string, number>>(() => Object.fromEntries(initialObjects.map((item) => [item.object.key, item.total])));
+  const [summary, setSummary] = useState(initialSummary);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState('');
@@ -171,9 +174,20 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
   }, [baseUrl, readableObjects, reloadKey]);
 
   useEffect(() => {
+    if (!reloadKey) return;
+    const controller = new AbortController();
+    void apiFetch<ApplicationSummary>(`${baseUrl}/summary`, { signal: controller.signal })
+      .then((result) => { if (!controller.signal.aborted) setSummary(result); })
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name !== 'AbortError') setMessage('Les données sont enregistrées, mais le tableau de bord n’a pas pu être actualisé.');
+      });
+    return () => controller.abort();
+  }, [baseUrl, reloadKey]);
+
+  useEffect(() => {
     const url = new URL(window.location.href);
     url.searchParams.set('objet', selectedKey);
-    if (selectedKey === 'routes') {
+    if (selectedKey === 'routes' || selectedKey === 'summary') {
       url.searchParams.delete('q');
       url.searchParams.delete('statut');
       url.searchParams.delete('page');
@@ -240,12 +254,15 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
   return <div className="application-manager">
     <div className="application-runtime-note"><span><strong>Serveur commun sécurisé</strong>Aucun backend ni schéma SQL généré par site.</span><span>Modèle v{version} · Rôle : {roleLabel(role)}</span></div>
     <nav className="application-tabs" aria-label="Objets et plan du modèle">
+      <button disabled={modelEditorOpen} className={selectedKey === 'summary' ? 'active' : ''} aria-current={selectedKey === 'summary' ? 'page' : undefined} onClick={() => selectObject('summary')}>Vue d’ensemble<span>{summary.total}</span></button>
       {readableObjects.map((object) => <button key={object.key} disabled={modelEditorOpen} className={selectedKey === object.key ? 'active' : ''} aria-current={selectedKey === object.key ? 'page' : undefined} onClick={() => selectObject(object.key)}>{object.pluralLabel}<span>{totals[object.key] ?? 0}</span></button>)}
       <button disabled={modelEditorOpen} className={selectedKey === 'routes' ? 'active' : ''} aria-current={selectedKey === 'routes' ? 'page' : undefined} onClick={() => selectObject('routes')}>Routes &amp; droits<span>{routes.length}</span></button>
     </nav>
     {canManage && !modelEditorOpen && <div className="application-model-actions"><button className="button secondary small" onClick={() => { setForm(null); setMessage(''); setModelEditorOpen(true); }}>Personnaliser le modèle</button></div>}
     {modelEditorOpen && canManage && <ApplicationModelEditor key={`${projectId}-${version}`} model={model} version={version} baseUrl={baseUrl} onApplied={() => { setModelEditorOpen(false); const url = new URL(window.location.href); url.searchParams.set('objet', selectedKey); router.replace(`${url.pathname}${url.search}${url.hash}`, { scroll: false }); router.refresh(); }} onCancel={() => setModelEditorOpen(false)} />}
     {message && <p className="form-status" role="status">{message}</p>}
+
+    {!modelEditorOpen && selectedKey === 'summary' && <ApplicationSummaryView model={model} summary={summary} onSelect={selectObject} />}
 
     {!modelEditorOpen && activeObject && readableObjects.some((object) => object.key === activeObject.key) && <section className="application-object">
       <header className="application-object-header"><div><h2>{activeObject.pluralLabel}</h2><p>{activeObject.description || `Enregistrements gérés par le modèle ${model.name}.`}</p></div>{can(activeObject.key, 'create') && <button className="button dark small" disabled={pending} onClick={() => setForm({ objectKey: activeObject.key })}>Ajouter : {activeObject.label}</button>}</header>
@@ -280,8 +297,24 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
     </section>}
 
     {!modelEditorOpen && selectedKey === 'routes' && <section className="application-routes"><header><div><h2>Plan d’exécution et permissions</h2><p>Chaque opération est déduite du modèle actif, puis contrôlée à nouveau côté serveur.</p></div><span className="status-pill">{routes.length} routes logiques</span></header><div className="application-route-list">{routes.map((route) => <article key={route.id}><span className={`http-method ${route.method.toLowerCase()}`}>{route.method}</span><div><strong>{route.label}</strong><code>{route.id}</code></div><p>{route.roles.length ? route.roles.map(roleLabel).join(', ') : 'Aucun rôle autorisé'}</p></article>)}</div><p className="application-api-note">Les routes techniques restent internes et authentifiées. Aucune API publique, clé d’accès, redirection personnalisée ou publication de ces objets n’est activée dans ce lot.</p></section>}
-    {!modelEditorOpen && !readableObjects.length && selectedKey !== 'routes' && <div className="empty-state"><p>Votre rôle ne possède aucun droit de lecture sur ce modèle.</p></div>}
+    {!modelEditorOpen && !readableObjects.length && selectedKey !== 'routes' && selectedKey !== 'summary' && <div className="empty-state"><p>Votre rôle ne possède aucun droit de lecture sur ce modèle.</p></div>}
   </div>;
+}
+
+function ApplicationSummaryView({ model, summary, onSelect }: { model: ApplicationModel; summary: ApplicationSummary; onSelect: (objectKey: string) => void }) {
+  return <section className="application-summary">
+    <header><div><h2>Vue d’ensemble</h2><p>Compteurs calculés sur tous les enregistrements que votre rôle peut lire, au-delà de la pagination.</p></div><span className="status-pill">{summary.total} enregistrement{summary.total === 1 ? '' : 's'}</span></header>
+    {summary.objects.length ? <div className="application-summary-grid">{summary.objects.map((objectSummary) => {
+      const object = model.objects.find((candidate) => candidate.key === objectSummary.objectKey);
+      if (!object) return null;
+      const statusField = object.statusField ? object.fields.find((field) => field.key === object.statusField) : undefined;
+      return <article className="application-summary-card" key={object.key}>
+        <header><div><h3>{object.pluralLabel}</h3><p>{object.description}</p></div><div className="application-summary-total"><strong>{objectSummary.total}</strong><span>enregistrement{objectSummary.total === 1 ? '' : 's'}</span></div></header>
+        {statusField?.type === 'enum' ? <ul aria-label={`Statuts : ${object.pluralLabel}`}>{statusField.options?.map((option) => <li key={option.value}><span>{option.label}</span><strong>{objectSummary.statuses.find((status) => status.value === option.value)?.count ?? 0}</strong></li>)}</ul> : <p className="application-summary-empty">Objet sans processus de statut.</p>}
+        <button className="button ghost small" onClick={() => onSelect(object.key)}>Consulter : {object.pluralLabel}</button>
+      </article>;
+    })}</div> : <p className="application-summary-empty">Votre rôle ne possède aucun objet lisible dans ce modèle.</p>}
+  </section>;
 }
 
 function ApplicationRecordTable({ object, model, role, records, loading, displayValue, pending, onEdit, onDelete, onAction }: {
