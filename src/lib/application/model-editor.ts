@@ -28,8 +28,9 @@ export type ApplicationTextFieldInput = {
 
 export type ApplicationRelationFieldInput = ApplicationTextFieldInput & { targetObject: string };
 export type ApplicationTypedFieldInput = ApplicationTextFieldInput & { type: 'text' | 'integer' | 'number' | 'date' };
+export type ApplicationTransitionInput = ApplicationTextFieldInput & { from: string; to: string };
 
-function applicationKeyBase(value: string, prefix: 'objet' | 'champ'): string {
+function applicationKeyBase(value: string, prefix: 'objet' | 'champ' | 'action'): string {
   const slug = value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -40,7 +41,7 @@ function applicationKeyBase(value: string, prefix: 'objet' | 'champ'): string {
   return prefixed.slice(0, 48).replace(/-+$/g, '') || prefix;
 }
 
-export function uniqueApplicationKey(value: string, existingKeys: readonly string[], prefix: 'objet' | 'champ' = 'objet'): string {
+export function uniqueApplicationKey(value: string, existingKeys: readonly string[], prefix: 'objet' | 'champ' | 'action' = 'objet'): string {
   const base = applicationKeyBase(value, prefix);
   const existing = new Set(existingKeys);
   let candidate = base;
@@ -93,6 +94,25 @@ export function addOptionalApplicationTypedField(model: ApplicationModel, input:
         required: false,
         ...(input.type === 'text' ? { maxLength: 160 } : {}),
       }],
+    } : object),
+  });
+}
+
+/** Adds one single-source transition while preserving statuses, actions and role grants. */
+export function addApplicationTransition(model: ApplicationModel, input: ApplicationTransitionInput): ApplicationModel {
+  const target = model.objects.find((object) => object.key === input.objectKey);
+  if (!target) throw new Error('Objet du processus introuvable dans le brouillon.');
+  const status = target.fields.find((field) => field.key === target.statusField);
+  if (!status || status.type !== 'enum' || !status.options) throw new Error('Cet objet ne possède pas de statut utilisable.');
+  const statuses = new Set(status.options.map((option) => option.value));
+  if (!statuses.has(input.from) || !statuses.has(input.to)) throw new Error('Les statuts source et cible doivent appartenir au processus.');
+  if (input.from === input.to) throw new Error('La transition doit changer de statut.');
+  const key = uniqueApplicationKey(input.key.trim() || input.label, target.actions.map((action) => action.key), 'action');
+  return applicationModelSchema.parse({
+    ...model,
+    objects: model.objects.map((object) => object.key === target.key ? {
+      ...object,
+      actions: [...object.actions, { key, label: input.label.trim(), from: [input.from], to: input.to }],
     } : object),
   });
 }

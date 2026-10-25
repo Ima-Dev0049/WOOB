@@ -41,7 +41,7 @@ function relationGeometry(sourceKey: string, targetKey: string, source: Applicat
   };
 }
 
-export function ApplicationModelCanvas({ objects, originalKeys, positions, selectedKey, relationSource, pending, onSelect, onMove, onAddObject, onAddField, onBeginRelation, onCancelRelation, onResetLayout }: {
+export function ApplicationModelCanvas({ objects, originalKeys, positions, selectedKey, relationSource, pending, onSelect, onMove, onAddObject, onAddField, onAddAction, onBeginRelation, onCancelRelation, onResetLayout }: {
   objects: ApplicationObject[];
   originalKeys: ReadonlySet<string>;
   positions: Record<string, ApplicationCanvasPoint>;
@@ -52,6 +52,7 @@ export function ApplicationModelCanvas({ objects, originalKeys, positions, selec
   onMove: (objectKey: string, point: ApplicationCanvasPoint) => void;
   onAddObject: () => void;
   onAddField: (objectKey: string) => void;
+  onAddAction: (objectKey: string) => void;
   onBeginRelation: (objectKey: string) => void;
   onCancelRelation: () => void;
   onResetLayout: () => void;
@@ -126,8 +127,11 @@ export function ApplicationModelCanvas({ objects, originalKeys, positions, selec
             <button type="button" className="application-model-canvas-node-header" disabled={pending} aria-describedby="application-model-canvas-help" aria-pressed={selectedKey === object.key} onPointerDown={(event) => startDrag(event, object.key, index)} onPointerMove={moveDrag} onPointerUp={(event) => finishDrag(event)} onPointerCancel={(event) => finishDrag(event, true)} onKeyDown={(event) => moveWithKeyboard(event, object.key, index)}>
               <span><strong>{object.pluralLabel}</strong><code>{object.key}</code></span>{added ? <span className="application-model-new-badge">Nouveau</span> : <span aria-hidden="true">⠿</span>}
             </button>
-            <ul aria-label={`Champs de ${object.pluralLabel}`} tabIndex={0}>{object.fields.map((field) => <li key={field.key}><span>{field.label}</span><code>{field.type === 'relation' ? `→ ${field.targetObject}` : applicationFieldTypeLabels[field.type]}</code></li>)}</ul>
-            <footer><button type="button" className="button ghost small" disabled={pending} aria-label={`Ajouter un champ à ${object.pluralLabel} sur le canvas`} onClick={() => onAddField(object.key)}>+ Champ</button><button type="button" className="button secondary small" disabled={pending} aria-label={`Relier ${object.pluralLabel} sur le canvas`} onClick={() => onBeginRelation(object.key)}>Relier</button></footer>
+            <ul aria-label={`Champs et transitions de ${object.pluralLabel}`} tabIndex={0}>
+              {object.fields.map((field) => <li key={field.key}><span>{field.label}</span><code>{field.type === 'relation' ? `→ ${field.targetObject}` : applicationFieldTypeLabels[field.type]}</code></li>)}
+              {object.actions.map((action) => <li className="application-model-canvas-action" key={`action:${action.key}`}><span>↳ {action.label}</span><code>{action.from.join(', ')} → {action.to}</code></li>)}
+            </ul>
+            <footer><button type="button" className="button ghost small" disabled={pending} aria-label={`Ajouter un champ à ${object.pluralLabel} sur le canvas`} onClick={() => onAddField(object.key)}>+ Champ</button><button type="button" className="button secondary small" disabled={pending} aria-label={`Relier ${object.pluralLabel} sur le canvas`} onClick={() => onBeginRelation(object.key)}>Relier</button>{object.statusField && <button type="button" className="button ghost small" disabled={pending} aria-label={`Ajouter une transition à ${object.pluralLabel} sur le canvas`} onClick={() => onAddAction(object.key)}>+ Transition</button>}</footer>
           </article>;
         })}
       </div>

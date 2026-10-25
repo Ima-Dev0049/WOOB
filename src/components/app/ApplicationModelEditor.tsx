@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { apiFetch, errorMessage } from '@/lib/client-api';
 import { ApplicationModelCanvas, applicationCanvasPointAt, initialApplicationCanvasPositions } from './ApplicationModelCanvas';
-import { addOptionalApplicationRelationField, addOptionalApplicationTypedField, addSimpleApplicationObject, applicationFieldTypeLabels, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type ApplicationTypedFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
+import { addApplicationTransition, addOptionalApplicationRelationField, addOptionalApplicationTypedField, addSimpleApplicationObject, applicationFieldTypeLabels, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type ApplicationTransitionInput, type ApplicationTypedFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
 import { applicationModelSchema, buildApplicationRoutes, type ApplicationModel } from '@/lib/application/model';
 
 const emptyObject: SimpleApplicationObjectInput = { label: '', pluralLabel: '', key: '', description: '' };
@@ -13,6 +13,16 @@ const optionalFieldTypes = [
   { value: 'number', label: applicationFieldTypeLabels.number, help: 'Nombre optionnel, décimales autorisées.' },
   { value: 'date', label: applicationFieldTypeLabels.date, help: 'Date optionnelle au format AAAA-MM-JJ.' },
 ] satisfies ReadonlyArray<{ value: ApplicationTypedFieldInput['type']; label: string; help: string }>;
+
+function transitionDefaults(object: ApplicationModel['objects'][number] | undefined) {
+  const options = object?.fields.find((field) => field.key === object.statusField)?.options ?? [];
+  return { from: options[0]?.value ?? '', to: options[1]?.value ?? options[0]?.value ?? '' };
+}
+
+function initialTransition(model: ApplicationModel): ApplicationTransitionInput {
+  const object = model.objects.find((candidate) => candidate.statusField);
+  return { objectKey: object?.key ?? '', label: '', key: '', ...transitionDefaults(object) };
+}
 
 export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onCancel }: {
   model: ApplicationModel;
@@ -25,18 +35,22 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
   const [newObject, setNewObject] = useState<SimpleApplicationObjectInput>(emptyObject);
   const [newField, setNewField] = useState<ApplicationTypedFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', label: '', key: '', type: 'text' }));
   const [newRelation, setNewRelation] = useState<ApplicationRelationFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', targetObject: model.objects[0]?.key ?? '', label: '', key: '' }));
+  const [newTransition, setNewTransition] = useState<ApplicationTransitionInput>(() => initialTransition(model));
   const [canvasPositions, setCanvasPositions] = useState(() => initialApplicationCanvasPositions(model.objects));
   const [selectedObjectKey, setSelectedObjectKey] = useState(model.objects[0]?.key ?? '');
   const [relationSource, setRelationSource] = useState<string | null>(null);
   const objectLabelRef = useRef<HTMLInputElement>(null);
   const fieldLabelRef = useRef<HTMLInputElement>(null);
   const relationLabelRef = useRef<HTMLInputElement>(null);
+  const transitionLabelRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const parsedDraft = useMemo(() => applicationModelSchema.safeParse(draft), [draft]);
   const routeCount = parsedDraft.success ? buildApplicationRoutes(parsedDraft.data).length : 0;
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(model), [draft, model]);
   const originalKeys = useMemo(() => new Set(model.objects.map((object) => object.key)), [model]);
+  const transitionObject = draft.objects.find((object) => object.key === newTransition.objectKey);
+  const transitionStatuses = transitionObject?.fields.find((field) => field.key === transitionObject.statusField)?.options ?? [];
 
   function updateNewObject(field: keyof SimpleApplicationObjectInput, value: string) {
     setNewObject((current) => ({ ...current, [field]: value }));
@@ -74,6 +88,23 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     setSelectedObjectKey(objectKey);
     setRelationSource(objectKey);
     setNewRelation((current) => ({ ...current, objectKey }));
+    setError('');
+  }
+
+  function selectTransitionObject(objectKey: string) {
+    const object = draft.objects.find((candidate) => candidate.key === objectKey);
+    setNewTransition((current) => ({ ...current, objectKey, ...transitionDefaults(object) }));
+    setError('');
+  }
+
+  function addTransitionFromCanvas(objectKey: string) {
+    setSelectedObjectKey(objectKey);
+    selectTransitionObject(objectKey);
+    transitionLabelRef.current?.focus();
+  }
+
+  function updateNewTransition(field: Exclude<keyof ApplicationTransitionInput, 'objectKey'>, value: string) {
+    setNewTransition((current) => ({ ...current, [field]: value }));
     setError('');
   }
 
@@ -116,6 +147,17 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
       setError('');
     } catch {
       setError('Impossible d’ajouter cette relation. Vérifiez les objets source et lié, le nom et les limites du modèle.');
+    }
+  }
+
+  function addTransition() {
+    try {
+      const next = addApplicationTransition(draft, newTransition);
+      setDraft(next);
+      setNewTransition((current) => ({ ...current, label: '', key: '' }));
+      setError('');
+    } catch {
+      setError('Impossible d’ajouter cette transition. Vérifiez le nom, les statuts et les limites du processus.');
     }
   }
 
@@ -164,6 +206,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
       onMove={(objectKey, point) => setCanvasPositions((current) => ({ ...current, [objectKey]: point }))}
       onAddObject={() => objectLabelRef.current?.focus()}
       onAddField={addFieldFromCanvas}
+      onAddAction={addTransitionFromCanvas}
       onBeginRelation={beginCanvasRelation}
       onCancelRelation={() => setRelationSource(null)}
       onResetLayout={() => setCanvasPositions(initialApplicationCanvasPositions(draft.objects))}
@@ -208,6 +251,18 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           </div>
           <button type="button" className="button secondary small" disabled={pending || !newRelation.objectKey || !newRelation.targetObject || !newRelation.label.trim()} onClick={addRelation}>Ajouter la relation au brouillon</button>
         </fieldset>
+        <fieldset className="application-model-draft-group">
+          <legend>Ajouter une transition de processus</legend>
+          <p>Ajoutez une transition à source unique entre deux statuts existants. Les grants explicites ne sont pas élargis ; les grants d’action * conservent leur effet.</p>
+          <div className="application-form-grid">
+            <label>Objet du processus<select value={newTransition.objectKey} onChange={(event) => selectTransitionObject(event.target.value)}>{draft.objects.filter((object) => object.statusField).map((object) => <option key={object.key} value={object.key}>{object.pluralLabel} ({object.key})</option>)}</select></label>
+            <label>Nom de la transition<input ref={transitionLabelRef} value={newTransition.label} required maxLength={120} placeholder="Rouvrir le dossier" onChange={(event) => updateNewTransition('label', event.target.value)} /></label>
+            <label>Statut source<select value={newTransition.from} onChange={(event) => updateNewTransition('from', event.target.value)}>{transitionStatuses.map((status) => <option key={status.value} value={status.value}>{status.label} ({status.value})</option>)}</select></label>
+            <label>Statut cible<select value={newTransition.to} onChange={(event) => updateNewTransition('to', event.target.value)}>{transitionStatuses.map((status) => <option key={status.value} value={status.value}>{status.label} ({status.value})</option>)}</select></label>
+            <label>Clé de la transition<input value={newTransition.key} maxLength={48} placeholder="Générée si vide" onChange={(event) => updateNewTransition('key', event.target.value)} /><small>Une clé déjà utilisée dans ce processus reçoit un suffixe. La source doit différer de la cible.</small></label>
+          </div>
+          <button type="button" className="button secondary small" disabled={pending || !newTransition.objectKey || !newTransition.label.trim() || !newTransition.from || !newTransition.to || newTransition.from === newTransition.to} onClick={addTransition}>Ajouter la transition au brouillon</button>
+        </fieldset>
       </div>
       <aside className="application-model-preview" aria-label="Aperçu du brouillon de modèle">
         <span className="status-pill">Brouillon non enregistré</span>
@@ -218,9 +273,10 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           const added = !originalKeys.has(object.key);
           const originalObject = model.objects.find((candidate) => candidate.key === object.key);
           const addedFields = object.fields.filter((field) => originalObject ? !originalObject.fields.some((candidate) => candidate.key === field.key) : field.key !== 'nom');
-          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{applicationFieldTypeLabels[field.type]}</span>{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}</span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
+          const addedActions = object.actions.filter((action) => !originalObject?.actions.some((candidate) => candidate.key === action.key));
+          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{applicationFieldTypeLabels[field.type]}</span>{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}</span>)}</span>}{addedActions.length > 0 && <span className="application-model-added-fields">{addedActions.map((action) => <span key={action.key}>↳ {action.label} <code>{action.key}</code><span className="application-model-field-type">Transition</span><span className="application-model-relation-target">{action.from.join(', ')} → {action.to}</span></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
         })}</ul>
-        <p className="application-model-permissions">Les grants existants sont conservés : les champs et relations ajoutés suivent les permissions de leur objet et aucun rôle ne reçoit implicitement un nouvel objet. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
+        <p className="application-model-permissions">Les grants existants sont conservés sans élargissement : les ajouts utilisent les permissions de leur objet, seuls les grants d’action * couvrent automatiquement une nouvelle transition et aucun rôle ne reçoit implicitement un nouvel objet. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
       </aside>
     </div>
     {error && <p className="form-status" role="alert">{error}</p>}

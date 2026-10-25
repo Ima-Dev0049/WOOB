@@ -5,8 +5,8 @@ import { applicationModels, applicationRecords } from '@/server/db/schema';
 import { createAccount, testDatabase } from './helpers/database';
 import { createProject } from '@/server/services/projects';
 import { addExistingMember } from '@/server/services/members';
-import { applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, type ApplicationModel } from '@/lib/application/model';
-import { addOptionalApplicationRelationField, addOptionalApplicationTextField, addOptionalApplicationTypedField, addSimpleApplicationObject } from '@/lib/application/model-editor';
+import { applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, roleCanAction, type ApplicationModel } from '@/lib/application/model';
+import { addApplicationTransition, addOptionalApplicationRelationField, addOptionalApplicationTextField, addOptionalApplicationTypedField, addSimpleApplicationObject } from '@/lib/application/model-editor';
 import { schoolApplicationModel } from '@/lib/application/school-model';
 import {
   createApplicationRecord,
@@ -257,6 +257,40 @@ describe('modèle d’application géré', () => {
     await expect(deleteApplicationRecord(account.user.id, details.project.id, 'filieres', secondary.id, context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_RECORD_REFERENCED' });
     const withoutOptional = await createApplicationRecord(account.user.id, details.project.id, 'dossiers', dossierInput(primary.id, 'C'), context.db);
     expect(withoutOptional.data['filiere-secondaire']).toBeUndefined();
+  });
+
+  it('ajoute une transition sans élargir les grants et l’exécute sur un dossier existant', async () => {
+    const { account, details } = await setup('transition-application-model@example.com');
+    const filiere = await createFiliere(account.user.id, details.project.id);
+    const dossier = await createApplicationRecord(account.user.id, details.project.id, 'dossiers', dossierInput(filiere.id), context.db);
+    expect((await executeApplicationAction(account.user.id, details.project.id, 'dossiers', dossier.id, 'refuser', context.db)).data.statut).toBe('refuse');
+    const editor = await createAccount(context.db, 'editor-transition-application@example.com', 'Secrétariat');
+    await addExistingMember(account.user.id, account.workspace.id, { email: editor.user.email, role: 'editor' }, context.db);
+    const input = { objectKey: 'dossiers', label: 'Rouvrir', key: '', from: 'refuse', to: 'en-revue' };
+    const originalObject = structuredClone(schoolApplicationModel.objects[1]!);
+    const draft = addApplicationTransition(schoolApplicationModel, input);
+    const target = draft.objects[1]!;
+    expect(schoolApplicationModel.objects[1]!.actions).toHaveLength(3);
+    expect(target.fields).toEqual(originalObject.fields);
+    expect(target.actions.slice(0, 3)).toEqual(originalObject.actions);
+    expect(target.actions.at(-1)).toEqual({ key: 'rouvrir', label: 'Rouvrir', from: ['refuse'], to: 'en-revue' });
+    expect(draft.roles).toEqual(schoolApplicationModel.roles);
+    expect(buildApplicationRoutes(draft)).toHaveLength(12);
+    expect(buildApplicationRoutes(draft).find((route) => route.id === 'dossiers.actions.rouvrir')?.roles).toEqual(['owner', 'admin']);
+    expect(roleCanAction(draft, 'owner', 'dossiers', 'rouvrir')).toBe(true);
+    expect(roleCanAction(draft, 'editor', 'dossiers', 'rouvrir')).toBe(false);
+    expect(addApplicationTransition(draft, input).objects[1]!.actions.at(-1)?.key).toBe('rouvrir-2');
+    expect(() => addApplicationTransition(draft, { ...input, objectKey: 'filieres' })).toThrow('statut');
+    expect(() => addApplicationTransition(draft, { ...input, to: 'refuse' })).toThrow('changer de statut');
+    expect(() => addApplicationTransition(draft, { ...input, from: 'archive' })).toThrow('appartenir au processus');
+
+    expect((await saveApplicationModel(account.user.id, details.project.id, { model: draft, baseVersion: 1 }, context.db)).version).toBe(2);
+    await expect(executeApplicationAction(editor.user.id, details.project.id, 'dossiers', dossier.id, 'rouvrir', context.db)).rejects.toMatchObject({ status: 403, code: 'APPLICATION_PERMISSION_DENIED' });
+    const reopened = await executeApplicationAction(account.user.id, details.project.id, 'dossiers', dossier.id, 'rouvrir', context.db);
+    expect(reopened.data).toMatchObject({ nom: dossier.data.nom, 'filiere-id': filiere.id, statut: 'en-revue' });
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'dossiers', dossier.id, context.db)).data.statut).toBe('en-revue');
+    await expect(executeApplicationAction(account.user.id, details.project.id, 'dossiers', dossier.id, 'rouvrir', context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_TRANSITION_INVALID' });
+    expect((await executeApplicationAction(account.user.id, details.project.id, 'dossiers', dossier.id, 'accepter', context.db)).data.statut).toBe('accepte');
   });
 
   it('conserve les versions et refuse une évolution incompatible avec les données', async () => {
