@@ -62,6 +62,7 @@ export function CreateProjectDialog({ workspaceId, locale, compact = false }: { 
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [requestId, setRequestId] = useState('');
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [siteTypeId, setSiteTypeId] = useState<string | null>(null);
@@ -123,9 +124,12 @@ export function CreateProjectDialog({ workspaceId, locale, compact = false }: { 
     if (!preview) { setStep(5); return; }
     setPending(true); setError('');
     try {
-      const result = await apiFetch<{ project: { id: string } }>(`/api/workspaces/${workspaceId}/projects`, { method: 'POST', body: JSON.stringify({ ...selection, generationId: preview.generationId, creativeConceptId: conceptId }) });
+      const result = await apiFetch<{ project: { id: string } }>(`/api/workspaces/${workspaceId}/projects`, { method: 'POST', headers: { 'Idempotency-Key': requestId }, body: JSON.stringify({ ...selection, generationId: preview.generationId, creativeConceptId: conceptId, requestId }) });
       router.push(`/dashboard/projects/${result.project.id}`);
-    } catch (reason) { setError(errorMessage(reason)); setPending(false); }
+    } catch (reason) {
+      setError(reason instanceof TypeError ? w.retryInterrupted : errorMessage(reason));
+      setPending(false);
+    }
   }
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,7 +139,7 @@ export function CreateProjectDialog({ workspaceId, locale, compact = false }: { 
     else await create();
   }
 
-  return <><button className={`button ${compact ? 'dark small' : 'coral'}`} onClick={() => { setError(''); setOpen(true); }}><span aria-hidden="true">＋</span>{dict.projectDialog.newProject}</button>{open && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) setOpen(false); }}><section ref={dialogRef} tabIndex={-1} className="modal create-project-modal catalog-wizard" role="dialog" aria-modal="true" aria-labelledby="create-project-title">
+  return <><button className={`button ${compact ? 'dark small' : 'coral'}`} onClick={() => { setError(''); setRequestId(crypto.randomUUID()); setOpen(true); }}><span aria-hidden="true">＋</span>{dict.projectDialog.newProject}</button>{open && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) setOpen(false); }}><section ref={dialogRef} tabIndex={-1} className="modal create-project-modal catalog-wizard" role="dialog" aria-modal="true" aria-labelledby="create-project-title">
     <header><div><span className="eyebrow">{dict.projectDialog.eyebrow}</span><h2 id="create-project-title">{dict.projectDialog.title}</h2></div><button className="icon-button" disabled={pending} onClick={() => setOpen(false)} aria-label={dict.common.close}>×</button></header>
     <div className="wizard-utility"><span>{w.stepLabel(step)}</span>{step < 5 && <button type="button" className="wizard-skip" onClick={() => goTo(5)}>{w.skip} →</button>}</div>
     <ol className="wizard-steps" aria-label={w.stepLabel(step)}>{w.steps.map((label, index) => { const number = index + 1; return <li key={label}><button type="button" className={step === number ? 'active' : step > number ? 'complete' : ''} aria-current={step === number ? 'step' : undefined} disabled={pending || (number === 6 && !preview)} onClick={() => goTo(number)}><span>{number}</span>{label}</button></li>; })}</ol>

@@ -16,7 +16,11 @@ export async function POST(request: Request, context: { params: Promise<{ worksp
     const auth = await requireUser();
     await assertCsrf(request);
     const { workspaceId } = await context.params;
-    const result = await createProject(auth.user.id, workspaceId, await request.json());
-    return noStore(NextResponse.json(result, { status: 201 }));
+    const input = await request.json() as Record<string, unknown>;
+    const requestId = request.headers.get('Idempotency-Key');
+    const result = await createProject(auth.user.id, workspaceId, {
+      ...input, ...(requestId ? { requestId } : {}),
+    });
+    return noStore(NextResponse.json(result, { status: result.replayed ? 200 : 201 }));
   });
 }

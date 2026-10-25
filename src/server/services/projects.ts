@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { and, asc, desc, eq, isNull, max, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -12,7 +13,7 @@ import { CatalogError, functionalModuleIds, resolveProjectCreation } from '@/lib
 import { buildProjectDraft, createCatalogSnapshot, creationSelectionSchema } from '@/lib/catalog/generation';
 import { readProjectGeneration } from './project-generation';
 import { getDb, type Db } from '@/server/db';
-import { aiGenerations, pageVersions, pages, posts, products, projectModules, projects } from '@/server/db/schema';
+import { aiGenerations, pageVersions, pages, posts, products, projectCreationRequests, projectModules, projects } from '@/server/db/schema';
 import { ApiError } from '@/server/http';
 import { requireMembership, requireProject } from '@/server/auth/tenancy';
 import { assertPageQuota, assertProjectQuota } from './quotas';
@@ -29,6 +30,7 @@ export const projectInputSchema = z.object({
   locale: z.enum(['fr', 'en']).optional(),
   generationId: z.string().uuid().optional(),
   creativeConceptId: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(80).optional(),
+  requestId: z.string().uuid().optional(),
 });
 
 async function availableProjectSlug(name: string, db: Db): Promise<string> {
@@ -47,10 +49,48 @@ export async function listProjects(userId: string, workspaceId: string, db?: Db)
   return database.select().from(projects).where(and(eq(projects.workspaceId, workspaceId), isNull(projects.deletedAt))).orderBy(desc(projects.updatedAt));
 }
 
-export async function createProject(userId: string, workspaceId: string, input: z.input<typeof projectInputSchema>, db?: Db) {
+function projectRequestFingerprint(data: z.output<typeof projectInputSchema>): string {
+  const normalized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'requestId' || value === undefined) continue;
+    normalized[key] = key === 'moduleIds'
+      ? functionalModuleIds.filter((moduleId) => (value as string[]).includes(moduleId))
+      : value;
+  }
+  const canonical = Object.fromEntries(Object.entries(normalized).sort(([left], [right]) => left.localeCompare(right)));
+  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
+
+async function findProjectCreationRequest(db: Db, userId: string, workspaceId: string, requestKey: string) {
+  return (await db.select().from(projectCreationRequests).where(and(
+    eq(projectCreationRequests.workspaceId, workspaceId),
+    eq(projectCreationRequests.requestedBy, userId),
+    eq(projectCreationRequests.requestKey, requestKey),
+  )).limit(1))[0];
+}
+
+function requestedProjectId(request: NonNullable<Awaited<ReturnType<typeof findProjectCreationRequest>>>, requestHash: string): string {
+  if (request.requestHash !== requestHash) {
+    throw new ApiError(409, 'PROJECT_CREATION_MISMATCH', 'Cette clé de création a déjà été utilisée avec une autre sélection.');
+  }
+  if (!request.projectId || !request.completedAt) {
+    throw new ApiError(409, 'PROJECT_CREATION_INCOMPLETE', 'La création liée à cette clé est indisponible.');
+  }
+  return request.projectId;
+}
+
+export async function createProject(userId: string, workspaceId: string, input: unknown, db?: Db) {
   const data = projectInputSchema.parse(input);
   const database = db ?? await getDb();
   await requireMembership(userId, workspaceId, 'edit', database);
+  const requestHash = data.requestId ? projectRequestFingerprint(data) : null;
+  if (data.requestId && requestHash) {
+    const existing = await findProjectCreationRequest(database, userId, workspaceId, data.requestId);
+    if (existing) {
+      const projectId = requestedProjectId(existing, requestHash);
+      return { ...await getProjectDetails(userId, projectId, database), replayed: true };
+    }
+  }
   await assertProjectQuota(workspaceId, database);
   const catalogRequested = data.brief !== undefined || data.siteTypeId !== undefined || data.activityDomainId !== undefined
     || data.designStyleId !== undefined || data.moduleIds !== undefined || data.locale !== undefined || data.generationId !== undefined || data.creativeConceptId !== undefined;
@@ -89,7 +129,18 @@ export async function createProject(userId: string, workspaceId: string, input: 
   const initialPosts = draft?.posts || template.posts;
   const projectId = createId('project');
   const slug = await availableProjectSlug(data.name, database);
-  await database.transaction(async (tx) => {
+  const outcome = await database.transaction(async (tx) => {
+    if (data.requestId && requestHash) {
+      const claimed = await tx.insert(projectCreationRequests).values({
+        id: createId('project-request'), workspaceId, requestedBy: userId,
+        requestKey: data.requestId, requestHash, generationId: data.generationId ?? null,
+      }).onConflictDoNothing().returning();
+      if (!claimed.length) {
+        const existing = await findProjectCreationRequest(tx, userId, workspaceId, data.requestId);
+        if (!existing) throw new ApiError(409, 'PROJECT_CREATION_CONFLICT', 'Cette création est déjà en cours de validation.');
+        return { projectId: requestedProjectId(existing, requestHash), replayed: true };
+      }
+    }
     await tx.insert(projects).values({
       id: projectId, workspaceId, name: data.name, slug,
       description: data.description || draft?.selection.brief?.slice(0, 500) || '', theme,
@@ -115,8 +166,16 @@ export async function createProject(userId: string, workspaceId: string, input: 
       )).returning();
       if (!linked.length) throw new ApiError(409, 'GENERATION_ALREADY_USED', 'Cette prévisualisation a déjà été utilisée. Générez-en une nouvelle.');
     }
+    if (data.requestId) {
+      await tx.update(projectCreationRequests).set({ projectId, completedAt: new Date() }).where(and(
+        eq(projectCreationRequests.workspaceId, workspaceId),
+        eq(projectCreationRequests.requestedBy, userId),
+        eq(projectCreationRequests.requestKey, data.requestId),
+      ));
+    }
+    return { projectId, replayed: false };
   });
-  return getProjectDetails(userId, projectId, database);
+  return { ...await getProjectDetails(userId, outcome.projectId, database), replayed: outcome.replayed };
 }
 
 export async function getProjectDetails(userId: string, projectId: string, db?: Db) {

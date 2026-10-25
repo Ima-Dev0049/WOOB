@@ -2,7 +2,21 @@
 
 Mise à jour : 2026-10-25. Branche : `arena/639e32e6-woob`.
 
-## Incrément courant — `pulse-management-theme`
+## Incrément courant — `project-create-idempotency`
+
+La création de projet accepte désormais une clé UUID `requestId`, envoyée par le wizard dans le corps et l’en-tête `Idempotency-Key` ; l’en-tête API est prioritaire. La migration additive `drizzle/0009_loose_robin_chapel.sql` crée `project_creation_requests`, avec unicité `(workspaceId, requestedBy, requestKey)` et clé étrangère composite vers le projet du même workspace. Aucune table existante n’est modifiée et aucune clé historique n’est inventée par backfill.
+
+Pour une même clé, le serveur compare une empreinte SHA-256 de la charge validée, hors clé, avec les modules dans leur ordre canonique. Un rejeu dans le même workspace et par le même utilisateur relit les détails du projet existant, répond **200** avec `replayed: true` et ne revérifie ni le quota ni la prévisualisation avant cette reprise. Une autre charge avec la même clé reçoit **409 `PROJECT_CREATION_MISMATCH`**. La première création répond **201** avec `replayed: false`. Les appels sans clé restent historiques : une prévisualisation déjà consommée sans clé échoue toujours au lieu de retrouver implicitement un projet.
+
+La réservation de clé, le projet, ses pages, modules, produits, articles, la consommation de `project_create` et la finalisation du journal sont commités dans une seule transaction. Un échec annule donc aussi la réservation. Le rejeu ne duplique aucune de ces données et ne consomme pas une seconde fois la génération. Le wizard génère une clé à l’ouverture, la conserve après une interruption réseau et propose explicitement de réessayer sans changer la sélection. Fermer/recharger puis rouvrir le wizard représente une nouvelle intention avec une nouvelle clé ; il n’y a pas de récupération automatique d’une ancienne intention dans le navigateur.
+
+- `npm run verify` : TypeScript strict, ESLint, build Next.js et **115/115 Vitest dans 19 fichiers** réussis. Les trois nouveaux tests couvrent une prévisualisation e-commerce et une création directe, l’identité des pages/modules/produits/articles, l’absence de seconde consommation, le conflit de charge et l’isolation de la même clé entre deux workspaces du même utilisateur et un troisième utilisateur.
+- `npm run test:e2e -- tests/e2e/catalog.spec.ts` : **2/2** parcours ciblés réussis après ajout de l’en-tête. Le scénario laisse la première création aboutir en **201** côté serveur, coupe sa réponse, puis rejoue la même clé et la même génération ; il reçoit **200**, le même identifiant de projet et une seule carte sur le tableau de bord.
+- `npm run test:e2e` : **64/64 Playwright** sur build de production en Chromium, en **15,4 min**, y compris les parcours historiques sans clé et le rejeu `page_edit`.
+- Aucune nouvelle dépendance, réinitialisation de base, modification d’environnement sensible ou publication externe. Les avertissements non bloquants de traçage filesystem et de configuration Vite persistent.
+- **Limites :** reprise synchrone de créations locales terminées uniquement, pas file durable, worker autonome, annulation générale, orchestration complète du lot A ou garantie exactly-once chez OpenAI. Les tests utilisent PGlite ; la concurrence multi-instance sur PostgreSQL externe n’est pas validée.
+
+## Incrément précédent — `pulse-management-theme`
 
 Le catalogue de création comprend désormais **sept styles**, dont **Pulse métrique** (`pulse-management`), une direction originale et réversible pour les sites vitrines reliés aux activités de gestion. Son archétype `operations-pulse` associe une palette encre/lime corrigée pour le contraste, la famille locale Space Grotesk, un hero `operations`, un traitement abstrait `ledger` et une grille de fonctionnalités `bento`. Les panneaux évoquent un centre de pilotage sans afficher de fausses mesures ni remplacer les modules métier. Les six styles et les documents existants sont conservés.
 

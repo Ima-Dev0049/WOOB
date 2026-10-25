@@ -281,6 +281,25 @@ export const aiGenerations = pgTable('ai_generations', {
   uniqueIndex('ai_generations_request_key_unique').on(table.workspaceId, table.requestedBy, table.requestKey),
 ]);
 
+export const projectCreationRequests = pgTable('project_creation_requests', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  requestedBy: uuid('requested_by').notNull().references(() => users.id),
+  requestKey: text('request_key').notNull(),
+  requestHash: text('request_hash').notNull(),
+  generationId: uuid('generation_id'),
+  projectId: uuid('project_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (table) => [
+  foreignKey({
+    columns: [table.workspaceId, table.projectId],
+    foreignColumns: [projects.workspaceId, projects.id],
+    name: 'project_creation_requests_project_tenant_fk',
+  }).onDelete('cascade'),
+  uniqueIndex('project_creation_requests_key_unique').on(table.workspaceId, table.requestedBy, table.requestKey),
+]);
+
 export const usageRecords = pgTable('usage_records', {
   id: uuid('id').primaryKey(),
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),

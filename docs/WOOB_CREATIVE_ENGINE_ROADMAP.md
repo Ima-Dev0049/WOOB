@@ -41,6 +41,8 @@ Ce document complète l’[audit initial](./WOOB_CREATIVE_ENGINE_AUDIT.md) et le
 
 ### Lot A — P0 : orchestration persistante et idempotente
 
+**Sous-lot livré, sans clôturer le lot A :** la création `project_create` rejoue désormais une création terminée avec une clé UUID, une empreinte normalisée et un journal transactionnel isolé par workspace/utilisateur. Le wizard réessaie avec la même clé après une réponse perdue ; les créations directes sont couvertes et une charge différente est refusée. La migration `0009_loose_robin_chapel.sql` et les preuves figurent dans `docs/woob/IMPLEMENTATION_STATUS.md`. Cela ne fournit toujours ni contrat de job, heartbeat, annulation, budgets, file durable ou worker autonome.
+
 - **Fichiers probables :** `server/db/schema.ts`, nouvelle migration, services de génération, routes de tâches, wizard et tests d’intégration.
 - **Modifications :** contrat de job, transitions d’état autorisées, idempotency key, heartbeat, annulation, reprise et budgets ; conserver les générations actuelles comme historique compatible.
 - **Dépendances :** aucune nouvelle technologie par défaut ; évaluer d’abord une file PostgreSQL et un worker séparé. PGlite reste local et mono-processus.
