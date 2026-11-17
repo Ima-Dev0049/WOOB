@@ -58,6 +58,8 @@ La recherche normalise les accents et applique tous les termes. `resolveProjectC
 
 ## Tenancy, auth et permissions
 
+L'identité des utilisateurs finaux est **par site** : `site_users` et `site_sessions` sont liés au projet et au workspace, avec un cookie `woob_site_session` distinct de la session Studio. Le portail `/portail/{slug}` dépose des demandes dans un objet géré du modèle actif, avec un statut initial imposé par le serveur. Décision, alternatives et limites : [ADR-001](./ADR-001-site-identity.md).
+
 Chaque objet métier possède `workspaceId` et, lorsque pertinent, `projectId`. Les services résolvent d’abord la ressource puis le membership et la permission ; les ressources d’un autre tenant retournent `404` pour limiter la divulgation.
 
 Les rôles de workspace sont `owner`, `admin`, `editor`, `contributor`, `viewer`. Ils ne donnent aucun droit sur la plateforme. Les administrateurs ne peuvent pas modifier le propriétaire ni gérer d’autres administrateurs. La suspension conserve l’historique. Le cookie `woob_workspace` ne choisit un espace actif que s’il appartient réellement à l’utilisateur.

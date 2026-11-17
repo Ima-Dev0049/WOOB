@@ -1,5 +1,6 @@
 # Limites connues
 
+- L'identité des utilisateurs finaux est **par site** (`site_users`, `site_sessions`, cookie `woob_site_session` distinct). Il n'existe ni vérification d'email, ni réinitialisation de mot de passe, ni MFA, ni invitation, ni pièce jointe, ni notification, ni messagerie pour ces comptes. Un seul objet public est exposé par projet, avec au plus 12 champs et 100 libellés de relation ; les demandes ne sont pas rattachées à un dossier existant et le portail s'ouvre sans exiger la publication du site vitrine. Aucun partage d'identité entre sites et aucune fédération externe : migrer vers un fournisseur d'identité reste une décision ouverte. Les tests d'accès horizontal et de CSRF sont exécutés sur PGlite ; la concurrence multi-instance et PostgreSQL externe ne sont pas validés.
 - Aucun hébergement, PostgreSQL externe, SMTP, S3, Stripe, fournisseur IA, DNS public ou certificat TLS externe n’est vérifié depuis cet environnement.
 - PGlite reste un mode local mono-processus. Les arrêts `SIGINT`/`SIGTERM` sont synchronisés, mais `SIGKILL`, une coupure système et les accès concurrents ne sont pas une stratégie de production ; utiliser PostgreSQL et des sauvegardes réelles.
 - Le stockage et l’email fichiers sont des pilotes locaux ; la boîte fichier n’envoie pas de messages.

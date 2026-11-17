@@ -244,7 +244,7 @@ export async function getApplicationDashboard(userId: string, projectId: string,
   const database = db ?? await getDb();
   const access = await requireProjectAccess(userId, projectId, 'read', database);
   const row = await currentModel(projectId, database);
-  if (!row) return { project: access.project, role: access.member.role as WorkspaceRole, canManage: ['owner', 'admin'].includes(access.member.role), model: null, version: 0, objects: [], summary: { total: 0, objects: [] } };
+  if (!row) return { project: access.project, role: access.member.role as WorkspaceRole, canManage: ['owner', 'admin'].includes(access.member.role), model: null, version: 0, objects: [], summary: { total: 0, objects: [] }, intake: access.project.publicIntake ?? { enabled: false, title: '', intro: '' } };
   const parsedRole = workspaceRoleSchema.parse(access.member.role);
   const context: ModelContext = { access, row, role: parsedRole };
   const readable = row.model.objects.filter((object) => roleCan(row.model, parsedRole, object.key, 'read'));
@@ -252,7 +252,7 @@ export async function getApplicationDashboard(userId: string, projectId: string,
     object,
     ...(await listFromContext({ ...context, object }, { limit: 100, offset: 0 }, database)),
   })));
-  return { project: access.project, role: parsedRole, canManage: ['owner', 'admin'].includes(access.member.role), model: row.model, version: row.version, objects, summary: await summaryFromContext(context, database) };
+  return { project: access.project, role: parsedRole, canManage: ['owner', 'admin'].includes(access.member.role), model: row.model, version: row.version, objects, summary: await summaryFromContext(context, database), intake: access.project.publicIntake ?? { enabled: false, title: '', intro: '' } };
 }
 
 export async function listApplicationRecords(userId: string, projectId: string, objectKey: string, input: unknown, db?: Db) {

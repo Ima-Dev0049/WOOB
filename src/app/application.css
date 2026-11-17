@@ -250,3 +250,56 @@
     .application-tabs button { transition: none; }
   }
 }
+
+@layer pages {
+  .site-portal {
+    --site-border: #e0e4dd;
+    --site-ink: #22302a;
+    --site-muted: #5b675f;
+    background: #fafaf8;
+    color: var(--site-ink);
+    display: grid;
+    gap: 24px;
+    margin: 0 auto;
+    max-width: 880px;
+    min-height: 100vh;
+    padding: 48px 20px 64px;
+  }
+  .site-portal-header { display: grid; gap: 10px; }
+  .site-portal-brand { color: var(--site-muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; margin: 0; text-transform: uppercase; }
+  .site-portal h1 { font-size: clamp(26px, 4vw, 38px); letter-spacing: -.02em; line-height: 1.1; margin: 0; }
+  .site-portal-header > p { color: var(--site-muted); font-size: 14px; line-height: 1.6; margin: 0; max-width: 62ch; }
+  .site-portal-account { align-items: center; display: flex; flex-wrap: wrap; font-size: 13px; gap: 12px; }
+  .site-portal-card { background: #fff; border: 1px solid var(--site-border); border-radius: 16px; display: grid; gap: 16px; padding: 24px; }
+  .site-portal-card h2 { font-size: 18px; margin: 0; }
+  .site-portal-card > p { color: var(--site-muted); font-size: 13px; line-height: 1.6; margin: 0; }
+  .site-portal-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .site-portal-form { display: grid; gap: 14px; }
+  .site-portal-field { display: grid; gap: 6px; }
+  .site-portal-form label, .site-portal-field label { display: block; font-size: 13px; font-weight: 600; }
+  .site-portal-form input, .site-portal-form select, .site-portal-form textarea { background: #fff; border: 1px solid var(--site-border); border-radius: 10px; color: var(--site-ink); font: inherit; font-weight: 400; padding: 10px 12px; width: 100%; }
+  .site-portal-form input:focus-visible, .site-portal-form select:focus-visible, .site-portal-form textarea:focus-visible { border-color: #6d4aff; outline: 2px solid #6d4aff; outline-offset: 1px; }
+  .site-portal-form small, .site-portal-field small { color: var(--site-muted); font-size: 11px; font-weight: 400; line-height: 1.5; }
+  .site-portal-field label { font-size: 13px; font-weight: 600; }
+  .site-portal-requests { display: grid; list-style: none; margin: 0; padding: 0; }
+  .site-portal-requests li { align-items: center; border-bottom: 1px solid #edf0eb; display: flex; gap: 12px; justify-content: space-between; padding: 12px 0; }
+  .site-portal-requests li:last-child { border-bottom: 0; }
+  .site-portal-requests div { display: grid; gap: 3px; min-width: 0; }
+  .site-portal-requests strong { font-size: 13px; overflow-wrap: anywhere; }
+  .site-portal-requests small { color: var(--site-muted); font-size: 11px; }
+  .site-portal-error, .site-portal-notice { border-radius: 10px; font-size: 13px; margin: 0; padding: 12px 14px; }
+  .site-portal-error { background: #fff0ed; color: #992f22; }
+  .site-portal-notice { background: #edf7f1; color: #18734f; }
+  .site-portal-footer { color: var(--site-muted); font-size: 11px; line-height: 1.6; }
+  .public-intake-panel { background: var(--application-surface); border: 1px solid var(--application-border); border-radius: 12px; display: grid; gap: 16px; margin-top: 18px; padding: 22px; }
+  .public-intake-panel > header { align-items: center; display: flex; justify-content: space-between; }
+  .public-intake-panel h2 { font-size: 17px; margin: 0 0 4px; }
+  .public-intake-panel header p { color: var(--application-muted); font-size: 12px; line-height: 1.6; margin: 0; max-width: 70ch; }
+  .public-intake-body { display: grid; gap: 14px; }
+  .public-intake-toggle { align-items: center; display: flex; font-weight: 600; gap: 8px; }
+  .public-intake-toggle input { height: 18px; width: 18px; }
+  .public-intake-link { display: grid; font-size: 13px; gap: 4px; }
+  .public-intake-link small { color: var(--application-muted); font-size: 11px; line-height: 1.5; }
+  .public-intake-panel label { display: grid; font-size: 12px; gap: 6px; }
+  .public-intake-panel input, .public-intake-panel select, .public-intake-panel textarea { border: 1px solid var(--application-border); border-radius: 8px; font: inherit; padding: 9px 11px; }
+}

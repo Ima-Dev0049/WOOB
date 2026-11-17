@@ -17,6 +17,7 @@ import type { PageDocument, SiteSnapshot, ThemeSettings } from '@/lib/document/t
 import type { CatalogSelectionSnapshot } from '@/lib/catalog/types';
 import type { ProjectBrief } from '@/lib/creative/types';
 import type { ApplicationModel, ApplicationRecordData } from '@/lib/application/model';
+import type { PublicIntakeSettings } from '@/lib/application/intake';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey(),
@@ -131,6 +132,7 @@ export const projects = pgTable('projects', {
   defaultLocale: text('default_locale').notNull().default('fr'),
   catalogSelection: jsonb('catalog_selection').$type<CatalogSelectionSnapshot | null>(),
   creativeBrief: jsonb('creative_brief').$type<ProjectBrief | null>(),
+  publicIntake: jsonb('public_intake').$type<PublicIntakeSettings | null>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -350,6 +352,45 @@ export const applicationModels = pgTable('application_models', {
   index('application_models_project_current_idx').on(table.projectId, table.current),
 ]);
 
+export const siteUsers = pgTable('site_users', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  email: text('email').notNull(),
+  normalizedEmail: text('normalized_email').notNull(),
+  name: text('name').notNull(),
+  passwordHash: text('password_hash').notNull(),
+  status: text('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.workspaceId, table.projectId],
+    foreignColumns: [projects.workspaceId, projects.id],
+    name: 'site_users_project_tenant_fk',
+  }).onDelete('cascade'),
+  unique('site_users_project_email_unique').on(table.projectId, table.normalizedEmail),
+  index('site_users_project_idx').on(table.projectId, table.createdAt),
+]);
+
+export const siteSessions = pgTable('site_sessions', {
+  id: uuid('id').primaryKey(),
+  siteUserId: uuid('site_user_id').notNull().references(() => siteUsers.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  csrfTokenHash: text('csrf_token_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.workspaceId, table.projectId],
+    foreignColumns: [projects.workspaceId, projects.id],
+    name: 'site_sessions_project_tenant_fk',
+  }).onDelete('cascade'),
+  index('site_sessions_user_idx').on(table.siteUserId, table.expiresAt),
+]);
+
 export const applicationRecords = pgTable('application_records', {
   id: uuid('id').primaryKey(),
   workspaceId: uuid('workspace_id').notNull(),
@@ -357,6 +398,7 @@ export const applicationRecords = pgTable('application_records', {
   objectKey: text('object_key').notNull(),
   data: jsonb('data').$type<ApplicationRecordData>().notNull(),
   createdBy: uuid('created_by').references(() => users.id),
+  siteUserId: uuid('site_user_id').references(() => siteUsers.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
@@ -365,6 +407,7 @@ export const applicationRecords = pgTable('application_records', {
     foreignColumns: [projects.workspaceId, projects.id],
     name: 'application_records_project_tenant_fk',
   }).onDelete('cascade'),
+  index('application_records_site_user_idx').on(table.siteUserId, table.createdAt),
   index('application_records_project_object_idx').on(table.projectId, table.objectKey, table.createdAt),
   index('application_records_workspace_idx').on(table.workspaceId, table.projectId),
 ]);
@@ -519,6 +562,8 @@ export type Post = typeof posts.$inferSelect;
 export type ProjectModule = typeof projectModules.$inferSelect;
 export type ApplicationModelRow = typeof applicationModels.$inferSelect;
 export type ApplicationRecordRow = typeof applicationRecords.$inferSelect;
+export type SiteUser = typeof siteUsers.$inferSelect;
+export type SiteSession = typeof siteSessions.$inferSelect;
 export type FormSubmission = typeof formSubmissions.$inferSelect;
 export type Reservation = typeof reservations.$inferSelect;
 export type Order = typeof orders.$inferSelect;

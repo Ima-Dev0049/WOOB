@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ApplicationManager } from '@/components/app/ApplicationManager';
+import { PublicIntakePanel } from '@/components/app/PublicIntakePanel';
+import { publicIntakeEligible } from '@/lib/application/intake';
 import { getCurrentAuth } from '@/server/auth';
 import { ApiError } from '@/server/http';
 import { getApplicationDashboard } from '@/server/services/application';
@@ -30,5 +32,11 @@ export default async function ApplicationPage({ params }: { params: Promise<{ pr
         records: item.records.map((record) => ({ ...record, createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString() })),
       }))}
     />
+    {data.canManage && <PublicIntakePanel
+      projectId={data.project.id}
+      slug={data.project.slug}
+      intake={data.intake}
+      objects={(data.model?.objects ?? []).filter(publicIntakeEligible).map((object) => ({ key: object.key, label: object.label, pluralLabel: object.pluralLabel }))}
+    />}
   </div>;
 }

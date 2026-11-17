@@ -16,8 +16,8 @@ Les tests Vitest créent des bases PGlite migrées, principalement en mémoire ;
 
 ## Résultats effectivement exécutés le 2026-10-23
 
-- `npm run verify` : typecheck et lint réussis, **10 fichiers et 49/49 tests Vitest réussis**, build Next.js réussi.
-- `npm run test:e2e` : **22/22 scénarios Playwright réussis** avec Chromium, un worker, contre `next start` après arrêt/redémarrage du serveur et de PGlite.
+- `npm run verify` : typecheck strict et lint réussis, **20 fichiers et 119/119 tests Vitest réussis**, build Next.js réussi.
+- `npm run test:e2e` : **66/66 scénarios Playwright réussis** avec Chromium, un worker, contre `next start`, en 17,3 min.
 - `npm run db:migrate` : migrations `0001` à `0005` appliquées à la base PGlite de prévisualisation.
 - `npm run admin:grant -- platform-admin-e2e@example.com` : rôle plateforme persisté avec succès sur ce compte local existant.
 - `npm audit --omit=dev` : **0 vulnérabilité** dans les dépendances de production.
@@ -38,6 +38,7 @@ Ces résultats sont des observations datées, pas une garantie sur un autre envi
 - uploads locaux, signature binaire, isolation de lecture et protection des médias utilisés ;
 - fermeture/réouverture PGlite sur disque avec compte retrouvé ; arrêt/redémarrage réel du build de production avec page publiée, thème et règles responsives conservés ;
 - formulaires, réservations, commandes au prix serveur, stock et transitions ;
+- identité des utilisateurs finaux par site : inscription et connexion limitées à un projet, unicité de l'email par site, sessions séparées du Studio, CSRF lié à la session, refus d'accès horizontal, dépôt de demande avec statut initial et relation validée, configuration réservée aux membres autorisés ;
 - IA démo, validation de propositions et refus d’URL `javascript:` ;
 - quotas de domaines, DTO sans hash, IDN, conflits, admin/viewer, isolation et état DNS désactivé ;
 - transitions DNS avec un **résolveur explicitement simulé**, sans prétendre vérifier un domaine externe ;

@@ -64,6 +64,13 @@
       "when": 1792958670090,
       "tag": "0009_loose_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794877165848,
+      "tag": "0010_normal_speedball",
+      "breakpoints": true
     }
   ]
 }
