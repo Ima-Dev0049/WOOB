@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { APPLICATION_EXPORT_LIMIT, applicationRecordsCsv } from '@/lib/application/csv';
 import { createId } from '@/lib/id';
@@ -19,7 +19,7 @@ import {
 import { requireProjectAccess } from '@/server/auth/tenancy';
 import type { ApplicationSummary } from '@/lib/application/summary';
 import { getDb, type Db } from '@/server/db';
-import { applicationModels, applicationRecords, projects, type ApplicationModelRow, type ApplicationRecordRow } from '@/server/db/schema';
+import { applicationAttachments, applicationModels, applicationRecords, assets, projects, type ApplicationModelRow, type ApplicationRecordRow } from '@/server/db/schema';
 import { ApiError } from '@/server/http';
 
 const listOptionsSchema = z.object({
@@ -342,6 +342,113 @@ export async function deleteApplicationRecord(userId: string, projectId: string,
     await tx.delete(applicationRecords).where(and(eq(applicationRecords.id, current.id), eq(applicationRecords.projectId, projectId), eq(applicationRecords.workspaceId, context.access.project.workspaceId), eq(applicationRecords.objectKey, context.object.key)));
     await touchProject(context, tx);
     return { deleted: true as const, id: current.id };
+  });
+}
+
+const attachmentBodySchema = z.object({ assetId: z.string().uuid(), label: z.string().trim().max(160).optional() });
+export const APPLICATION_ATTACHMENT_LIMIT = 5;
+
+export type ApplicationAttachmentView = {
+  id: string;
+  assetId: string;
+  label: string;
+  fileName: string;
+  mimeType: string;
+  byteSize: number;
+  createdAt: string;
+};
+
+async function attachmentScope(context: ObjectContext, recordId: string, db: Db) {
+  await recordFrom(context, recordId, db);
+  return and(
+    eq(applicationAttachments.projectId, context.access.project.id),
+    eq(applicationAttachments.workspaceId, context.access.project.workspaceId),
+    eq(applicationAttachments.objectKey, context.object.key),
+    eq(applicationAttachments.recordId, recordId),
+  )!;
+}
+
+/** Files attached to one record. Only the asset metadata is returned, never a storage key. */
+export async function listApplicationAttachments(userId: string, projectId: string, objectKey: string, recordId: string, db?: Db): Promise<ApplicationAttachmentView[]> {
+  const database = db ?? await getDb();
+  const context = await objectContext(userId, projectId, objectKey, 'read', database);
+  authorize(context, 'read');
+  const rows = await database.select({
+    id: applicationAttachments.id,
+    assetId: applicationAttachments.assetId,
+    label: applicationAttachments.label,
+    fileName: assets.fileName,
+    mimeType: assets.mimeType,
+    byteSize: assets.byteSize,
+    createdAt: applicationAttachments.createdAt,
+  }).from(applicationAttachments)
+    .innerJoin(assets, and(eq(assets.id, applicationAttachments.assetId), isNull(assets.deletedAt)))
+    .where(await attachmentScope(context, recordId, database))
+    .orderBy(desc(applicationAttachments.createdAt))
+    .limit(20);
+  return rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() }));
+}
+
+/** Links an existing project asset to a record; the upload stays in the asset library. */
+export async function attachApplicationAsset(userId: string, projectId: string, objectKey: string, recordId: string, input: unknown, db?: Db) {
+  const data = attachmentBodySchema.parse(input);
+  const database = db ?? await getDb();
+  const context = await objectContext(userId, projectId, objectKey, 'edit', database);
+  return database.transaction(async (tx) => {
+    await lockProject(context.access, tx);
+    authorize(context, 'update');
+    await recordFrom(context, recordId, tx);
+    const asset = (await tx.select().from(assets).where(and(
+      eq(assets.id, data.assetId),
+      eq(assets.projectId, context.access.project.id),
+      eq(assets.workspaceId, context.access.project.workspaceId),
+      isNull(assets.deletedAt),
+    )).limit(1))[0];
+    if (!asset) throw new ApiError(422, 'ATTACHMENT_ASSET_INVALID', 'Ce fichier n’appartient pas à ce projet.');
+    const scope = and(
+      eq(applicationAttachments.projectId, context.access.project.id),
+      eq(applicationAttachments.workspaceId, context.access.project.workspaceId),
+      eq(applicationAttachments.objectKey, context.object.key),
+      eq(applicationAttachments.recordId, recordId),
+    )!;
+    const total = (await tx.select({ value: count() }).from(applicationAttachments).where(scope))[0]?.value ?? 0;
+    if (total >= APPLICATION_ATTACHMENT_LIMIT) throw new ApiError(409, 'ATTACHMENT_LIMIT_REACHED', `Un dossier accepte ${APPLICATION_ATTACHMENT_LIMIT} pièces jointes au maximum.`);
+    const duplicate = (await tx.select({ id: applicationAttachments.id }).from(applicationAttachments).where(and(
+      eq(applicationAttachments.recordId, recordId),
+      eq(applicationAttachments.assetId, asset.id),
+    )).limit(1))[0];
+    if (duplicate) throw new ApiError(409, 'ATTACHMENT_DUPLICATE', 'Ce fichier est déjà joint à ce dossier.');
+    const inserted = (await tx.insert(applicationAttachments).values({
+      id: createId('application-attachment'),
+      workspaceId: context.access.project.workspaceId,
+      projectId: context.access.project.id,
+      objectKey: context.object.key,
+      recordId,
+      assetId: asset.id,
+      label: data.label?.trim() || asset.fileName,
+      createdBy: userId,
+    }).returning())[0]!;
+    return { id: inserted.id, assetId: asset.id, label: inserted.label, fileName: asset.fileName, mimeType: asset.mimeType, byteSize: asset.byteSize, createdAt: inserted.createdAt.toISOString() };
+  });
+}
+
+/** Detaches a file without deleting the asset from the project library. */
+export async function detachApplicationAttachment(userId: string, projectId: string, objectKey: string, recordId: string, attachmentId: string, db?: Db) {
+  const database = db ?? await getDb();
+  const context = await objectContext(userId, projectId, objectKey, 'edit', database);
+  return database.transaction(async (tx) => {
+    await lockProject(context.access, tx);
+    authorize(context, 'update');
+    await recordFrom(context, recordId, tx);
+    const deleted = await tx.delete(applicationAttachments).where(and(
+      eq(applicationAttachments.id, attachmentId),
+      eq(applicationAttachments.projectId, context.access.project.id),
+      eq(applicationAttachments.workspaceId, context.access.project.workspaceId),
+      eq(applicationAttachments.objectKey, context.object.key),
+      eq(applicationAttachments.recordId, recordId),
+    )).returning();
+    if (!deleted.length) throw new ApiError(404, 'ATTACHMENT_NOT_FOUND', 'Pièce jointe introuvable pour ce dossier.');
+    return { deleted: true };
   });
 }
 

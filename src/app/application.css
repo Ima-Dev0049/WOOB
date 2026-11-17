@@ -98,6 +98,7 @@
   .application-form-grid > label, .application-form-grid > .application-relation-field { color: var(--application-form-label); display: grid; font-size: 11px; gap: 7px; }
   .application-form-grid > label:has(textarea) { grid-column: 1 / -1; }
   .application-form-grid small { color: var(--application-muted); font-size: 10px; }
+  .application-field-label { display: inline; }
   .application-relation-field { min-width: 0; }
   .application-relation-field input, .application-relation-field select { min-width: 0; width: 100%; }
   .application-relation-status { line-height: 1.5; }
@@ -204,6 +205,25 @@
   .danger { color: var(--application-danger, #a23d34) !important; }
   .application-dashboard .project-breadcrumb { color: var(--application-muted); }
   .application-record-form .field-hint { color: var(--application-muted); }
+  .application-attachments { border-top: 1px solid var(--application-border); display: grid; gap: 12px; padding-top: 18px; }
+  .application-attachments > header { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
+  .application-attachments h4 { color: var(--application-heading); font-size: 14px; }
+  .application-attachments .field-hint { font-size: 11px; line-height: 1.55; }
+  .application-attachment-list { display: grid; gap: 8px; list-style: none; }
+  .application-attachment-list li { align-items: center; background: var(--application-surface-subtle); border: 1px solid var(--application-border); border-radius: 10px; display: grid; gap: 4px 12px; grid-template-columns: minmax(0, 1fr) auto; padding: 10px 12px; }
+  .application-attachment-list a { color: var(--application-focus); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 2px; }
+  .application-attachment-list small { color: var(--application-muted); font-size: 11px; grid-column: 1; }
+  .application-attachment-list .button { grid-column: 2; grid-row: 1 / span 2; }
+  .application-attachment-empty { color: var(--application-muted); font-size: 12px; }
+  .application-attachment-form { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .application-attachment-form > label { color: var(--application-form-label); display: grid; font-size: 11px; gap: 7px; }
+  .application-attachment-file { align-content: start; display: grid; gap: 7px; }
+  .application-attachment-file-title { color: var(--application-form-label); font-size: 11px; }
+  .application-attachment-picker { cursor: pointer; justify-self: start; }
+  .application-attachment-filename { color: var(--application-muted); font-size: 11px; overflow-wrap: anywhere; }
+  .application-attachment-input { border: 0; clip: rect(0, 0, 0, 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
+  .application-attachment-input:focus-visible + label { outline: 2px solid var(--application-focus); outline-offset: 2px; }
+  .application-attachment-form .button-row { grid-column: 1 / -1; }
 }
 
 @layer responsive {
@@ -211,6 +231,9 @@
     .application-runtime-note, .application-object-header, .application-routes > header, .application-summary > header { align-items: stretch; flex-direction: column; }
     .application-runtime-note { gap: 10px; }
     .application-form-grid { grid-template-columns: 1fr; }
+    .application-attachment-form { grid-template-columns: 1fr; }
+    .application-attachment-list li { grid-template-columns: minmax(0, 1fr); }
+    .application-attachment-list .button { grid-column: 1; grid-row: auto; justify-self: start; }
     .application-form-grid > label:has(textarea) { grid-column: auto; }
     .application-template-list { grid-template-columns: 1fr; }
     .application-template-list .button { align-self: stretch; }

@@ -10,7 +10,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
   return api(async () => {
     const auth = await requireUser(); await assertCsrf(request);
     const form = await request.formData(); const file = form.get('file');
-    if (!(file instanceof File)) return noStore(NextResponse.json({ error: { code: 'FILE_REQUIRED', message: 'Sélectionnez une image.' } }, { status: 422 }));
+    if (!(file instanceof File)) return noStore(NextResponse.json({ error: { code: 'FILE_REQUIRED', message: 'Sélectionnez un fichier.' } }, { status: 422 }));
     const asset = await uploadAsset(auth.user.id, (await context.params).projectId, file, form.get('alt'));
     return noStore(NextResponse.json({ asset }, { status: 201 }));
   });

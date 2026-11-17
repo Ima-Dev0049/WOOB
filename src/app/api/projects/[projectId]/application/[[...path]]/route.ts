@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { assertCsrf, requireUser } from '@/server/auth';
 import { api, ApiError, noStore } from '@/server/http';
 import {
+  attachApplicationAsset,
   createApplicationRecord,
+  detachApplicationAttachment,
+  listApplicationAttachments,
   deleteApplicationRecord,
   executeApplicationAction,
   exportApplicationRecords,
@@ -51,6 +54,7 @@ export async function GET(request: Request, context: RouteContext) {
       } }));
     }
     if (path.length === 3) return noStore(NextResponse.json({ record: await getApplicationRecord(auth.user.id, projectId, path[1]!, path[2]!) }));
+    if (path.length === 4 && path[3] === 'attachments') return noStore(NextResponse.json({ attachments: await listApplicationAttachments(auth.user.id, projectId, path[1]!, path[2]!) }));
     notFound();
   });
 }
@@ -77,6 +81,10 @@ export async function POST(request: Request, context: RouteContext) {
       const record = await createApplicationRecord(auth.user.id, projectId, path[1]!, body.data);
       return noStore(NextResponse.json({ record }, { status: 201 }));
     }
+    if (path.length === 4 && path[3] === 'attachments') {
+      const attachment = await attachApplicationAsset(auth.user.id, projectId, path[1]!, path[2]!, await request.json());
+      return noStore(NextResponse.json({ attachment }, { status: 201 }));
+    }
     if (path.length === 5 && path[3] === 'actions') {
       const record = await executeApplicationAction(auth.user.id, projectId, path[1]!, path[2]!, path[4]!);
       return noStore(NextResponse.json({ record }));
@@ -102,7 +110,13 @@ export async function DELETE(request: Request, context: RouteContext) {
     const auth = await requireUser();
     await assertCsrf(request);
     const { projectId, path = [] } = await context.params;
-    if (path[0] !== 'objects' || path.length !== 3) notFound();
+    if (path[0] !== 'objects' || path.length < 3) notFound();
+    if (path.length === 4 && path[3] === 'attachments') {
+      const attachmentId = new URL(request.url).searchParams.get('attachmentId') || '';
+      if (!attachmentId) throw new ApiError(422, 'ATTACHMENT_ID_REQUIRED', 'Précisez la pièce jointe à retirer.');
+      return noStore(NextResponse.json(await detachApplicationAttachment(auth.user.id, projectId, path[1]!, path[2]!, attachmentId)));
+    }
+    if (path.length !== 3) notFound();
     return noStore(NextResponse.json(await deleteApplicationRecord(auth.user.id, projectId, path[1]!, path[2]!)));
   });
 }

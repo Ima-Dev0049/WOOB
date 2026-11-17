@@ -14,6 +14,7 @@ const types: Record<string, { extension: string; detect: (data: Buffer) => boole
   'image/jpeg': { extension: 'jpg', detect: (data) => data.length > 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff },
   'image/gif': { extension: 'gif', detect: (data) => data.length > 6 && ['GIF87a', 'GIF89a'].includes(data.subarray(0, 6).toString('ascii')) },
   'image/webp': { extension: 'webp', detect: (data) => data.length > 12 && data.subarray(0, 4).toString('ascii') === 'RIFF' && data.subarray(8, 12).toString('ascii') === 'WEBP' },
+  'application/pdf': { extension: 'pdf', detect: (data) => data.length > 5 && data.subarray(0, 5).toString('ascii') === '%PDF-' },
 };
 function cleanFileName(name: string): string { const cleaned = name.normalize('NFKC').replace(/[\u0000-\u001f/\\]/g, '').trim().slice(0, 180); return cleaned || 'image'; }
 
@@ -30,7 +31,7 @@ export async function uploadAsset(userId: string, projectId: string, file: File,
   const maxBytes = Number(process.env.MAX_UPLOAD_BYTES || 5 * 1024 * 1024);
   if (!file.size || file.size > maxBytes) throw new ApiError(413, 'UPLOAD_SIZE_INVALID', `L’image doit faire entre 1 octet et ${Math.floor(maxBytes / 1048576)} Mo.`);
   const definition = types[file.type];
-  if (!definition) throw new ApiError(415, 'UPLOAD_TYPE_INVALID', 'Formats acceptés : PNG, JPEG, WebP et GIF. Le SVG est refusé.');
+  if (!definition) throw new ApiError(415, 'UPLOAD_TYPE_INVALID', 'Formats acceptés : PNG, JPEG, WebP, GIF et PDF. Le SVG et les archives sont refusés.');
   const data = Buffer.from(await file.arrayBuffer());
   if (!definition.detect(data)) throw new ApiError(415, 'UPLOAD_CONTENT_MISMATCH', 'Le contenu du fichier ne correspond pas à son format déclaré.');
   await assertStorageQuota(project.workspaceId, data.byteLength, database);

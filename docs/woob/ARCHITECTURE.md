@@ -90,7 +90,9 @@ Les dialogues projet, IA, historique et médias utilisent `useModalFocus` : cibl
 
 ## Médias, IA et quotas
 
-Les uploads sont limités par taille et par plan, détectés par signature binaire et écrits sous une clé confinée au workspace/projet. Le SVG est refusé. La publication rend publics seulement les assets utilisés ; la dépublication les repasse en privé.
+Les uploads sont limités par taille et par plan, détectés par signature binaire et écrits sous une clé confinée au workspace/projet. Formats acceptés : PNG, JPEG, GIF, WebP et PDF ; le SVG est refusé. La publication rend publics seulement les assets utilisés ; la dépublication les repasse en privé.
+
+Les **pièces jointes** d'un enregistrement géré ne dupliquent aucun binaire : `application_attachments` relie `(workspace_id, project_id, object_key, record_id)` à un `asset_id` du même projet, avec un libellé et une date. Contrainte unique `(record_id, asset_id)` contre les doublons, suppression en cascade avec l'enregistrement ou l'asset, index `(project_id, object_key, record_id, created_at)` pour la liste. Détacher une pièce supprime seulement le lien ; l'asset reste dans la bibliothèque et son éventuelle suppression suit les règles existantes (`ASSET_IN_USE` si une page l'utilise). Aucune clé de stockage n'est renvoyée : l'interface et l'API n'exposent que `/media/{assetId}`, avec `Content-Disposition` en pièce jointe pour les documents.
 
 Les quotas projets, pages, stockage, IA et domaines sont appliqués côté serveur. Le mode IA `demo` utilise des gabarits locaux et zéro appel distant. Le mode `openai` transmet la consigne et le document au fournisseur configuré, impose une réponse JSON et journalise le résultat.
 

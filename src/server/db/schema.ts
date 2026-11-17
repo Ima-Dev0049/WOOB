@@ -412,6 +412,26 @@ export const applicationRecords = pgTable('application_records', {
   index('application_records_workspace_idx').on(table.workspaceId, table.projectId),
 ]);
 
+export const applicationAttachments = pgTable('application_attachments', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  objectKey: text('object_key').notNull(),
+  recordId: uuid('record_id').notNull().references(() => applicationRecords.id, { onDelete: 'cascade' }),
+  assetId: uuid('asset_id').notNull().references(() => assets.id, { onDelete: 'cascade' }),
+  label: text('label').notNull().default(''),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.workspaceId, table.projectId],
+    foreignColumns: [projects.workspaceId, projects.id],
+    name: 'application_attachments_project_tenant_fk',
+  }).onDelete('cascade'),
+  unique('application_attachments_record_asset_unique').on(table.recordId, table.assetId),
+  index('application_attachments_record_idx').on(table.projectId, table.objectKey, table.recordId, table.createdAt),
+]);
+
 export const formSubmissions = pgTable('form_submissions', {
   id: uuid('id').primaryKey(),
   workspaceId: uuid('workspace_id').notNull(),
@@ -563,6 +583,7 @@ export type ProjectModule = typeof projectModules.$inferSelect;
 export type ApplicationModelRow = typeof applicationModels.$inferSelect;
 export type ApplicationRecordRow = typeof applicationRecords.$inferSelect;
 export type SiteUser = typeof siteUsers.$inferSelect;
+export type ApplicationAttachmentRow = typeof applicationAttachments.$inferSelect;
 export type SiteSession = typeof siteSessions.$inferSelect;
 export type FormSubmission = typeof formSubmissions.$inferSelect;
 export type Reservation = typeof reservations.$inferSelect;

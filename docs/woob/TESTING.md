@@ -16,8 +16,8 @@ Les tests Vitest créent des bases PGlite migrées, principalement en mémoire ;
 
 ## Résultats effectivement exécutés le 2026-10-23
 
-- `npm run verify` : typecheck strict et lint réussis, **20 fichiers et 119/119 tests Vitest réussis**, build Next.js réussi.
-- `npm run test:e2e` : **66/66 scénarios Playwright réussis** avec Chromium, un worker, contre `next start`, en 17,3 min.
+- `npm run verify` : typecheck strict et lint réussis, **21 fichiers et 121/121 tests Vitest réussis**, build Next.js réussi.
+- `npm run test:e2e` : **67/67 scénarios Playwright réussis** avec Chromium, un worker, contre `next start`, en 17,7 min.
 - `npm run db:migrate` : migrations `0001` à `0005` appliquées à la base PGlite de prévisualisation.
 - `npm run admin:grant -- platform-admin-e2e@example.com` : rôle plateforme persisté avec succès sur ce compte local existant.
 - `npm audit --omit=dev` : **0 vulnérabilité** dans les dépendances de production.
@@ -35,7 +35,8 @@ Ces résultats sont des observations datées, pas une garantie sur un autre envi
 - catalogue : 20 catégories, 212 variantes, 30 domaines et 150 sous-domaines, unicité, parents, relations, recherche accent-insensible, filtres, modules compatibles, création libre, contexte de génération, persistance et isolation du brouillon ;
 - inscription/connexion, jetons à usage unique, isolation workspace, rôles et conflits de révision ;
 - sauvegarde/relecture, snapshots, publication, dépublication, rollback et restauration de brouillon ;
-- uploads locaux, signature binaire, isolation de lecture et protection des médias utilisés ;
+- uploads locaux, signature binaire (images et PDF), isolation de lecture et protection des médias utilisés ;
+- pièces jointes des enregistrements : asset du projet uniquement, doublon refusé, limite de cinq fichiers, rôle en lecture refusé, accès horizontal en 404, retrait sans suppression du média ;
 - fermeture/réouverture PGlite sur disque avec compte retrouvé ; arrêt/redémarrage réel du build de production avec page publiée, thème et règles responsives conservés ;
 - formulaires, réservations, commandes au prix serveur, stock et transitions ;
 - identité des utilisateurs finaux par site : inscription et connexion limitées à un projet, unicité de l'email par site, sessions séparées du Studio, CSRF lié à la session, refus d'accès horizontal, dépôt de demande avec statut initial et relation validée, configuration réservée aux membres autorisés ;
@@ -47,7 +48,7 @@ Ces résultats sont des observations datées, pas une garantie sur un autre envi
 
 ## Couverture navigateur
 
-Les 22 scénarios couvrent notamment :
+Les 67 scénarios couvrent notamment :
 
 - marketing et tarification anonymes ;
 - création catalogue en six étapes : recherche, type restaurant, domaine alimentation, réservations, style artisanal, brief, aperçu réel, limites visibles, création et texte retrouvé dans l’éditeur ; les autres parcours utilisent aussi le raccourci vers la description et la prévisualisation obligatoire ;
@@ -58,6 +59,7 @@ Les 22 scénarios couvrent notamment :
 - IA démo : prévisualisation, application, persistance, puis erreurs honnêtes de domaine/paiement non configurés ;
 - restauration d’un point de brouillon après rechargement ;
 - upload, recherche et réutilisation d’un média persistant ;
+- pièces jointes d’un dossier géré : téléversement d’une image puis d’un PDF, libellé affiché, compteur, en-têtes `Content-Disposition` inline/attachment, retrait confirmé, persistance après rechargement, absence de débordement à 390 px et audit axe ;
 - édition à 390 px, tiroirs, aperçu mobile, bouton de sauvegarde visible et absence de débordement horizontal ;
 - audits `@axe-core/playwright` sur accueil, connexion, dashboard, éditeur, administration, wizard catalogue et aperçu, sans exclusion des violations détectées ;
 - préférence anglaise persistée après rechargement, déconnexion et nouvelle connexion ;

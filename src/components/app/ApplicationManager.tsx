@@ -18,6 +18,7 @@ import {
 import { managedApplicationTemplates } from '@/lib/application/templates';
 import type { ApplicationSummary } from '@/lib/application/summary';
 import { ApplicationModelEditor } from './ApplicationModelEditor';
+import { ApplicationAttachments } from './ApplicationAttachments';
 
 const PAGE_SIZE = 25;
 const RELATION_OPTION_LIMIT = 100;
@@ -299,7 +300,7 @@ export function ApplicationManager({ projectId, model, version, role, canManage,
         <span role="status" aria-atomic="true">{loading ? 'Actualisation…' : `${total} résultat${total > 1 ? 's' : ''}`}</span>
         <span className="application-export-note">L’export CSV reprend la recherche et le statut actifs, avec tous les champs et leurs valeurs brutes, dans la limite de 5 000 lignes.</span>
       </div>
-      {form?.objectKey === activeObject.key && <ApplicationRecordForm key={`${form.objectKey}-${form.record?.id ?? 'new'}`} object={activeObject} record={form.record} records={relationRecords} model={model} baseUrl={baseUrl} onRelationResolved={cacheRelationRecord} pending={pending} onCancel={() => setForm(null)} onSubmit={async (data) => {
+      {form?.objectKey === activeObject.key && <ApplicationRecordForm key={`${form.objectKey}-${form.record?.id ?? 'new'}`} object={activeObject} record={form.record} records={relationRecords} model={model} baseUrl={baseUrl} projectId={projectId} canManage={roleCan(model, role, activeObject.key, 'update')} onRelationResolved={cacheRelationRecord} pending={pending} onCancel={() => setForm(null)} onSubmit={async (data) => {
         const creating = !form.record;
         const saved = await run(() => apiFetch(form.record ? `${baseUrl}/objects/${activeObject.key}/${form.record!.id}` : `${baseUrl}/objects/${activeObject.key}`, { method: form.record ? 'PATCH' : 'POST', body: JSON.stringify({ data }) }), form.record ? 'Enregistrement modifié.' : 'Enregistrement créé.');
         if (saved) { setForm(null); if (creating) setPage(0); }
@@ -367,12 +368,14 @@ function ApplicationRecordTable({ object, model, role, records, loading, display
   })}{!records.length && <tr className="application-empty-row"><td colSpan={columns.length + 1}><div className="application-no-results">{loading ? 'Chargement des enregistrements…' : 'Aucun enregistrement ne correspond à ces critères.'}</div></td></tr>}</tbody></table></div>;
 }
 
-function ApplicationRecordForm({ object, model, record, records, baseUrl, onRelationResolved, pending, onCancel, onSubmit }: {
+function ApplicationRecordForm({ object, model, record, records, baseUrl, projectId, canManage, onRelationResolved, pending, onCancel, onSubmit }: {
   object: ApplicationObject;
   model: ApplicationModel;
   record?: ManagedRecord | undefined;
   records: Record<string, ManagedRecord[]>;
   baseUrl: string;
+  projectId: string;
+  canManage: boolean;
   onRelationResolved: (record: ManagedRecord) => void;
   pending: boolean;
   onCancel: () => void;
@@ -396,7 +399,7 @@ function ApplicationRecordForm({ object, model, record, records, baseUrl, onRela
     }
     await onSubmit(data);
   }
-  return <form className="application-record-form" onSubmit={submit}><header><h3>{record ? `Modifier : ${object.label}` : `Ajouter : ${object.label}`}</h3><button type="button" className="button ghost small" onClick={onCancel}>Fermer</button></header><div className="application-form-grid">{object.fields.filter((field) => field.key !== object.statusField).map((field) => <ApplicationFieldInput key={field.key} field={field} object={object} model={model} record={record} records={records} baseUrl={baseUrl} onRelationResolved={onRelationResolved} />)}</div>{object.statusField && <p className="field-hint">Le statut initial et ses changements sont contrôlés par les actions du processus, jamais par ce formulaire.</p>}<div className="button-row"><button className="button coral small" disabled={pending}>{record ? 'Enregistrer les modifications' : 'Créer l’enregistrement'}</button><button type="button" className="button secondary small" onClick={onCancel}>Annuler</button></div></form>;
+  return <form className="application-record-form" onSubmit={submit}><header><h3>{record ? `Modifier : ${object.label}` : `Ajouter : ${object.label}`}</h3><button type="button" className="button ghost small" onClick={onCancel}>Fermer</button></header><div className="application-form-grid">{object.fields.filter((field) => field.key !== object.statusField).map((field) => <ApplicationFieldInput key={field.key} field={field} object={object} model={model} record={record} records={records} baseUrl={baseUrl} onRelationResolved={onRelationResolved} />)}</div>{object.statusField && <p className="field-hint">Le statut initial et ses changements sont contrôlés par les actions du processus, jamais par ce formulaire.</p>}{record && <ApplicationAttachments projectId={projectId} baseUrl={baseUrl} objectKey={object.key} recordId={record.id} canManage={canManage} labels={{ singular: 'pièce jointe', plural: 'pièces jointes' }} />}<div className="button-row"><button className="button coral small" disabled={pending}>{record ? 'Enregistrer les modifications' : 'Créer l’enregistrement'}</button><button type="button" className="button secondary small" onClick={onCancel}>Annuler</button></div></form>;
 }
 
 function ApplicationFieldInput({ field, object, model, record, records, baseUrl, onRelationResolved }: {
@@ -412,7 +415,7 @@ function ApplicationFieldInput({ field, object, model, record, records, baseUrl,
   // Defaults initialize new records only; editing must not backfill fields absent from older records.
   const value = record ? record.data[field.key] : field.defaultValue;
   const common = { id, name: field.key, required: field.required, 'aria-describedby': field.help ? `${id}-help` : undefined };
-  const label = <>{field.label}{field.required && <span aria-hidden="true"> *</span>}</>;
+  const label = <span className="application-field-label">{field.label}{field.required && <span aria-hidden="true"> *</span>}</span>;
   const help = field.help && <small id={`${id}-help`}>{field.help}</small>;
   if (field.type === 'boolean' && !field.required) return <label htmlFor={id}>{label}<select {...common} defaultValue={value === true ? 'true' : value === false ? 'false' : ''}><option value="">Non renseigné</option><option value="true">Oui</option><option value="false">Non</option></select>{help}</label>;
   if (field.type === 'boolean') return <label className="application-checkbox" htmlFor={id}>{label}<input {...common} type="checkbox" defaultChecked={value === true} />{help}</label>;
@@ -491,7 +494,7 @@ function ApplicationRelationInput({ id, field, model, value, records, baseUrl, o
         : 'Aucune option chargée. Vous pouvez lancer une recherche.';
 
   return <div className="application-relation-field" aria-busy={searching}>
-    <label htmlFor={id}>{field.label}{field.required && <span aria-hidden="true"> *</span>}</label>
+    <label htmlFor={id} className="application-field-label">{field.label}{field.required && <span aria-hidden="true"> *</span>}</label>
     <input
       type="search"
       value={query}
