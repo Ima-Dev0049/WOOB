@@ -2,7 +2,20 @@
 
 Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-## Incrément courant — `record-attachments`
+## Incrément courant — `model-proposals`
+
+L'éditeur de modèle propose désormais des **ajustements structurés prévisualisables** : l'auteur choisit un type de proposition (suivi par date, contact téléphonique, montant à suivre, étape de validation), l'objet cible et un libellé ; le serveur construit une proposition déterministe à partir du modèle **enregistré**, l'interface affiche les changements exacts, puis laisse **appliquer au brouillon** ou **ignorer**. Rien n'est appliqué ni enregistré avant ce choix, et le brouillon n'est persisté qu'avec le bouton existant `Appliquer le brouillon` (version optimiste et validation serveur inchangées).
+
+- `POST /api/projects/{projectId}/application/proposals` exige une session Studio, un CSRF valide et la permission `update` de l'objet cible (les autres rôles reçoivent **403**, les non-membres **404**). La proposition n'est **pas stockée** : elle est recalculée à la demande, sans migration ni file.
+- Fonction pure `proposeApplicationModelChange` : sortie construite par les helpers validés existants (`addOptionalApplicationTypedField`, `addApplicationTransition`, `setApplicationObjectColumns`), donc schéma `applicationModelSchema` revérifié, clés uniques, aucun enregistrement réécrit, aucune permission élargie, aucun appel à un modèle distant.
+- Refus explicites : **409 `PROPOSAL_ALREADY_APPLIED`** si un champ du même libellé (ou la même transition) existe déjà, **404 `PROPOSAL_TARGET_INVALID`** pour un objet inconnu, **422 `PROPOSAL_TRANSITION_INVALID`** si les deux statuts coïncident ou n'appartiennent pas au processus.
+- Garde-fou anti-perte : une proposition part du modèle enregistré ; sa génération est bloquée tant que le brouillon contient des modifications non enregistrées, et l'application refuse également ce cas avec un message. Les modifications en cours ne sont donc jamais écrasées par une proposition plus ancienne.
+- `npm run verify` : TypeScript strict, ESLint, build Next.js et **124/124 Vitest dans 22 fichiers** réussis. `tests/application-proposals.test.ts` couvre les quatre types, l'absence de mutation du modèle actif, la conservation des autres objets et des grants, les doublons, les cibles invalides, les rôles refusés, l'accès horizontal et la persistance uniquement après validation.
+- `npm run test:e2e` : **68/68 Playwright** sur build de production en Chromium, en **17,9 min**, y compris les deux nouveaux parcours (propositions et pièces jointes).
+- `npm run test:e2e -- tests/e2e/application-proposals.spec.ts` : **1/1** parcours (17 s) — refus d'un libellé existant, aperçu des changements, annulation, application, blocage d'une seconde proposition sur un brouillon modifié, enregistrement `v2`, puis présence réelle du nouveau champ dans le formulaire de dossier ; audit Axe et contrôle de largeur à 390 px.
+- **Limites :** quatre intentions guidées seulement, sans compréhension de texte libre ni génération IA distante ; aucune proposition de relation, d'enum, de statut, d'action multi-source, de colonnes ou de suppression ; pas d'historique des propositions, de comparaison avant/après ligne à ligne, d'annulation après enregistrement ni de propositions multi-objets. Les propositions restent locales et déterministes ; une génération distante exigera une clé, un budget et une revue de sécurité séparée.
+
+## Incrément précédent — `record-attachments`
 
 Un enregistrement géré peut désormais porter des **pièces jointes**. Le fichier est d'abord téléversé dans la **bibliothèque du projet** (route existante `/api/projects/{id}/assets`, quota, signature binaire et stockage inchangés), puis la table additive `application_attachments` (`drizzle/0011_motionless_abomination.sql`) relie cet asset au dossier avec un libellé affiché. Détacher une pièce ne supprime ni le fichier ni les autres liens : la bibliothèque reste la source unique, aucune copie binaire n'est dupliquée par dossier. Les clés de stockage ne sortent jamais de l'API ; l'interface n'expose que `/media/{assetId}`.
 

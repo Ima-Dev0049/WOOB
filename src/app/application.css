@@ -95,7 +95,7 @@
   .application-record-form > header { align-items: center; display: flex; justify-content: space-between; }
   .application-record-form h3 { font-size: 17px; }
   .application-form-grid { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .application-form-grid > label, .application-form-grid > .application-relation-field { color: var(--application-form-label); display: grid; font-size: 11px; gap: 7px; }
+  .application-form-grid > label, .application-form-grid > .application-relation-field { align-content: start; color: var(--application-form-label); display: grid; font-size: 11px; gap: 7px; }
   .application-form-grid > label:has(textarea) { grid-column: 1 / -1; }
   .application-form-grid small { color: var(--application-muted); font-size: 10px; }
   .application-field-label { display: inline; }
@@ -180,6 +180,15 @@
   .application-model-field-actions { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
   .application-model-new-badge { background: var(--application-post-bg); border-radius: 999px; color: var(--application-post-text); font-size: 9px; font-weight: 700; padding: 4px 7px; }
   .application-model-permissions { border-top: 1px solid var(--application-border); padding-top: 12px; }
+  .application-model-proposal .application-proposal-preview { background: var(--application-surface-subtle); border: 1px solid var(--application-border-note); border-radius: 10px; display: grid; gap: 12px; padding: 14px; }
+  .application-proposal-preview > header { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
+  .application-proposal-preview h4 { color: var(--application-heading); font-size: 13px; }
+  .application-proposal-preview p { color: var(--application-muted); font-size: 12px; line-height: 1.55; }
+  .application-proposal-preview ul { display: grid; gap: 8px; list-style: none; }
+  .application-proposal-preview li { border-left: 2px solid var(--application-focus); display: grid; gap: 2px; padding-left: 10px; }
+  .application-proposal-preview li strong { color: var(--application-heading); font-size: 11px; }
+  .application-proposal-preview li span { color: var(--application-muted); font-size: 11px; line-height: 1.5; }
+  .application-proposal-preview .button-row { flex-wrap: wrap; }
   .application-route-list { background: var(--application-surface); border: 1px solid var(--application-border); border-radius: 12px; display: grid; }
   .application-route-list article { align-items: center; border-bottom: 1px solid var(--application-row-border); display: grid; gap: 16px; grid-template-columns: 64px minmax(200px, 1fr) minmax(180px, .8fr); padding: 15px 18px; }
   .application-route-list article:last-child { border-bottom: 0; }

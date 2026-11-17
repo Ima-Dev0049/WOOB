@@ -16,6 +16,7 @@ import {
   type ApplicationRecordData,
   type WorkspaceRole,
 } from '@/lib/application/model';
+import { ApplicationProposalError, proposeApplicationModelChange, type ApplicationProposal, type ApplicationProposalKind } from '@/lib/application/proposal';
 import { requireProjectAccess } from '@/server/auth/tenancy';
 import type { ApplicationSummary } from '@/lib/application/summary';
 import { getDb, type Db } from '@/server/db';
@@ -450,6 +451,34 @@ export async function detachApplicationAttachment(userId: string, projectId: str
     if (!deleted.length) throw new ApiError(404, 'ATTACHMENT_NOT_FOUND', 'Pièce jointe introuvable pour ce dossier.');
     return { deleted: true };
   });
+}
+
+const proposalRequestSchema = z.object({
+  kind: z.enum(['suivi-date', 'tel', 'montant', 'validation']),
+  objectKey: z.string().trim().min(1).max(64),
+  label: z.string().trim().min(2).max(120).optional(),
+  from: z.string().max(64).optional(),
+  to: z.string().max(64).optional(),
+});
+
+/**
+ * Builds a structured proposal for the model draft. Nothing is saved here: the caller
+ * previews it, then persists through the existing versioned model update.
+ */
+export async function previewApplicationProposal(userId: string, projectId: string, input: unknown, db?: Db): Promise<ApplicationProposal> {
+  const data = proposalRequestSchema.parse(input);
+  const database = db ?? await getDb();
+  const context = await objectContext(userId, projectId, data.objectKey, 'edit', database);
+  authorize(context, 'update');
+  try {
+    return proposeApplicationModelChange(context.row.model, { ...data, kind: data.kind as ApplicationProposalKind });
+  } catch (error) {
+    if (error instanceof ApplicationProposalError) {
+      const status = error.code === 'PROPOSAL_TARGET_INVALID' ? 404 : error.code === 'PROPOSAL_ALREADY_APPLIED' ? 409 : 422;
+      throw new ApiError(status, error.code, error.message);
+    }
+    throw error;
+  }
 }
 
 export async function executeApplicationAction(userId: string, projectId: string, objectKey: string, recordId: string, actionKey: string, db?: Db) {

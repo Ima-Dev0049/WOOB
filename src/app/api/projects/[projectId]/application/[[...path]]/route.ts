@@ -14,6 +14,7 @@ import {
   getApplicationRecord,
   getApplicationSummary,
   listApplicationRecords,
+  previewApplicationProposal,
   saveApplicationModel,
   updateApplicationRecord,
 } from '@/server/services/application';
@@ -75,6 +76,9 @@ export async function POST(request: Request, context: RouteContext) {
     const auth = await requireUser();
     await assertCsrf(request);
     const { projectId, path = [] } = await context.params;
+    if (path.length === 1 && path[0] === 'proposals') {
+      return noStore(NextResponse.json({ proposal: await previewApplicationProposal(auth.user.id, projectId, await request.json()) }));
+    }
     if (path[0] !== 'objects') notFound();
     if (path.length === 2) {
       const body = recordBodySchema.parse(await request.json());

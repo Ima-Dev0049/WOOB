@@ -58,6 +58,8 @@ La recherche normalise les accents et applique tous les termes. `resolveProjectC
 
 ## Tenancy, auth et permissions
 
+Le modèle applicatif est versionné et validé par `applicationModelSchema` à chaque écriture. Les **propositions de modèle** sont des fonctions pures (`src/lib/application/proposal.ts`) exposées par `POST .../application/proposals` : elles partent du modèle **enregistré**, n'écrivent rien, ne retournent qu'un brouillon proposé et une liste de changements. L'acceptation réutilise le PUT versionné existant ; l'annulation n'a aucun effet de bord. Aucun provider IA n'est appelé.
+
 L'identité des utilisateurs finaux est **par site** : `site_users` et `site_sessions` sont liés au projet et au workspace, avec un cookie `woob_site_session` distinct de la session Studio. Le portail `/portail/{slug}` dépose des demandes dans un objet géré du modèle actif, avec un statut initial imposé par le serveur. Décision, alternatives et limites : [ADR-001](./ADR-001-site-identity.md).
 
 Chaque objet métier possède `workspaceId` et, lorsque pertinent, `projectId`. Les services résolvent d’abord la ressource puis le membership et la permission ; les ressources d’un autre tenant retournent `404` pour limiter la divulgation.

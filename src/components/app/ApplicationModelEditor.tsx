@@ -5,6 +5,7 @@ import { apiFetch, errorMessage } from '@/lib/client-api';
 import { ApplicationModelCanvas, applicationCanvasPointAt, initialApplicationCanvasPositions } from './ApplicationModelCanvas';
 import { addApplicationTransition, addOptionalApplicationEnumField, addOptionalApplicationRelationField, addOptionalApplicationTypedField, addSimpleApplicationObject, applicationFieldTypeLabels, removeApplicationDraftField, setApplicationObjectColumns, updateApplicationDraftField, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type ApplicationTransitionInput, type ApplicationTypedFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
 import { applicationColumnKeys, applicationModelSchema, buildApplicationRoutes, type ApplicationModel } from '@/lib/application/model';
+import { applicationProposalKinds, type ApplicationProposal, type ApplicationProposalKind } from '@/lib/application/proposal';
 
 const emptyObject: SimpleApplicationObjectInput = { label: '', pluralLabel: '', key: '', description: '' };
 const emptyFieldBounds = { min: '', max: '' };
@@ -53,6 +54,10 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
   const transitionLabelRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [proposalRequest, setProposalRequest] = useState<{ kind: ApplicationProposalKind; objectKey: string; label: string; from: string; to: string }>(() => ({ kind: 'suivi-date', objectKey: model.objects[0]?.key ?? '', label: '', from: '', to: '' }));
+  const [proposal, setProposal] = useState<ApplicationProposal | null>(null);
+  const [proposalPending, setProposalPending] = useState(false);
+  const [proposalStatus, setProposalStatus] = useState('');
   const parsedDraft = useMemo(() => applicationModelSchema.safeParse(draft), [draft]);
   const routeCount = parsedDraft.success ? buildApplicationRoutes(parsedDraft.data).length : 0;
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(model), [draft, model]);
@@ -319,6 +324,60 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     setError('');
   }
 
+  const proposalObject = draft.objects.find((object) => object.key === proposalRequest.objectKey);
+  const proposalStatuses = proposalObject?.fields.find((field) => field.key === proposalObject.statusField)?.options ?? [];
+
+  function updateProposalRequest(patch: Partial<typeof proposalRequest>) {
+    setProposalRequest((current) => ({ ...current, ...patch, ...(patch.objectKey ? { from: '', to: '' } : {}) }));
+    setProposal(null);
+    setProposalStatus('');
+    setError('');
+  }
+
+  async function requestProposal() {
+    if (dirty) {
+      setError('Enregistrez ou annulez le brouillon en cours avant de demander une proposition.');
+      return;
+    }
+    setProposalPending(true);
+    setProposalStatus('');
+    setError('');
+    try {
+      const payload = {
+        kind: proposalRequest.kind,
+        objectKey: proposalRequest.objectKey,
+        ...(proposalRequest.label.trim() ? { label: proposalRequest.label.trim() } : {}),
+        ...(proposalRequest.from ? { from: proposalRequest.from } : {}),
+        ...(proposalRequest.to ? { to: proposalRequest.to } : {}),
+      };
+      const result = await apiFetch<{ proposal: ApplicationProposal }>(`${baseUrl}/proposals`, { method: 'POST', body: JSON.stringify(payload) });
+      setProposal(result.proposal);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setProposalPending(false);
+    }
+  }
+
+  function acceptProposal() {
+    if (!proposal) return;
+    // The proposal is built from the stored model: never discard unsaved draft edits with it.
+    if (dirty) {
+      setError('Enregistrez ou annulez le brouillon en cours avant d’appliquer une proposition.');
+      return;
+    }
+    setDraft(proposal.model);
+    setProposal(null);
+    setProposalStatus('Proposition appliquée au brouillon. Enregistrez-le pour la conserver.');
+    setError('');
+  }
+
+  function ignoreProposal() {
+    setProposal(null);
+    setProposalStatus('Proposition ignorée : le brouillon n’a pas changé.');
+    setError('');
+  }
+
   async function apply() {
     if (!parsedDraft.success) {
       setError(`Le brouillon est invalide : ${parsedDraft.error.issues[0]?.message ?? 'vérifiez les champs.'}`);
@@ -460,6 +519,28 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
             <label>Clé de la transition<input value={newTransition.key} maxLength={48} placeholder="Générée si vide" onChange={(event) => updateNewTransition('key', event.target.value)} /><small>Une clé déjà utilisée dans ce processus reçoit un suffixe. La source doit différer de la cible.</small></label>
           </div>
           <button type="button" className="button secondary small" disabled={pending || !newTransition.objectKey || !newTransition.label.trim() || !newTransition.from || !newTransition.to || newTransition.from === newTransition.to} onClick={addTransition}>Ajouter la transition au brouillon</button>
+        </fieldset>
+        <fieldset className="application-model-draft-group application-model-proposal">
+          <legend>Proposition assistée, prévisualisable</legend>
+          <p>Une proposition locale construite à partir du modèle actif : rien n’est enregistré avant votre validation, aucun modèle distant n’est appelé et le reste du modèle est conservé.</p>
+          <div className="application-form-grid">
+            <label>Type de proposition<select aria-label="Type de proposition" value={proposalRequest.kind} disabled={pending} onChange={(event) => updateProposalRequest({ kind: event.target.value as ApplicationProposalKind })}>{Object.entries(applicationProposalKinds).map(([value, item]) => <option key={value} value={value}>{item.label}</option>)}</select><small>{applicationProposalKinds[proposalRequest.kind].description}</small></label>
+            <label>Objet de la proposition<select aria-label="Objet de la proposition" value={proposalRequest.objectKey} disabled={pending} onChange={(event) => updateProposalRequest({ objectKey: event.target.value })}>{draft.objects.map((object) => <option key={object.key} value={object.key}>{object.pluralLabel} ({object.key})</option>)}</select></label>
+            <label>Libellé proposé<input value={proposalRequest.label} maxLength={120} disabled={pending} placeholder={applicationProposalKinds[proposalRequest.kind].defaultLabel} onChange={(event) => updateProposalRequest({ label: event.target.value })} /></label>
+            {proposalRequest.kind === 'validation' && <>
+              <label>Statut source<select value={proposalRequest.from} disabled={pending} onChange={(event) => updateProposalRequest({ from: event.target.value })}>{proposalStatuses.map((option) => <option key={option.value} value={option.value}>{option.label} ({option.value})</option>)}</select></label>
+              <label>Statut cible<select value={proposalRequest.to} disabled={pending} onChange={(event) => updateProposalRequest({ to: event.target.value })}>{proposalStatuses.map((option) => <option key={option.value} value={option.value}>{option.label} ({option.value})</option>)}</select></label>
+            </>}
+          </div>
+          <button type="button" className="button secondary small" disabled={pending || proposalPending || !proposalRequest.objectKey || dirty} onClick={() => void requestProposal()}>{proposalPending ? 'Construction…' : 'Prévisualiser la proposition'}</button>
+          {dirty && <p className="field-hint">Enregistrez ou annulez le brouillon actuel avant de demander une proposition : une proposition part toujours du modèle enregistré.</p>}
+          {proposal && <div className="application-proposal-preview" role="region" aria-label="Proposition prévisualisée">
+            <header><h4>{proposal.title}</h4><span className="status-pill">{proposal.objectLabel}</span></header>
+            <p>{proposal.summary}</p>
+            <ul>{proposal.changes.map((change) => <li key={change.label}><strong>{change.label}</strong><span>{change.detail}</span></li>)}</ul>
+            <div className="button-row"><button type="button" className="button coral small" disabled={pending} onClick={acceptProposal}>Appliquer la proposition au brouillon</button><button type="button" className="button secondary small" disabled={pending} onClick={ignoreProposal}>Ignorer la proposition</button></div>
+          </div>}
+          {proposalStatus && <p className="form-status" role="status">{proposalStatus}</p>}
         </fieldset>
       </div>
       <aside className="application-model-preview" aria-label="Aperçu du brouillon de modèle">
