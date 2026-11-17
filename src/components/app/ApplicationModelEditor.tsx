@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { apiFetch, errorMessage } from '@/lib/client-api';
 import { ApplicationModelCanvas, applicationCanvasPointAt, initialApplicationCanvasPositions } from './ApplicationModelCanvas';
-import { addApplicationTransition, addOptionalApplicationEnumField, addOptionalApplicationRelationField, addOptionalApplicationTypedField, addSimpleApplicationObject, applicationFieldTypeLabels, setApplicationObjectColumns, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type ApplicationTransitionInput, type ApplicationTypedFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
+import { addApplicationTransition, addOptionalApplicationEnumField, addOptionalApplicationRelationField, addOptionalApplicationTypedField, addSimpleApplicationObject, applicationFieldTypeLabels, removeApplicationDraftField, setApplicationObjectColumns, updateApplicationDraftField, type ApplicationRelationFieldInput, type ApplicationTextFieldInput, type ApplicationTransitionInput, type ApplicationTypedFieldInput, type SimpleApplicationObjectInput } from '@/lib/application/model-editor';
 import { applicationColumnKeys, applicationModelSchema, buildApplicationRoutes, type ApplicationModel } from '@/lib/application/model';
 
 const emptyObject: SimpleApplicationObjectInput = { label: '', pluralLabel: '', key: '', description: '' };
@@ -43,6 +43,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
   const [newRelation, setNewRelation] = useState<ApplicationRelationFieldInput>(() => ({ objectKey: model.objects[0]?.key ?? '', targetObject: model.objects[0]?.key ?? '', label: '', key: '' }));
   const [newTransition, setNewTransition] = useState<ApplicationTransitionInput>(() => initialTransition(model));
   const [columnObjectKey, setColumnObjectKey] = useState(model.objects[0]?.key ?? '');
+  const [editingField, setEditingField] = useState<{ objectKey: string; fieldKey: string; label: string; min: string; max: string; defaultValue: string } | null>(null);
   const [canvasPositions, setCanvasPositions] = useState(() => initialApplicationCanvasPositions(model.objects));
   const [selectedObjectKey, setSelectedObjectKey] = useState(model.objects[0]?.key ?? '');
   const [relationSource, setRelationSource] = useState<string | null>(null);
@@ -68,6 +69,9 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
   const enumOptionLabels = enumOptions.split('\n').map((option) => option.trim()).filter((option) => option.length > 0);
   const numericField = newField.type === 'integer' || newField.type === 'number';
   const dateField = newField.type === 'date';
+  const editedField = editingField ? draft.objects.find((object) => object.key === editingField.objectKey)?.fields.find((field) => field.key === editingField.fieldKey) : undefined;
+  const editedFieldNumeric = editedField?.type === 'integer' || editedField?.type === 'number';
+  const editedFieldDated = editedField?.type === 'date';
 
   function updateNewObject(field: keyof SimpleApplicationObjectInput, value: string) {
     setNewObject((current) => ({ ...current, [field]: value }));
@@ -236,6 +240,66 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
     updateColumns(next);
   }
 
+  function beginFieldEdit(objectKey: string, fieldKey: string) {
+    const field = draft.objects.find((object) => object.key === objectKey)?.fields.find((candidate) => candidate.key === fieldKey);
+    if (!field) return;
+    setEditingField({
+      objectKey,
+      fieldKey,
+      label: field.label,
+      min: field.min === undefined ? '' : String(field.min),
+      max: field.max === undefined ? '' : String(field.max),
+      defaultValue: field.defaultValue === undefined ? '' : String(field.defaultValue),
+    });
+    setError('');
+    fieldLabelRef.current?.focus();
+  }
+
+  function updateEditingField(field: 'label' | 'min' | 'max' | 'defaultValue', value: string) {
+    setEditingField((current) => current ? { ...current, [field]: value } : current);
+    setError('');
+  }
+
+  function applyFieldEdit() {
+    if (!editingField) return;
+    function parseNumber(value: string, message: string): number | null {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const parsed = Number(trimmed);
+      if (!Number.isFinite(parsed)) throw new Error(message);
+      return parsed;
+    }
+    try {
+      const numeric = editedFieldNumeric;
+      const defaultValue = numeric
+        ? parseNumber(editingField.defaultValue, 'La valeur par défaut doit être un nombre.')
+        : editedFieldDated ? editingField.defaultValue.trim() || null : undefined;
+      const next = updateApplicationDraftField(draft, {
+        objectKey: editingField.objectKey,
+        fieldKey: editingField.fieldKey,
+        label: editingField.label,
+        min: numeric ? parseNumber(editingField.min, 'La borne minimale doit être un nombre.') : undefined,
+        max: numeric ? parseNumber(editingField.max, 'La borne maximale doit être un nombre.') : undefined,
+        defaultValue,
+      });
+      setDraft(next);
+      setEditingField(null);
+      setError('');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Impossible de modifier ce champ.');
+    }
+  }
+
+  function removeField(objectKey: string, fieldKey: string) {
+    try {
+      setDraft(removeApplicationDraftField(draft, { objectKey, fieldKey }));
+      setEditingField((current) => current && current.objectKey === objectKey && current.fieldKey === fieldKey ? null : current);
+      setError('');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Impossible de supprimer ce champ.');
+    }
+  }
+
   function removeObject(objectKey: string) {
     setDraft((current) => ({ ...current, objects: current.objects.filter((object) => object.key !== objectKey).map((object) => {
       const fields = object.fields.filter((field) => field.targetObject !== objectKey);
@@ -372,6 +436,19 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
             </li>)}</ul> : <p>Tous les champs de cet objet sont affichés.</p>}
           </div>
         </fieldset>
+        {editingField && editedField && <fieldset className="application-model-draft-group" aria-label={`Modifier le champ ${editedField.label}`}>
+          <legend>Modifier le champ {editedField.label}</legend>
+          <p>Le libellé, les bornes et la valeur par défaut du champ <code>{editedField.key}</code> peuvent être corrigés sans changer sa clé ni les valeurs déjà saisies.</p>
+          <div className="application-form-grid">
+            <label>Libellé du champ<input ref={fieldLabelRef} value={editingField.label} required maxLength={120} onChange={(event) => updateEditingField('label', event.target.value)} /></label>
+            {editedFieldNumeric && <>
+              <label>Borne minimale<input type="number" step={editedField.type === 'integer' ? 1 : 'any'} value={editingField.min} placeholder="Aucune" onChange={(event) => updateEditingField('min', event.target.value)} /></label>
+              <label>Borne maximale<input type="number" step={editedField.type === 'integer' ? 1 : 'any'} value={editingField.max} placeholder="Aucune" onChange={(event) => updateEditingField('max', event.target.value)} /></label>
+            </>}
+            {(editedFieldNumeric || editedFieldDated) && <label>{editedFieldDated ? 'Date par défaut' : 'Valeur par défaut'}<input type={editedFieldDated ? 'date' : 'number'} step={editedField.type === 'integer' ? 1 : editedFieldNumeric ? 'any' : undefined} value={editingField.defaultValue} placeholder="Aucune" onChange={(event) => updateEditingField('defaultValue', event.target.value)} /></label>}
+          </div>
+          <div className="button-row"><button type="button" className="button secondary small" disabled={pending || !editingField.label.trim()} onClick={applyFieldEdit}>Mettre à jour le brouillon</button><button type="button" className="button ghost small" disabled={pending} onClick={() => { setEditingField(null); setError(''); }}>Annuler la modification</button></div>
+        </fieldset>}
         <fieldset className="application-model-draft-group">
           <legend>Ajouter une transition de processus</legend>
           <p>Ajoutez une transition à source unique entre deux statuts existants. Les grants explicites ne sont pas élargis ; les grants d’action * conservent leur effet.</p>
@@ -395,7 +472,7 @@ export function ApplicationModelEditor({ model, version, baseUrl, onApplied, onC
           const originalObject = model.objects.find((candidate) => candidate.key === object.key);
           const addedFields = object.fields.filter((field) => originalObject ? !originalObject.fields.some((candidate) => candidate.key === field.key) : field.key !== 'nom');
           const addedActions = object.actions.filter((action) => !originalObject?.actions.some((candidate) => candidate.key === action.key));
-          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small><small className="application-model-object-columns">Colonnes : {applicationColumnKeys(object).join(' → ')}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{applicationFieldTypeLabels[field.type]}</span>{(field.type === 'integer' || field.type === 'number') && (field.min !== undefined || field.max !== undefined) && <span className="application-model-field-constraints">Min. {field.min ?? '—'} · Max. {field.max ?? '—'}</span>}{(field.type === 'integer' || field.type === 'number' || field.type === 'date') && field.defaultValue !== undefined && <span className="application-model-field-constraints">Défaut : {String(field.defaultValue)}</span>}{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}{field.type === 'enum' && <span className="application-model-relation-target">Options : {field.options?.map((option) => option.label).join(', ')}</span>}</span>)}</span>}{addedActions.length > 0 && <span className="application-model-added-fields">{addedActions.map((action) => <span key={action.key}>↳ {action.label} <code>{action.key}</code><span className="application-model-field-type">Transition</span><span className="application-model-relation-target">{action.from.join(', ')} → {action.to}</span></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
+          return <li key={object.key}><div><strong>{object.pluralLabel}</strong><code>{object.key}</code><small className="application-model-object-meta">{object.fields.length} champ{object.fields.length > 1 ? 's' : ''}</small><small className="application-model-object-columns">Colonnes : {applicationColumnKeys(object).join(' → ')}</small>{addedFields.length > 0 && <span className="application-model-added-fields">{addedFields.map((field) => <span key={field.key}>+ {field.label} <code>{field.key}</code><span className="application-model-field-type">{applicationFieldTypeLabels[field.type]}</span>{(field.type === 'integer' || field.type === 'number') && (field.min !== undefined || field.max !== undefined) && <span className="application-model-field-constraints">Min. {field.min ?? '—'} · Max. {field.max ?? '—'}</span>}{(field.type === 'integer' || field.type === 'number' || field.type === 'date') && field.defaultValue !== undefined && <span className="application-model-field-constraints">Défaut : {String(field.defaultValue)}</span>}{field.type === 'relation' && <span className="application-model-relation-target">→ {field.targetObject}</span>}{field.type === 'enum' && <span className="application-model-relation-target">Options : {field.options?.map((option) => option.label).join(', ')}</span>}{field.type !== 'relation' && <span className="application-model-field-actions"><button type="button" className="button ghost small" disabled={pending} aria-label={`Modifier le champ ${field.label}`} onClick={() => beginFieldEdit(object.key, field.key)}>Modifier</button><button type="button" className="button ghost small" disabled={pending} aria-label={`Supprimer le champ ${field.label}`} onClick={() => removeField(object.key, field.key)}>Supprimer</button></span>}</span>)}</span>}{addedActions.length > 0 && <span className="application-model-added-fields">{addedActions.map((action) => <span key={action.key}>↳ {action.label} <code>{action.key}</code><span className="application-model-field-type">Transition</span><span className="application-model-relation-target">{action.from.join(', ')} → {action.to}</span></span>)}</span>}</div>{added && <><span className="application-model-new-badge">Nouveau</span><button type="button" className="button ghost small" disabled={pending} aria-label={`Retirer ${object.pluralLabel} du brouillon`} onClick={() => removeObject(object.key)}>Retirer</button></>}</li>;
         })}</ul>
         <p className="application-model-permissions">Les grants existants sont conservés sans élargissement : les ajouts utilisent les permissions de leur objet, seuls les grants d’action * couvrent automatiquement une nouvelle transition et aucun rôle ne reçoit implicitement un nouvel objet. L’enregistrement sera refusé si la version active n’est plus v{version}.</p>
       </aside>

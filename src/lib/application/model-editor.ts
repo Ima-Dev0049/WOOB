@@ -168,6 +168,87 @@ export function setApplicationObjectColumns(model: ApplicationModel, input: Appl
   });
 }
 
+export type ApplicationFieldEditInput = {
+  objectKey: string;
+  fieldKey: string;
+  label?: string | undefined;
+  min?: number | null | undefined;
+  max?: number | null | undefined;
+  defaultValue?: number | string | boolean | null | undefined;
+};
+
+/**
+ * Edits one draft field without changing its key, its stored values or any role grant.
+ * `undefined` keeps a setting, `null` removes it; the parsed schema revalidates bounds and defaults.
+ */
+export function updateApplicationDraftField(model: ApplicationModel, input: ApplicationFieldEditInput): ApplicationModel {
+  const target = model.objects.find((object) => object.key === input.objectKey);
+  if (!target) throw new Error('Objet cible introuvable dans le brouillon.');
+  const field = target.fields.find((candidate) => candidate.key === input.fieldKey);
+  if (!field) throw new Error('Champ cible introuvable dans le brouillon.');
+  if (field.type === 'relation') throw new Error('Une relation ne peut pas être modifiée depuis le brouillon.');
+  const numeric = field.type === 'integer' || field.type === 'number';
+  const dated = field.type === 'date';
+  const boolean = field.type === 'boolean';
+  const touchesBounds = input.min !== undefined || input.max !== undefined;
+  const touchesDefault = input.defaultValue !== undefined;
+  if (field.key === target.statusField && (touchesBounds || touchesDefault)) throw new Error('Le champ de statut conserve sa valeur initiale.');
+  if (touchesBounds && !numeric) throw new Error('Les bornes sont réservées aux champs numériques.');
+  if (touchesDefault && !numeric && !dated && !boolean) throw new Error('La valeur par défaut configurable est réservée aux champs numériques, aux dates et aux booléens.');
+  if (input.label !== undefined && !input.label.trim()) throw new Error('Le libellé du champ est obligatoire.');
+  const candidate: Record<string, unknown> = { ...field };
+  if (input.label !== undefined) candidate.label = input.label.trim();
+  if (numeric) {
+    if (input.min !== undefined) {
+      if (input.min === null) delete candidate.min;
+      else candidate.min = input.min;
+    }
+    if (input.max !== undefined) {
+      if (input.max === null) delete candidate.max;
+      else candidate.max = input.max;
+    }
+  }
+  if (touchesDefault) {
+    if (input.defaultValue === null) delete candidate.defaultValue;
+    else if (numeric && typeof input.defaultValue !== 'number') throw new Error('La valeur par défaut doit être un nombre.');
+    else if (dated && typeof input.defaultValue !== 'string') throw new Error('La valeur par défaut doit être une date.');
+    else if (boolean && typeof input.defaultValue !== 'boolean') throw new Error('La valeur par défaut doit être un booléen.');
+    else candidate.defaultValue = input.defaultValue;
+  }
+  return applicationModelSchema.parse({
+    ...model,
+    objects: model.objects.map((object) => object.key === target.key
+      ? { ...object, fields: object.fields.map((current) => current.key === field.key ? candidate : current) }
+      : object),
+  });
+}
+
+export type ApplicationFieldRemovalInput = { objectKey: string; fieldKey: string };
+
+/**
+ * Removes one draft field and its column reference only. The server still refuses a field
+ * that already holds data, and the title and status fields stay mandatory.
+ */
+export function removeApplicationDraftField(model: ApplicationModel, input: ApplicationFieldRemovalInput): ApplicationModel {
+  const target = model.objects.find((object) => object.key === input.objectKey);
+  if (!target) throw new Error('Objet cible introuvable dans le brouillon.');
+  const field = target.fields.find((candidate) => candidate.key === input.fieldKey);
+  if (!field) throw new Error('Champ cible introuvable dans le brouillon.');
+  if (field.key === target.titleField) throw new Error('Le champ titre ne peut pas être supprimé.');
+  if (field.key === target.statusField) throw new Error('Le champ de statut ne peut pas être supprimé.');
+  if (target.fields.length <= 1) throw new Error('Un objet doit conserver au moins un champ.');
+  return applicationModelSchema.parse({
+    ...model,
+    objects: model.objects.map((object) => {
+      if (object.key !== target.key) return object;
+      const fields = object.fields.filter((candidate) => candidate.key !== field.key);
+      if (!object.columns) return { ...object, fields };
+      const columns = object.columns.filter((key) => key !== field.key);
+      return { ...object, fields, columns: columns.length ? columns : [object.titleField] };
+    }),
+  });
+}
+
 /** Adds one optional relation without changing existing fields, columns, actions or grants. */
 export function addOptionalApplicationRelationField(model: ApplicationModel, input: ApplicationRelationFieldInput): ApplicationModel {
   const source = model.objects.find((object) => object.key === input.objectKey);

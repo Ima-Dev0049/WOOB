@@ -139,6 +139,19 @@ async function listFromContext(context: ObjectContext, input: unknown, db: Db) {
   return { records, total: count[0]?.value ?? 0, limit: options.limit, offset: options.offset };
 }
 
+/** Explains a removed field that still holds data before the generic record incompatibility. */
+function assertRemovedFieldsAreUnused(current: ApplicationModel, next: ApplicationModel, records: ApplicationRecordRow[]): void {
+  for (const object of current.objects) {
+    const nextObject = next.objects.find((candidate) => candidate.key === object.key);
+    if (!nextObject) continue;
+    for (const field of object.fields) {
+      if (nextObject.fields.some((candidate) => candidate.key === field.key)) continue;
+      const record = records.find((candidate) => candidate.objectKey === object.key && Object.prototype.hasOwnProperty.call(candidate.data, field.key));
+      if (record) throw new ApiError(409, 'APPLICATION_MODEL_INCOMPATIBLE', `Le champ « ${field.label} » contient des données et ne peut pas être supprimé.`, { objectKey: object.key, fieldKey: field.key, recordId: record.id });
+    }
+  }
+}
+
 function assertModelCompatibility(model: ApplicationModel, records: ApplicationRecordRow[]): void {
   const recordsById = new Map(records.map((record) => [record.id, record]));
   for (const record of records) {
@@ -181,6 +194,7 @@ export async function saveApplicationModel(userId: string, projectId: string, in
     if ((payload.baseVersion ?? 0) !== version) throw new ApiError(409, 'APPLICATION_MODEL_REVISION_CONFLICT', 'Le modèle a changé. Rechargez sa dernière version avant de réessayer.');
     if (current) {
       const existingRecords = await tx.select().from(applicationRecords).where(and(eq(applicationRecords.projectId, projectId), eq(applicationRecords.workspaceId, access.project.workspaceId)));
+      assertRemovedFieldsAreUnused(current.model, model, existingRecords);
       assertModelCompatibility(model, existingRecords);
       await tx.update(applicationModels).set({ current: false }).where(and(eq(applicationModels.id, current.id), eq(applicationModels.workspaceId, access.project.workspaceId), eq(applicationModels.current, true)));
     }

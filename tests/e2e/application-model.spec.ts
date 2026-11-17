@@ -1116,3 +1116,93 @@ test('une liste de choix optionnelle conserve les anciennes filières et affiche
   await expect(levelCell).toHaveText('Master');
   expect(browserErrors).toEqual([]);
 });
+
+test('un champ ajouté peut être corrigé puis retiré du brouillon sans toucher aux dossiers existants', async ({ page }) => {
+  test.setTimeout(120_000);
+  const browserErrors: string[] = [];
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+  const suffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  await page.setExtraHTTPHeaders({ 'x-forwarded-for': `10.90.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}` });
+  await register(page, `model-field-edit-${suffix}@example.com`);
+  await createProjectThroughWizard(page, `Correction de champ ${suffix}`);
+  await page.getByRole('link', { name: 'Modèle d’application →' }).click();
+  const setupResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await page.getByRole('button', { name: 'Initialiser un portail scolaire' }).click();
+  await setupResponse;
+  await expect(page.getByRole('heading', { name: 'Portail scolaire', exact: true })).toBeVisible();
+
+  const form = page.locator('.application-record-form:not(.application-model-editor)');
+  const filiereName = `Filière conservée ${suffix}`;
+  await page.getByRole('button', { name: 'Ajouter : Filière', exact: true }).click();
+  await form.getByRole('textbox', { name: 'Nom de la filière', exact: true }).fill(filiereName);
+  await form.getByRole('textbox', { name: 'Code', exact: true }).fill('AVANT');
+  await form.getByRole('textbox', { name: 'Description', exact: true }).fill('Créée avant la correction du brouillon.');
+  const createResponse = page.waitForResponse((response) => response.url().includes('/application/objects/filieres') && response.request().method() === 'POST' && response.status() === 201);
+  await form.getByRole('button', { name: 'Créer l’enregistrement' }).click();
+  await createResponse;
+  const row = page.locator('.application-table tbody tr').filter({ hasText: filiereName });
+  await expect(row).toBeVisible();
+
+  await page.getByRole('button', { name: 'Personnaliser le modèle', exact: true }).click();
+  const editor = page.locator('.application-model-editor');
+  const preview = page.getByRole('complementary', { name: 'Aperçu du brouillon de modèle', exact: true });
+  const filierePreview = preview.locator('li').filter({ hasText: 'Filières' });
+  await editor.getByRole('combobox', { name: 'Objet cible', exact: true }).selectOption('filieres');
+  await editor.getByRole('combobox', { name: 'Type de champ', exact: true }).selectOption('integer');
+  await editor.getByRole('textbox', { name: 'Nom du champ', exact: true }).fill('Capacité');
+  await editor.getByRole('spinbutton', { name: /^Borne minimale/ }).fill('1');
+  await editor.getByRole('spinbutton', { name: /^Borne maximale/ }).fill('120');
+  await editor.getByRole('spinbutton', { name: /^Valeur par défaut/ }).fill('24');
+  await editor.getByRole('button', { name: 'Ajouter le champ au brouillon', exact: true }).click();
+  await editor.getByRole('textbox', { name: 'Nom du champ', exact: true }).fill('Responsable');
+  await editor.getByRole('combobox', { name: 'Type de champ', exact: true }).selectOption('text');
+  await editor.getByRole('button', { name: 'Ajouter le champ au brouillon', exact: true }).click();
+  await expect(filierePreview).toContainText('5 champs');
+  await expect(filierePreview).toContainText('Capacité');
+  await expect(filierePreview).toContainText('Responsable');
+
+  await editor.getByRole('button', { name: 'Modifier le champ Capacité', exact: true }).click();
+  const editGroup = editor.getByRole('group', { name: 'Modifier le champ Capacité', exact: true });
+  await expect(editGroup).toBeVisible();
+  await editGroup.getByLabel('Libellé du champ', { exact: true }).fill('Places disponibles');
+  await editGroup.getByRole('spinbutton', { name: 'Borne minimale', exact: true }).fill('5');
+  await editGroup.getByRole('spinbutton', { name: 'Borne maximale', exact: true }).fill('60');
+  await editGroup.getByRole('spinbutton', { name: 'Valeur par défaut', exact: true }).fill('12');
+  await editGroup.getByRole('button', { name: 'Mettre à jour le brouillon', exact: true }).click();
+  await expect(editGroup).toHaveCount(0);
+  await expect(filierePreview).toContainText('Places disponibles');
+  await expect(filierePreview).toContainText('Min. 5 · Max. 60');
+  await expect(filierePreview).toContainText('Défaut : 12');
+
+  await editor.getByRole('button', { name: 'Supprimer le champ Responsable', exact: true }).click();
+  await expect(filierePreview).not.toContainText('Responsable');
+  await expect(filierePreview).toContainText('4 champs');
+  await expectApplicationAccessible(page);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dimensions = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1);
+  await page.screenshot({ path: 'test-results/application-model-field-edit-mobile.png', fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  const applyResponse = page.waitForResponse((response) => response.url().includes('/application') && response.request().method() === 'PUT' && response.status() === 200);
+  await editor.getByRole('button', { name: 'Appliquer le brouillon', exact: true }).click();
+  await applyResponse;
+  await expect(editor).toHaveCount(0);
+  await expect(page.locator('.application-runtime-note')).toContainText('Modèle v2');
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('AVANT');
+
+  await page.getByRole('button', { name: `Modifier : ${filiereName}`, exact: true }).click();
+  const capacity = form.getByRole('spinbutton', { name: 'Places disponibles', exact: true });
+  await expect(capacity).toHaveAttribute('min', '5');
+  await expect(capacity).toHaveAttribute('max', '60');
+  await expect(form.getByRole('textbox', { name: 'Responsable', exact: true })).toHaveCount(0);
+  await form.getByRole('button', { name: 'Annuler' }).click();
+
+  await page.reload();
+  await page.getByRole('button', { name: `Modifier : ${filiereName}`, exact: true }).click();
+  await expect(form.getByRole('spinbutton', { name: 'Places disponibles', exact: true })).toHaveAttribute('min', '5');
+  await expect(form.getByRole('textbox', { name: 'Code', exact: true })).toHaveValue('AVANT');
+  expect(browserErrors).toEqual([]);
+});

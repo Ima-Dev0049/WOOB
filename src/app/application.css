@@ -176,6 +176,7 @@
   .application-model-added-fields > span { overflow-wrap: anywhere; }
   .application-model-added-fields code { margin-left: 4px; }
   .application-model-field-type, .application-model-relation-target, .application-model-field-constraints { color: var(--application-muted); margin-left: 4px; }
+  .application-model-field-actions { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
   .application-model-new-badge { background: var(--application-post-bg); border-radius: 999px; color: var(--application-post-text); font-size: 9px; font-weight: 700; padding: 4px 7px; }
   .application-model-permissions { border-top: 1px solid var(--application-border); padding-top: 12px; }
   .application-route-list { background: var(--application-surface); border: 1px solid var(--application-border); border-radius: 12px; display: grid; }

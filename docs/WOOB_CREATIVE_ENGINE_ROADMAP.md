@@ -95,7 +95,7 @@ Narration avancée, 3D/WebGL plus riches au cas par cas, évaluateurs multimodau
 ## 5. Dernière base vérifiée
 
 - TypeScript, ESLint et build de production : réussis dans `npm run verify`.
-- Vitest : **74/74 tests dans 14 fichiers**.
-- Playwright : **32/32 parcours** sur le build de production.
+- Vitest : **116/116 tests dans 19 fichiers**.
+- Playwright : **65/65 parcours** sur le build de production, en Chromium.
 - Migration historique `0006_creative_brief` : **42 projets avant/après** sur la base locale existante ; aucune nouvelle migration pour `scene3d`.
 - Captures du brief, concepts et démos examinées séparément ; deux captures 3D production à 1440/390 px ajoutées. Ce ne sont pas des pipelines visuels automatiques.

@@ -7,7 +7,7 @@ import { createAccount, testDatabase } from './helpers/database';
 import { createProject } from '@/server/services/projects';
 import { addExistingMember } from '@/server/services/members';
 import { applicationColumnKeys, applicationModelSchema, applicationRecordSchema, buildApplicationRoutes, roleCan, roleCanAction, type ApplicationModel } from '@/lib/application/model';
-import { addApplicationTransition, addOptionalApplicationEnumField, addOptionalApplicationRelationField, addOptionalApplicationTextField, addOptionalApplicationTypedField, addSimpleApplicationObject, setApplicationObjectColumns } from '@/lib/application/model-editor';
+import { addApplicationTransition, addOptionalApplicationEnumField, addOptionalApplicationRelationField, addOptionalApplicationTextField, addOptionalApplicationTypedField, addSimpleApplicationObject, removeApplicationDraftField, setApplicationObjectColumns, updateApplicationDraftField } from '@/lib/application/model-editor';
 import { commercialApplicationModel } from '@/lib/application/commercial-model';
 import { restaurantApplicationModel } from '@/lib/application/restaurant-model';
 import { schoolApplicationModel } from '@/lib/application/school-model';
@@ -560,6 +560,52 @@ describe('modèle d’application géré', () => {
     expect((await getApplicationRecord(account.user.id, details.project.id, 'dossiers', dossier.id, context.db)).data.statut).toBe('en-revue');
     await expect(executeApplicationAction(account.user.id, details.project.id, 'dossiers', dossier.id, 'rouvrir', context.db)).rejects.toMatchObject({ status: 409, code: 'APPLICATION_TRANSITION_INVALID' });
     expect((await executeApplicationAction(account.user.id, details.project.id, 'dossiers', dossier.id, 'accepter', context.db)).data.statut).toBe('accepte');
+  });
+
+  it('corrige puis retire un champ ajouté au brouillon sans perdre les données existantes', async () => {
+    const { account, details } = await setup('edit-field-application@example.com');
+    const existing = await createFiliere(account.user.id, details.project.id, 'AVANT');
+    const added = addOptionalApplicationTypedField(schoolApplicationModel, { objectKey: 'filieres', label: 'Capacité', key: '', type: 'integer' });
+    expect(added.objects[0]!.fields.at(-1)).toMatchObject({ key: 'capacite', label: 'Capacité', type: 'integer', required: false });
+
+    expect(() => updateApplicationDraftField(added, { objectKey: 'filieres', fieldKey: 'capacite', min: 0, max: 10, defaultValue: 12 })).toThrow(/La valeur par défaut sort des bornes/);
+    expect(() => updateApplicationDraftField(added, { objectKey: 'filieres', fieldKey: 'capacite', min: 20, max: 5 })).toThrow(/La borne minimale dépasse le maximum/);
+    expect(() => updateApplicationDraftField(added, { objectKey: 'filieres', fieldKey: 'capacite', label: '   ' })).toThrow('Le libellé du champ est obligatoire.');
+    expect(() => updateApplicationDraftField(added, { objectKey: 'dossiers', fieldKey: 'filiere-id', label: 'Filière liée' })).toThrow('Une relation ne peut pas être modifiée');
+    expect(() => updateApplicationDraftField(added, { objectKey: 'dossiers', fieldKey: 'statut', defaultValue: 'accepte' })).toThrow('Le champ de statut conserve sa valeur initiale.');
+
+    const corrected = updateApplicationDraftField(added, { objectKey: 'filieres', fieldKey: 'capacite', label: 'Places disponibles', min: 0, max: 120, defaultValue: 24 });
+    expect(corrected.objects[0]!.fields.at(-1)).toMatchObject({ key: 'capacite', label: 'Places disponibles', min: 0, max: 120, defaultValue: 24 });
+    expect(added.objects[0]!.fields.at(-1)).toMatchObject({ label: 'Capacité' });
+    const widened = updateApplicationDraftField(corrected, { objectKey: 'filieres', fieldKey: 'capacite', min: null, defaultValue: null });
+    expect(widened.objects[0]!.fields.at(-1)).toMatchObject({ key: 'capacite', max: 120 });
+    expect(widened.objects[0]!.fields.at(-1)!.min).toBeUndefined();
+    expect(widened.objects[0]!.fields.at(-1)!.defaultValue).toBeUndefined();
+
+    expect(() => removeApplicationDraftField(schoolApplicationModel, { objectKey: 'filieres', fieldKey: 'nom' })).toThrow('Le champ titre ne peut pas être supprimé.');
+    expect(() => removeApplicationDraftField(schoolApplicationModel, { objectKey: 'dossiers', fieldKey: 'statut' })).toThrow('Le champ de statut ne peut pas être supprimé.');
+
+    const withColumns = setApplicationObjectColumns(corrected, { objectKey: 'filieres', columns: ['nom', 'code', 'description', 'capacite'] });
+    const removed = removeApplicationDraftField(withColumns, { objectKey: 'filieres', fieldKey: 'capacite' });
+    expect(removed.objects[0]!.fields.some((field) => field.key === 'capacite')).toBe(false);
+    expect(removed.objects[0]!.columns).toEqual(['nom', 'code', 'description']);
+    expect(removed.roles).toEqual(schoolApplicationModel.roles);
+
+    expect((await saveApplicationModel(account.user.id, details.project.id, { model: withColumns, baseVersion: 1 }, context.db)).version).toBe(2);
+    const filled = await createApplicationRecord(account.user.id, details.project.id, 'filieres', { nom: 'Filière pleine', code: 'PLEIN', description: 'Champ utilisé.', capacite: 42 }, context.db);
+    await expect(saveApplicationModel(account.user.id, details.project.id, { model: removed, baseVersion: 2 }, context.db)).rejects.toMatchObject({
+      status: 409,
+      code: 'APPLICATION_MODEL_INCOMPATIBLE',
+      message: expect.stringContaining('Le champ « Places disponibles » contient des données'),
+    });
+    expect((await getApplicationModel(account.user.id, details.project.id, context.db)).version).toBe(2);
+
+    await deleteApplicationRecord(account.user.id, details.project.id, 'filieres', filled.id, context.db);
+    expect((await saveApplicationModel(account.user.id, details.project.id, { model: removed, baseVersion: 2 }, context.db)).version).toBe(3);
+    const active = await getApplicationModel(account.user.id, details.project.id, context.db);
+    expect(active.model?.objects[0]!.fields.some((field) => field.key === 'capacite')).toBe(false);
+    expect((await getApplicationRecord(account.user.id, details.project.id, 'filieres', existing.id, context.db)).data.code).toBe('AVANT');
+    expect((await createFiliere(account.user.id, details.project.id, 'APRES')).data.code).toBe('APRES');
   });
 
   it('conserve les versions et refuse une évolution incompatible avec les données', async () => {

@@ -1,8 +1,20 @@
 # Woob — état réel d’implémentation
 
-Mise à jour : 2026-10-25. Branche : `arena/639e32e6-woob`.
+Mise à jour : 2026-10-23. Branche : `arena/639e32e6-woob`.
 
-## Incrément courant — `project-create-idempotency`
+## Incrément courant — `draft-field-correction`
+
+Le brouillon de modèle permet désormais de **corriger un champ ajouté** pendant la session — libellé, bornes d’un entier ou d’un décimal, valeur par défaut d’un numérique ou d’une date — puis de le **retirer du brouillon** avec ses références de colonnes. `updateApplicationDraftField` conserve la clé technique, les valeurs déjà saisies, les colonnes non concernées, les actions et les grants ; `removeApplicationDraftField` refuse le champ titre, le champ de statut et le dernier champ d’un objet. Une relation n’est pas modifiable par ce chemin, et retirer un champ d’un tableau vide sa liste de colonnes retombe sur le champ titre.
+
+Le serveur ne fait pas confiance à l’interface : avant d’enregistrer une version, il compare le modèle actif et le modèle proposé et refuse toute suppression d’un champ encore présent dans au moins un enregistrement, avec **409 `APPLICATION_MODEL_INCOMPATIBLE`** et le message `Le champ « … » contient des données et ne peut pas être supprimé.` La vérification de compatibilité existante continue de refuser une borne, un défaut ou un retrait qui invaliderait les données. Aucun enregistrement n’est réécrit, aucune valeur stockée n’est effacée et aucun grant n’est élargi.
+
+- `npm run verify` : TypeScript strict, ESLint, build Next.js et **116/116 Vitest dans 19 fichiers** réussis. Le nouveau test couvre la correction du libellé, des bornes et du défaut, le retrait bornes/défaut, les refus du champ titre, du champ de statut, du dernier champ et des relations, l’ajustement des colonnes, puis le refus serveur d’une suppression de champ utilisée et sa réussite après suppression du seul enregistrement concerné, sans altérer le dossier historique.
+- `npm run test:e2e -- tests/e2e/application-model.spec.ts` : **12/12** parcours du modèle applicatif réussis, dont le nouveau scénario qui ajoute deux champs, corrige le libellé et les bornes du premier, retire le second, applique le brouillon, puis vérifie dans le formulaire rechargé `min`/`max`, l’absence du champ retiré et la conservation de la filière existante.
+- `npm run test:e2e` : **65/65 Playwright** sur build de production en Chromium, en **11,6 min**, y compris les parcours historiques du brouillon, du canvas, des colonnes, des relations, des booléens et des enums.
+- La capture mobile **390 px** du brouillon corrigé a été inspectée : boutons Modifier/Supprimer lisibles, aucun débordement horizontal. L’audit Axe du brouillon reste sans violation automatisée dans sa portée.
+- **Limites :** seuls les champs ajoutés dans le brouillon courant sont proposés à la correction ou au retrait ; un champ déjà enregistré reste absent de ces contrôles, même s’il est vide. Les options d’un enum, les libellés d’options et les relations ne sont pas éditables. Retirer un champ du brouillon n’efface aucune donnée historique : il libère seulement le schéma d’une donnée inexistante, et reste refusé tant qu’un enregistrement la référence. Aucune nouvelle dépendance, migration, réinitialisation de base, modification d’environnement sensible ou publication externe.
+
+## Incrément précédent — `project-create-idempotency`
 
 La création de projet accepte désormais une clé UUID `requestId`, envoyée par le wizard dans le corps et l’en-tête `Idempotency-Key` ; l’en-tête API est prioritaire. La migration additive `drizzle/0009_loose_robin_chapel.sql` crée `project_creation_requests`, avec unicité `(workspaceId, requestedBy, requestKey)` et clé étrangère composite vers le projet du même workspace. Aucune table existante n’est modifiée et aucune clé historique n’est inventée par backfill.
 
